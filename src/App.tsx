@@ -237,7 +237,7 @@ export default function App() {
     setIsStudentModalOpen(true);
   };
 
-  // Check URL parameters on mount / app load for direct QR code links (?exam=id or ?game=id)
+  // Check URL parameters on mount / app load for direct QR code links (?exam=id or ?game=id or ?role=student)
   useEffect(() => {
     if (typeof window === 'undefined' || urlParamsProcessed) return;
 
@@ -245,6 +245,17 @@ export default function App() {
       const params = new URLSearchParams(window.location.search);
       const examParam = params.get('exam');
       const gameParam = params.get('game');
+      const roleParam = params.get('role');
+
+      // Automatically establish Student Role when accessing via QR Code or Direct Link
+      if (examParam || gameParam || roleParam === 'student') {
+        setUserRole('student');
+        localStorage.setItem('user_role', 'student');
+        setAppData((prev) => ({
+          ...prev,
+          settings: { ...prev.settings, currentRole: 'student' },
+        }));
+      }
 
       if (examParam) {
         setUrlParamsProcessed(true);
