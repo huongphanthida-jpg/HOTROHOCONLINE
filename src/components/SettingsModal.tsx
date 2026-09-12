@@ -27,12 +27,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [apiKey, setApiKey] = useState(settings.geminiApiKey);
   const [showKey, setShowKey] = useState(false);
   const [selectedModel, setSelectedModel] = useState(() => {
-    const model = settings.selectedModel || 'gemini-3.8-flash';
+    const model = settings.selectedModel || 'gemini-3-flash-preview';
     if (
+      model === 'gemini-3.8-flash' ||
       model === 'gemini-3.6-flash' || 
       model === 'gemini-2.0-flash'
     ) {
-      return 'gemini-3.8-flash';
+      return 'gemini-3-flash-preview';
     }
     return model;
   });
