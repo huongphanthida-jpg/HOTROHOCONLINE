@@ -23,6 +23,9 @@ import {
   CheckCircle2,
   QrCode,
   Download,
+  Edit3,
+  Pencil,
+  Check,
 } from 'lucide-react';
 import { exportExamToWordDocx } from '../utils/exportUtils';
 
@@ -32,6 +35,7 @@ interface SubjectCardsViewProps {
   documents?: DocumentLearning[];
   onSelectSubjectToExam: (subject: Subject) => void;
   onDeleteSubject?: (subjectId: string) => void;
+  onUpdateSubject?: (updatedSubject: Subject) => void;
   onClearAllSubjects?: () => void;
   onRestoreDefaultSubjects?: () => void;
   onAddSubject?: (newSub: Subject, generatedQuestions?: Question[]) => void;
@@ -45,6 +49,7 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
   documents = [],
   onSelectSubjectToExam,
   onDeleteSubject,
+  onUpdateSubject,
   onClearAllSubjects,
   onRestoreDefaultSubjects,
   onAddSubject,
@@ -57,6 +62,11 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
 
   // Modals state
   const [subjectToDelete, setSubjectToDelete] = useState<Subject | null>(null);
+  const [subjectToEdit, setSubjectToEdit] = useState<Subject | null>(null);
+  const [editSubName, setEditSubName] = useState('');
+  const [editSubDesc, setEditSubDesc] = useState('');
+  const [editSubClassName, setEditSubClassName] = useState('');
+  const [editSubGrade, setEditSubGrade] = useState('');
   const [qrSubject, setQrSubject] = useState<Subject | null>(null);
   const [isConfirmClearAllOpen, setIsConfirmClearAllOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -453,6 +463,25 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
                       {sub.questionsCount} câu hỏi
                     </span>
 
+                    {/* Activated Edit Button next to Delete Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSubjectToEdit(sub);
+                        setEditSubName(sub.name);
+                        setEditSubDesc(sub.description || '');
+                        setEditSubClassName(sub.className || '');
+                        setEditSubGrade(sub.grade || '10');
+                      }}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/50 transition-colors"
+                      title={`Chỉnh sửa tên và thông tin đề thi "${sub.name}"`}
+                      aria-label={`Chỉnh sửa tên đề thi ${sub.name}`}
+                      id={`btn-edit-icon-${sub.id}`}
+                    >
+                      <Edit3 className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                    </button>
+
                     {/* Activated Delete Button next to Subject Data */}
                     {onDeleteSubject && (
                       <button
@@ -498,9 +527,23 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
 
                 {/* Subject info */}
                 <div className="space-y-1.5 mb-5">
-                  <h3 className="text-base font-bold text-slate-800 dark:text-white group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
-                    {sub.name}
-                  </h3>
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSubjectToEdit(sub);
+                      setEditSubName(sub.name);
+                      setEditSubDesc(sub.description || '');
+                      setEditSubClassName(sub.className || '');
+                      setEditSubGrade(sub.grade || '10');
+                    }}
+                    className="flex items-center space-x-1.5 group/title cursor-pointer"
+                    title="Bấm để sửa tên đề thi"
+                  >
+                    <h3 className="text-base font-bold text-slate-800 dark:text-white group-hover/title:text-teal-600 dark:group-hover/title:text-teal-400 transition-colors">
+                      {sub.name}
+                    </h3>
+                    <Edit3 className="w-3.5 h-3.5 text-slate-400 opacity-0 group-hover/title:opacity-100 transition-opacity shrink-0" />
+                  </div>
                   <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
                     {sub.description}
                   </p>
@@ -786,6 +829,130 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
             questionsCount: qrSubject.questionsCount,
           }}
         />
+      {/* MODAL: Chỉnh Sửa Tên & Thông Tin Đề Thi */}
+      {subjectToEdit && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-lg bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-800 p-6 space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center space-x-2.5">
+                <div className="p-2 bg-teal-100 dark:bg-teal-900/50 text-teal-600 rounded-xl">
+                  <Edit3 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-800 dark:text-white">
+                    Chỉnh Sửa Tên & Thông Tin Đề Thi
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Cập nhật tên bài thi, tên lớp học và mô tả hiển thị
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setSubjectToEdit(null)}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Tên Đề Thi */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Tên Đề Thi / Bài Học <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={editSubName}
+                  onChange={(e) => setEditSubName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm font-semibold focus:ring-2 focus:ring-teal-500"
+                  placeholder="Ví dụ: Đề thi Hóa học 10 - Chương 1 Nguyên tử"
+                />
+              </div>
+
+              {/* Lớp Học & Khối */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Lớp Học (VD: 10A1, 10T2, 12D1)
+                  </label>
+                  <input
+                    type="text"
+                    value={editSubClassName}
+                    onChange={(e) => setEditSubClassName(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-semibold focus:ring-2 focus:ring-teal-500"
+                    placeholder="Nhập tên lớp..."
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Khối Lớp
+                  </label>
+                  <select
+                    value={editSubGrade}
+                    onChange={(e) => setEditSubGrade(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-semibold focus:ring-2 focus:ring-teal-500"
+                  >
+                    <option value="10">Khối 10</option>
+                    <option value="11">Khối 11</option>
+                    <option value="12">Khối 12</option>
+                    <option value="other">Khác</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Mô Tả */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Mô Tả Chi Tiết Về Đề Thi
+                </label>
+                <textarea
+                  rows={3}
+                  value={editSubDesc}
+                  onChange={(e) => setEditSubDesc(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 text-xs focus:ring-2 focus:ring-teal-500 leading-relaxed"
+                  placeholder="Mô tả nội dung bài thi..."
+                />
+              </div>
+            </div>
+
+            {/* Action Bar */}
+            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setSubjectToEdit(null)}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (!editSubName.trim()) {
+                    alert('Vui lòng nhập tên đề thi!');
+                    return;
+                  }
+                  const updated: Subject = {
+                    ...subjectToEdit,
+                    name: editSubName.trim(),
+                    description: editSubDesc.trim(),
+                    className: editSubClassName.trim() || undefined,
+                    grade: editSubGrade || '10',
+                  };
+                  if (onUpdateSubject) {
+                    onUpdateSubject(updated);
+                  }
+                  setSubjectToEdit(null);
+                }}
+                className="px-5 py-2.5 bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold text-xs rounded-xl shadow-md transition-all flex items-center space-x-1.5"
+              >
+                <Check className="w-4 h-4" />
+                <span>Lưu Thay Đổi</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
