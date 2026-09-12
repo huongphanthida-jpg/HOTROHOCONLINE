@@ -16,7 +16,7 @@ import { AITutorModal } from './components/AITutorModal';
 import { SettingsModal } from './components/SettingsModal';
 import { soundEffects } from './utils/soundEffects';
 import { EducationalGame } from './types';
-import { GameSessionResult } from './services/sheetSyncService';
+import { GameSessionResult, syncSessionToGoogleSheets } from './services/sheetSyncService';
 
 export default function App() {
   // Load application data from LocalStorage or use INITIAL_DATA
@@ -81,6 +81,7 @@ export default function App() {
   const [pendingSubject, setPendingSubject] = useState<{ name: string; id: string; questions: Question[] } | null>(null);
   const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
   const [targetGameIdFromUrl, setTargetGameIdFromUrl] = useState<string | null>(null);
+  const [urlParamsProcessed, setUrlParamsProcessed] = useState(false);
   const [activeExam, setActiveExam] = useState<{
     subjectName: string;
     subjectId: string;
@@ -190,7 +191,7 @@ export default function App() {
 
   // Check URL parameters on mount / app load for direct QR code links (?exam=id or ?game=id)
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || urlParamsProcessed) return;
 
     try {
       const params = new URLSearchParams(window.location.search);
@@ -198,12 +199,20 @@ export default function App() {
       const gameParam = params.get('game');
 
       if (examParam) {
+        setUrlParamsProcessed(true);
         // Direct link to an exam
         const targetSub = appData.subjects.find((s) => s.id === examParam);
         if (targetSub) {
           handleSelectSubjectToExam(targetSub);
+        } else {
+          // Check documents as well
+          const targetDoc = appData.documents?.find((d) => d.id === examParam);
+          if (targetDoc && targetDoc.generatedQuestions && targetDoc.generatedQuestions.length > 0) {
+            handleStartExamFromQuestions(targetDoc.title, targetDoc.generatedQuestions);
+          }
         }
       } else if (gameParam) {
+        setUrlParamsProcessed(true);
         // Direct link to a game
         setCurrentTab('games');
         setTargetGameIdFromUrl(gameParam);
@@ -211,7 +220,7 @@ export default function App() {
     } catch (e) {
       console.warn('Error parsing URL query parameters for QR code direct link:', e);
     }
-  }, [appData.subjects, appData.games]);
+  }, [appData.subjects, appData.documents, appData.games, urlParamsProcessed]);
 
   // Handle starting exam from AI-generated document questions
   const handleStartExamFromQuestions = (title: string, questions: Question[]) => {
@@ -278,6 +287,28 @@ export default function App() {
 
     setActiveExam(null);
     setActiveResult(session);
+
+    // Auto sync exam result to Google Sheets if Web App URL is configured
+    const scriptUrl =
+      appData.settings?.googleAppsScriptUrl || localStorage.getItem('google_apps_script_url');
+    if (scriptUrl && scriptUrl.trim().startsWith('http')) {
+      syncSessionToGoogleSheets(session, scriptUrl.trim()).then((res) => {
+        if (res.success) {
+          setAppData((prev) => ({
+            ...prev,
+            sessions: prev.sessions.map((s) =>
+              s.id === session.id
+                ? {
+                    ...s,
+                    syncedToGoogleSheets: true,
+                    syncTimestamp: new Date().toLocaleTimeString('vi-VN'),
+                  }
+                : s
+            ),
+          }));
+        }
+      });
+    }
   };
 
   // Record game session into session history and progress
