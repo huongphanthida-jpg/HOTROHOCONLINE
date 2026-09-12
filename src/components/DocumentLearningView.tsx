@@ -65,12 +65,15 @@ function readFileSliceAsText(file: File): Promise<string> {
   });
 }
 
+import { UserRole } from '../types';
+
 interface DocumentLearningViewProps {
   documents: DocumentLearning[];
   onSaveDocument: (doc: DocumentLearning) => void;
   onDeleteDocument: (docId: string) => void;
   onStartExamFromQuestions: (title: string, questions: Question[]) => void;
   onSyncToSubjects?: (doc: DocumentLearning, targetClass: string, grade: string, customTitle: string) => void;
+  userRole?: UserRole;
 }
 
 export const DocumentLearningView: React.FC<DocumentLearningViewProps> = ({
@@ -79,7 +82,9 @@ export const DocumentLearningView: React.FC<DocumentLearningViewProps> = ({
   onDeleteDocument,
   onStartExamFromQuestions,
   onSyncToSubjects,
+  userRole = 'teacher',
 }) => {
+  const isStudent = userRole === 'student';
   const [selectedDoc, setSelectedDoc] = useState<DocumentLearning | null>(
     documents.length > 0 ? documents[0] : null
   );
@@ -518,24 +523,26 @@ export const DocumentLearningView: React.FC<DocumentLearningViewProps> = ({
                 <BookOpen className="w-4 h-4 text-teal-600" />
                 <span>Thư Viện Tài Liệu ({documents.length})</span>
               </h3>
-              <button
-                onClick={() => {
-                  setIsCreating(true);
-                  setSelectedDoc(null);
-                }}
-                className="flex items-center space-x-1 px-2.5 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
-                id="btn-new-document"
-              >
-                <PlusCircle className="w-3.5 h-3.5" />
-                <span>Thêm Mới</span>
-              </button>
+              {!isStudent && (
+                <button
+                  onClick={() => {
+                    setIsCreating(true);
+                    setSelectedDoc(null);
+                  }}
+                  className="flex items-center space-x-1 px-2.5 py-1 bg-teal-600 hover:bg-teal-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-colors"
+                  id="btn-new-document"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span>Thêm Mới</span>
+                </button>
+              )}
             </div>
 
             {/* Document list items */}
             <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
               {documents.length === 0 ? (
                 <div className="text-center py-8 text-xs text-slate-400">
-                  Chưa có tài liệu nào. Nhấn "Thêm Mới" để bắt đầu học!
+                  Chưa có tài liệu nào.
                 </div>
               ) : (
                 documents.map((doc) => (
@@ -545,10 +552,10 @@ export const DocumentLearningView: React.FC<DocumentLearningViewProps> = ({
                       setSelectedDoc(doc);
                       setIsCreating(false);
                     }}
-                    className={`p-3 rounded-xl border text-left cursor-pointer transition-all flex items-center justify-between group ${
-                      selectedDoc?.id === doc.id && !isCreating
-                        ? 'bg-teal-50 dark:bg-teal-950/40 border-teal-500 shadow-xs'
-                        : 'bg-slate-50 dark:bg-slate-700/40 border-slate-200/80 dark:border-slate-700 hover:border-teal-300'
+                    className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between group ${
+                      selectedDoc?.id === doc.id
+                        ? 'bg-teal-50 dark:bg-teal-950/40 border-teal-300 dark:border-teal-700 shadow-2xs'
+                        : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800'
                     }`}
                   >
                     <div className="min-w-0 flex-1 pr-2">
@@ -564,31 +571,35 @@ export const DocumentLearningView: React.FC<DocumentLearningViewProps> = ({
                         )}
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingDoc(doc);
-                        setIsEditDocModalOpen(true);
-                      }}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors shrink-0"
-                      title={`Chỉnh sửa tài liệu "${doc.title}"`}
-                      aria-label={`Chỉnh sửa tài liệu ${doc.title}`}
-                    >
-                      <Edit3 className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDocToDelete(doc);
-                      }}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors ml-1 shrink-0"
-                      title={`Xóa tài liệu "${doc.title}"`}
-                      aria-label={`Xóa tài liệu ${doc.title}`}
-                    >
-                      <Trash2 className="w-4 h-4 text-rose-500 hover:text-rose-600" />
-                    </button>
+                    {!isStudent && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingDoc(doc);
+                            setIsEditDocModalOpen(true);
+                          }}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors shrink-0"
+                          title={`Chỉnh sửa tài liệu "${doc.title}"`}
+                          aria-label={`Chỉnh sửa tài liệu ${doc.title}`}
+                        >
+                          <Edit3 className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setDocToDelete(doc);
+                          }}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors ml-1 shrink-0"
+                          title={`Xóa tài liệu "${doc.title}"`}
+                          aria-label={`Xóa tài liệu ${doc.title}`}
+                        >
+                          <Trash2 className="w-4 h-4 text-rose-500 hover:text-rose-600" />
+                        </button>
+                      </>
+                    )}
                   </div>
                 ))
               )}
