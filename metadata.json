@@ -1,0 +1,6 @@
+{
+  "name": "Hỗ trợ học online 2026-2027",
+  "description": "Hệ thống hỗ trợ học online 2026-2027 bám sát sách giáo khoa, tích hợp AI tạo đề thi và trò chơi tương tác (Quiz, Kéo thả, Ghép cặp) từ nguồn dữ liệu tải lên và đồng bộ Google Sheets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

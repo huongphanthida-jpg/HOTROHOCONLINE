@@ -1,0 +1,401 @@
+import React, { useEffect, useRef, useState, useMemo } from 'react';
+import QRCode from 'qrcode';
+import {
+  QrCode,
+  Copy,
+  Check,
+  Download,
+  Share2,
+  X,
+  ExternalLink,
+  MessageCircle,
+  Settings2,
+  Globe,
+} from 'lucide-react';
+
+interface QRCodeShareModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  subtitle?: string;
+  type: 'exam' | 'game';
+  targetId: string; // subjectId or gameId
+  metaInfo?: {
+    className?: string;
+    grade?: string;
+    questionsCount?: number;
+    gameTypeLabel?: string;
+  };
+}
+
+export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
+  isOpen,
+  onClose,
+  title,
+  subtitle,
+  type,
+  targetId,
+  metaInfo,
+}) => {
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedImage, setCopiedImage] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [showUrlSettings, setShowUrlSettings] = useState(false);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Persistent custom base URL (for sharing to students)
+  const [customBaseUrl, setCustomBaseUrl] = useState<string>(() => {
+    return (
+      localStorage.getItem('edu_app_public_url') ||
+      'https://ais-pre-4dplhma3fe7kfdd6l55o6p-284389971722.asia-southeast1.run.app'
+    );
+  });
+
+  // Calculate actual base origin to use:
+  // If current host contains "ais-dev-", mobile students won't have developer access.
+  // We prioritize the public shared URL (ais-pre) or user-configured custom URL.
+  const resolvedBaseUrl = useMemo(() => {
+    if (customBaseUrl.trim()) {
+      return customBaseUrl.trim().replace(/\/+$/, '');
+    }
+    if (typeof window !== 'undefined') {
+      const origin = window.location.origin;
+      // If we are on dev domain, fallback to known pre-shared domain
+      if (origin.includes('ais-dev-')) {
+        return origin.replace('ais-dev-', 'ais-pre-');
+      }
+      return `${origin}${window.location.pathname}`.replace(/\/+$/, '');
+    }
+    return 'https://ais-pre-4dplhma3fe7kfdd6l55o6p-284389971722.asia-southeast1.run.app';
+  }, [customBaseUrl]);
+
+  // Construct direct target URL for student
+  const shareUrl = useMemo(() => {
+    return `${resolvedBaseUrl}?${type}=${encodeURIComponent(targetId)}`;
+  }, [resolvedBaseUrl, type, targetId]);
+
+  useEffect(() => {
+    if (!isOpen || !targetId) return;
+
+    // Generate QR Code onto canvas and dataURL
+    if (canvasRef.current) {
+      QRCode.toCanvas(
+        canvasRef.current,
+        shareUrl,
+        {
+          width: 240,
+          margin: 2,
+          color: {
+            dark: type === 'exam' ? '#0f766e' : '#4338ca', // teal-700 for exam, indigo-700 for game
+            light: '#ffffff',
+          },
+        },
+        (error) => {
+          if (error) {
+            console.error('QR code generation error:', error);
+          } else if (canvasRef.current) {
+            setQrDataUrl(canvasRef.current.toDataURL('image/png'));
+          }
+        }
+      );
+    }
+  }, [isOpen, targetId, shareUrl, type]);
+
+  if (!isOpen) return null;
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+    } catch {
+      // Fallback
+      const input = document.createElement('input');
+      input.value = shareUrl;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+    }
+  };
+
+  const handleCopyQRImage = async () => {
+    if (!canvasRef.current) return;
+    try {
+      canvasRef.current.toBlob(async (blob) => {
+        if (!blob) return;
+        try {
+          // Clipboard Item for image copying
+          const item = new ClipboardItem({ 'image/png': blob });
+          await navigator.clipboard.write([item]);
+          setCopiedImage(true);
+          setTimeout(() => setCopiedImage(false), 2500);
+        } catch (e) {
+          console.warn('Clipboard image copy not supported directly, falling back to link copy', e);
+          handleCopyLink();
+        }
+      });
+    } catch {
+      handleCopyLink();
+    }
+  };
+
+  const handleDownloadQR = () => {
+    if (!qrDataUrl) return;
+    const a = document.createElement('a');
+    a.href = qrDataUrl;
+    const cleanName = title.replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1EA0-\u1EF9]/g, '_').slice(0, 30);
+    a.download = `QR_${type === 'exam' ? 'DeThi' : 'TroChoi'}_${cleanName}.png`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
+  const handleShareZalo = () => {
+    // Zalo or Web Share API
+    if (navigator.share) {
+      navigator
+        .share({
+          title: `Làm bài: ${title}`,
+          text: `Mời các em học sinh truy cập làm ${type === 'exam' ? 'đề thi' : 'trò chơi'} "${title}":`,
+          url: shareUrl,
+        })
+        .catch(() => {});
+    } else {
+      // Copy link for easy pasting into Zalo
+      handleCopyLink();
+      alert('Đã sao chép link truy cập trực tiếp! Bạn có thể dán (Ctrl+V) ngay vào khung chat Zalo của lớp.');
+    }
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white dark:bg-slate-800 rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 relative overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header decoration */}
+        <div
+          className={`absolute top-0 left-0 right-0 h-2 bg-gradient-to-r ${
+            type === 'exam' ? 'from-teal-500 to-emerald-500' : 'from-indigo-500 to-purple-500'
+          }`}
+        />
+
+        {/* Close button */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+          title="Đóng"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* Title */}
+        <div className="flex items-center space-x-3 mb-4">
+          <div
+            className={`w-11 h-11 rounded-2xl flex items-center justify-center text-white shadow-sm shrink-0 ${
+              type === 'exam' ? 'bg-teal-600' : 'bg-indigo-600'
+            }`}
+          >
+            <QrCode className="w-6 h-6" />
+          </div>
+          <div className="min-w-0 pr-6">
+            <span
+              className={`text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                type === 'exam'
+                  ? 'bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300'
+                  : 'bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300'
+              }`}
+            >
+              {type === 'exam' ? 'Mã QR Đề Thi Trắc Nghiệm' : 'Mã QR Trò Chơi Học Tập'}
+            </span>
+            <h3 className="text-base font-bold text-slate-800 dark:text-white truncate mt-0.5">
+              {title}
+            </h3>
+          </div>
+        </div>
+
+        {/* Subtitle / Meta */}
+        <div className="flex flex-wrap items-center gap-1.5 mb-4 text-xs">
+          {metaInfo?.className && (
+            <span className="px-2.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/80 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 font-bold">
+              Lớp {metaInfo.className}
+            </span>
+          )}
+          {metaInfo?.questionsCount !== undefined && (
+            <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-medium">
+              {metaInfo.questionsCount} câu hỏi
+            </span>
+          )}
+          {metaInfo?.gameTypeLabel && (
+            <span className="px-2.5 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 font-bold">
+              {metaInfo.gameTypeLabel}
+            </span>
+          )}
+          {subtitle && (
+            <p className="w-full text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">
+              {subtitle}
+            </p>
+          )}
+        </div>
+
+        {/* QR Code Presentation Box */}
+        <div className="bg-slate-50 dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/80 flex flex-col items-center justify-center space-y-3">
+          <div className="p-3 bg-white rounded-2xl shadow-sm border border-slate-200/80 dark:border-slate-600">
+            <canvas ref={canvasRef} className="max-w-[200px] max-h-[200px] w-full h-auto block" />
+          </div>
+          <p className="text-[11px] text-center text-slate-500 dark:text-slate-400 max-w-xs">
+            Quét mã để truy cập làm bài ngay lập tức không cần đăng nhập hoặc tìm kiếm.
+          </p>
+        </div>
+
+        {/* Direct Link Input Box */}
+        <div className="mt-4">
+          <div className="text-[11px] font-bold text-slate-500 dark:text-slate-400 mb-1 flex items-center justify-between">
+            <span className="flex items-center space-x-1">
+              <Globe className="w-3.5 h-3.5 text-teal-600" />
+              <span>Link chia sẻ trực tiếp (cho học sinh):</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowUrlSettings(!showUrlSettings)}
+              className="text-[11px] text-teal-600 dark:text-teal-400 hover:underline flex items-center space-x-1"
+            >
+              <Settings2 className="w-3 h-3" />
+              <span>{showUrlSettings ? 'Đóng cấu hình' : 'Đổi tên miền'}</span>
+            </button>
+          </div>
+
+          {/* Collapsible custom URL domain config */}
+          {showUrlSettings && (
+            <div className="mb-2 p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-xs space-y-1.5 animate-fadeIn">
+              <label className="text-[10px] text-slate-500 font-semibold block">
+                Tên miền công khai của ứng dụng (dành cho học sinh mở trên điện thoại không bị báo lỗi "Page not found"):
+              </label>
+              <div className="flex items-center space-x-1.5">
+                <input
+                  type="text"
+                  value={customBaseUrl}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCustomBaseUrl(val);
+                    localStorage.setItem('edu_app_public_url', val);
+                  }}
+                  placeholder="https://ais-pre-...run.app hoặc domain của bạn"
+                  className="flex-1 px-2.5 py-1 text-xs rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-white"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const defaultPre = 'https://ais-pre-4dplhma3fe7kfdd6l55o6p-284389971722.asia-southeast1.run.app';
+                    setCustomBaseUrl(defaultPre);
+                    localStorage.setItem('edu_app_public_url', defaultPre);
+                  }}
+                  className="px-2 py-1 text-[10px] bg-slate-200 dark:bg-slate-700 rounded-lg hover:bg-slate-300 font-semibold text-slate-700 dark:text-slate-200"
+                >
+                  Mặc định
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center space-x-2">
+            <input
+              type="text"
+              readOnly
+              value={shareUrl}
+              onClick={handleCopyLink}
+              className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-700 dark:text-slate-300 truncate cursor-pointer font-mono select-all focus:ring-2 focus:ring-teal-500 outline-hidden"
+            />
+            <button
+              type="button"
+              onClick={handleCopyLink}
+              className={`p-2 rounded-xl border text-xs font-bold transition-all shrink-0 flex items-center space-x-1 ${
+                copiedLink
+                  ? 'bg-emerald-600 text-white border-emerald-600'
+                  : 'border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200'
+              }`}
+              title="Sao chép link"
+            >
+              {copiedLink ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Action Buttons: Copy Image, Download, Share Zalo */}
+        <div className="mt-5 grid grid-cols-3 gap-2">
+          {/* Copy QR Image */}
+          <button
+            type="button"
+            onClick={handleCopyQRImage}
+            className="py-2.5 px-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold flex flex-col items-center justify-center space-y-1 transition-all active:scale-95"
+            title="Sao chép ảnh mã QR vào bộ nhớ tạm để dán vào Zalo"
+          >
+            {copiedImage ? (
+              <>
+                <Check className="w-4 h-4 text-emerald-600" />
+                <span className="text-[11px] font-bold text-emerald-600">Đã chép ảnh!</span>
+              </>
+            ) : (
+              <>
+                <Copy className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                <span className="text-[11px]">Chép ảnh QR</span>
+              </>
+            )}
+          </button>
+
+          {/* Download QR PNG */}
+          <button
+            type="button"
+            onClick={handleDownloadQR}
+            className="py-2.5 px-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-semibold flex flex-col items-center justify-center space-y-1 transition-all active:scale-95"
+            title="Tải ảnh mã QR dạng file PNG về máy"
+          >
+            <Download className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+            <span className="text-[11px]">Tải file QR</span>
+          </button>
+
+          {/* Share to Zalo / Copy with notification */}
+          <button
+            type="button"
+            onClick={handleShareZalo}
+            className="py-2.5 px-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex flex-col items-center justify-center space-y-1 transition-all shadow-sm active:scale-95"
+            title="Gửi hoặc chép link gửi nhóm Zalo lớp"
+          >
+            <MessageCircle className="w-4 h-4" />
+            <span className="text-[11px] font-bold">Gửi qua Zalo</span>
+          </button>
+        </div>
+
+        {/* Cookie check / Safari warning and direct solution note */}
+        <div className="mt-3 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-800 dark:text-amber-200 leading-relaxed">
+          <p className="font-semibold mb-0.5 flex items-center space-x-1">
+            <span>💡 Lưu ý quan trọng khi học sinh mở trên điện thoại (Zalo / iPhone):</span>
+          </p>
+          <ul className="list-disc pl-4 space-y-1 text-[11px]">
+            <li>
+              Nếu màn hình hiện <strong>"Action required to load your app / Cookie check"</strong>: Học sinh chỉ cần bấm nút <strong>"Authenticate in new window"</strong> màu xám (hoặc bấm dấu <strong>...</strong> ở góc màn hình Zalo chọn <strong>"Mở bằng trình duyệt Safari/Chrome"</strong>) là vào được ngay!
+            </li>
+            <li>
+              <strong>Để học sinh không bao giờ bị hỏi màn hình này:</strong> Thầy/cô chỉ cần bấm <strong>Menu ba chấm (...) ➔ Deploy to Cloud Run</strong> trên thanh Google AI Studio. Ứng dụng sẽ thành trang web độc lập công khai 100%.
+            </li>
+          </ul>
+        </div>
+
+        {/* Footer info note */}
+        <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700 text-center">
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 flex items-center justify-center space-x-1">
+            <Share2 className="w-3 h-3 text-teal-600 dark:text-teal-400" />
+            <span>Học sinh mở link / quét mã sẽ vào thẳng màn hình làm bài!</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
