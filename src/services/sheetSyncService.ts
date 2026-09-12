@@ -498,23 +498,4 @@ function parseCsvToClasses(csvText: string): OnlineClass[] {
   return classes;
 }
 
-export function validateAppsScriptUrl(url: string): { isValid: boolean; message: string } {
-  if (!url || !url.trim()) {
-    return { isValid: false, message: 'Chưa nhập URL Google Apps Script.' };
-  }
-  const cleanUrl = url.trim();
-  if (!cleanUrl.startsWith('https://script.google.com/macros/s/')) {
-    return { 
-      isValid: false, 
-      message: 'URL không đúng định dạng Google Apps Script Web App (phải bắt đầu bằng https://script.google.com/macros/s/...)' 
-    };
-  }
-  if (!cleanUrl.endsWith('/exec')) {
-    return { 
-      isValid: false, 
-      message: 'URL Web App phải kết thúc bằng "/exec". Vui lòng kiểm tra lại URL triển khai.' 
-    };
-  }
-  return { isValid: true, message: 'URL Google Apps Script hợp lệ!' };
-}
 
