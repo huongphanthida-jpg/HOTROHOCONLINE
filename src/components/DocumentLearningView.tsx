@@ -124,6 +124,13 @@ export const DocumentLearningView: React.FC<DocumentLearningViewProps> = ({
   const [isEditDocModalOpen, setIsEditDocModalOpen] = useState(false);
   const [editingDoc, setEditingDoc] = useState<DocumentLearning | null>(null);
 
+  // Inline Question Editing State
+  const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
+  const [inlineQuestionContent, setInlineQuestionContent] = useState('');
+  const [inlineOptions, setInlineOptions] = useState<string[]>([]);
+  const [inlineCorrectAnswer, setInlineCorrectAnswer] = useState<number>(0);
+  const [inlineExplanation, setInlineExplanation] = useState('');
+
   // AI Loading states
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
@@ -137,6 +144,49 @@ export const DocumentLearningView: React.FC<DocumentLearningViewProps> = ({
       setIsCreating(true);
     }
     setDocToDelete(null);
+  };
+
+  const handleStartInlineEditQuestion = (q: Question) => {
+    setEditingQuestionId(q.id);
+    setInlineQuestionContent(q.content);
+    setInlineOptions(q.options ? [...q.options] : ['', '', '', '']);
+    setInlineCorrectAnswer(q.correctAnswer ?? 0);
+    setInlineExplanation(q.explanation || '');
+  };
+
+  const handleSaveInlineEditQuestion = (qIdx: number) => {
+    if (!selectedDoc || !selectedDoc.generatedQuestions) return;
+    const updatedQuestions = [...selectedDoc.generatedQuestions];
+    updatedQuestions[qIdx] = {
+      ...updatedQuestions[qIdx],
+      content: inlineQuestionContent.trim(),
+      options: inlineOptions.map((opt) => opt.trim()),
+      correctAnswer: inlineCorrectAnswer,
+      explanation: inlineExplanation.trim(),
+    };
+
+    const updatedDoc: DocumentLearning = {
+      ...selectedDoc,
+      generatedQuestions: updatedQuestions,
+    };
+
+    onSaveDocument(updatedDoc);
+    setSelectedDoc(updatedDoc);
+    setEditingQuestionId(null);
+  };
+
+  const handleDeleteSingleQuestion = (qIdx: number) => {
+    if (!selectedDoc || !selectedDoc.generatedQuestions) return;
+    const updatedQuestions = selectedDoc.generatedQuestions.filter((_, idx) => idx !== qIdx);
+
+    const updatedDoc: DocumentLearning = {
+      ...selectedDoc,
+      generatedQuestions: updatedQuestions.length > 0 ? updatedQuestions : undefined,
+    };
+
+    onSaveDocument(updatedDoc);
+    setSelectedDoc(updatedDoc);
+    setEditingQuestionId(null);
   };
 
   // Process files (multi-file upload & drag-drop)
@@ -1147,6 +1197,20 @@ export const DocumentLearningView: React.FC<DocumentLearningViewProps> = ({
                         <Trash2 className="w-4 h-4 text-rose-500" />
                       </button>
 
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingDoc(selectedDoc);
+                          setIsEditDocModalOpen(true);
+                        }}
+                        className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-900/60 text-indigo-700 dark:text-indigo-300 font-bold rounded-xl text-xs flex items-center space-x-1.5 shadow-2xs transition-all"
+                        title="Quản lý & Chỉnh sửa toàn bộ danh sách câu hỏi đề thi"
+                        id="btn-edit-all-questions"
+                      >
+                        <Edit3 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                        <span>Sửa Tất Cả Câu Hỏi</span>
+                      </button>
+
                       {onSyncToSubjects && (
                         <button
                           type="button"
@@ -1198,28 +1262,179 @@ export const DocumentLearningView: React.FC<DocumentLearningViewProps> = ({
                     </div>
                   )}
 
-                  {/* Preview first 2 questions */}
+                  {/* Interactive Question Cards */}
                   <div className="space-y-3">
-                    {selectedDoc.generatedQuestions.map((q, qIdx) => (
-                      <div
-                        key={q.id}
-                        className="bg-slate-50 dark:bg-slate-700/40 rounded-xl p-4 border border-slate-200/80 dark:border-slate-700 text-xs space-y-2"
-                      >
-                        <div className="font-semibold text-slate-800 dark:text-slate-100 flex items-center space-x-2">
-                          <span className="w-5 h-5 rounded bg-teal-600 text-white text-[10px] flex items-center justify-center font-bold">
-                            {qIdx + 1}
-                          </span>
-                          <span>{q.content}</span>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pl-7">
-                          {q.options.map((opt, oIdx) => (
-                            <div key={oIdx} className="text-slate-600 dark:text-slate-300">
-                              {opt}
+                    {selectedDoc.generatedQuestions.map((q, qIdx) => {
+                      const isEditingThis = editingQuestionId === q.id;
+
+                      if (isEditingThis) {
+                        return (
+                          <div
+                            key={q.id || qIdx}
+                            className="bg-indigo-50/80 dark:bg-indigo-950/40 rounded-xl p-4 border-2 border-indigo-500 text-xs space-y-3 animate-fadeIn"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-indigo-700 dark:text-indigo-300 flex items-center space-x-1.5">
+                                <Edit3 className="w-4 h-4 text-indigo-600" />
+                                <span>Đang Chỉnh Sửa Câu #{qIdx + 1}</span>
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteSingleQuestion(qIdx)}
+                                className="text-xs text-rose-600 hover:bg-rose-100 dark:hover:bg-rose-950/60 px-2 py-1 rounded-md flex items-center space-x-1 transition-colors font-semibold"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Xóa Câu Này</span>
+                              </button>
                             </div>
-                          ))}
+
+                            {/* Content Input */}
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1">
+                                Nội dung câu hỏi:
+                              </label>
+                              <textarea
+                                rows={2}
+                                value={inlineQuestionContent}
+                                onChange={(e) => setInlineQuestionContent(e.target.value)}
+                                className="w-full px-3 py-2 text-xs font-semibold rounded-xl border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                              />
+                            </div>
+
+                            {/* Options Input */}
+                            <div className="space-y-2">
+                              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200">
+                                Phương án lựa chọn (Đánh dấu phương án đúng):
+                              </label>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                {inlineOptions.map((opt, oIdx) => {
+                                  const isCorrect = inlineCorrectAnswer === oIdx;
+                                  return (
+                                    <div
+                                      key={oIdx}
+                                      className={`flex items-center space-x-2 p-2 rounded-xl border transition-all ${
+                                        isCorrect
+                                          ? 'bg-emerald-100/90 dark:bg-emerald-950/70 border-emerald-400 text-emerald-950 dark:text-emerald-100 font-bold'
+                                          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700'
+                                      }`}
+                                    >
+                                      <input
+                                        type="radio"
+                                        name={`inline-correct-${q.id}`}
+                                        checked={isCorrect}
+                                        onChange={() => setInlineCorrectAnswer(oIdx)}
+                                        className="w-4 h-4 text-emerald-600 focus:ring-emerald-500"
+                                      />
+                                      <span className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold flex items-center justify-center shrink-0">
+                                        {String.fromCharCode(65 + oIdx)}
+                                      </span>
+                                      <input
+                                        type="text"
+                                        value={opt}
+                                        onChange={(e) => {
+                                          const nextOpts = [...inlineOptions];
+                                          nextOpts[oIdx] = e.target.value;
+                                          setInlineOptions(nextOpts);
+                                        }}
+                                        className="flex-1 px-2 py-1 text-xs rounded border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-white focus:outline-none"
+                                      />
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Explanation Input */}
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-200 mb-1">
+                                Lời giải chi tiết chuẩn SGK:
+                              </label>
+                              <input
+                                type="text"
+                                value={inlineExplanation}
+                                onChange={(e) => setInlineExplanation(e.target.value)}
+                                className="w-full px-3 py-1.5 text-xs rounded-xl border border-indigo-300 dark:border-indigo-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500"
+                              />
+                            </div>
+
+                            {/* Save / Cancel Action Bar */}
+                            <div className="flex items-center justify-end space-x-2 pt-2 border-t border-indigo-200/60 dark:border-indigo-900/60">
+                              <button
+                                type="button"
+                                onClick={() => setEditingQuestionId(null)}
+                                className="px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                              >
+                                Hủy
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSaveInlineEditQuestion(qIdx)}
+                                className="flex items-center space-x-1 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-lg shadow-sm transition-all"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                                <span>Lưu Cập Nhật</span>
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div
+                          key={q.id || qIdx}
+                          className="bg-slate-50 dark:bg-slate-700/40 rounded-xl p-4 border border-slate-200/80 dark:border-slate-700 text-xs space-y-3 transition-all hover:border-slate-300 dark:hover:border-slate-600"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="font-bold text-slate-800 dark:text-slate-100 flex items-start space-x-2 leading-relaxed">
+                              <span className="w-5 h-5 rounded bg-teal-600 text-white text-[10px] flex items-center justify-center font-bold shrink-0 mt-0.5">
+                                {qIdx + 1}
+                              </span>
+                              <span>{q.content}</span>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleStartInlineEditQuestion(q)}
+                              className="px-2.5 py-1 bg-white dark:bg-slate-800 hover:bg-teal-50 dark:hover:bg-teal-950/60 border border-slate-200 dark:border-slate-700 hover:border-teal-300 text-teal-700 dark:text-teal-300 text-[11px] font-bold rounded-lg shadow-2xs transition-colors shrink-0 flex items-center space-x-1"
+                              title="Chỉnh sửa câu hỏi này"
+                            >
+                              <Edit3 className="w-3 h-3 text-teal-600 dark:text-teal-400" />
+                              <span>Sửa câu này</span>
+                            </button>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pl-7">
+                            {q.options.map((opt, oIdx) => {
+                              const isCorrect = oIdx === q.correctAnswer;
+                              return (
+                                <div
+                                  key={oIdx}
+                                  className={`p-2 rounded-lg border text-xs flex items-center justify-between ${
+                                    isCorrect
+                                      ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-800 font-bold text-emerald-900 dark:text-emerald-200'
+                                      : 'bg-white dark:bg-slate-800 border-slate-200/80 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+                                  }`}
+                                >
+                                  <span>{opt}</span>
+                                  {isCorrect && (
+                                    <span className="text-[10px] px-1.5 py-0.5 bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 rounded font-bold shrink-0 ml-1">
+                                      Đáp án đúng
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {q.explanation && (
+                            <div className="pl-7 pt-1 text-[11px] text-slate-500 dark:text-slate-400 flex items-start space-x-1.5">
+                              <BookOpen className="w-3.5 h-3.5 text-teal-600 shrink-0 mt-0.5" />
+                              <span><strong>Lời giải:</strong> {q.explanation}</span>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
