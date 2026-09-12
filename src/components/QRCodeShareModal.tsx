@@ -69,9 +69,9 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
     return 'https://ais-pre-4dplhma3fe7kfdd6l55o6p-284389971722.asia-southeast1.run.app';
   }, [customBaseUrl]);
 
-  // Construct direct target URL for student
+  // Construct direct target URL for student (enforcing student mode)
   const shareUrl = useMemo(() => {
-    return `${resolvedBaseUrl}?${type}=${encodeURIComponent(targetId)}`;
+    return `${resolvedBaseUrl}?${type}=${encodeURIComponent(targetId)}&role=student`;
   }, [resolvedBaseUrl, type, targetId]);
 
   useEffect(() => {
