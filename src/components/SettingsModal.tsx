@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { AppSettings, AppData } from '../types';
+import { AppSettings, AppData, SessionRecord } from '../types';
 import { X, Key, Eye, EyeOff, Sparkles, Database, FileSpreadsheet, Copy, Check, Volume2, VolumeX, Download, Upload, RotateCcw, AlertCircle, Info } from 'lucide-react';
 import { AVAILABLE_MODELS } from '../services/aiService';
-import { APPS_SCRIPT_SAMPLE_CODE } from '../services/sheetSyncService';
+import { APPS_SCRIPT_SAMPLE_CODE, syncSessionToGoogleSheets, validateAppsScriptUrl } from '../services/sheetSyncService';
 import { soundEffects } from '../utils/soundEffects';
 
 interface SettingsModalProps {
@@ -39,6 +39,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   });
   const [scriptUrl, setScriptUrl] = useState(settings.googleAppsScriptUrl || '');
   const [onlineClassSheetUrl, setOnlineClassSheetUrl] = useState(settings.onlineClassSheetUrl || '');
+  const [teacherPin, setTeacherPin] = useState(settings.teacherPin || '1234');
   const [soundEnabled, setSoundEnabled] = useState(settings.soundEnabled);
   const [copiedCode, setCopiedCode] = useState(false);
   const [testSyncStatus, setTestSyncStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
@@ -53,6 +54,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       selectedModel,
       googleAppsScriptUrl: scriptUrl.trim(),
       onlineClassSheetUrl: onlineClassSheetUrl.trim(),
+      teacherPin: teacherPin.trim() || '1234',
       soundEnabled,
     };
 
@@ -60,6 +62,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     localStorage.setItem('selected_model', selectedModel);
     localStorage.setItem('google_apps_script_url', scriptUrl.trim());
     localStorage.setItem('online_class_sheet_url', onlineClassSheetUrl.trim());
+    localStorage.setItem('teacher_pin', teacherPin.trim() || '1234');
     localStorage.setItem('sound_enabled', String(soundEnabled));
     soundEffects.enabled = soundEnabled;
 
@@ -74,46 +77,41 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   };
 
   const handleTestGoogleSheets = async () => {
-    if (!scriptUrl.trim()) {
+    const validation = validateAppsScriptUrl(scriptUrl);
+    if (!validation.isValid) {
       setTestSyncStatus('error');
-      setTestSyncMsg('Vui lòng dán URL Google Apps Script Web App trước khi kiểm tra.');
+      setTestSyncMsg(validation.message || 'URL Google Apps Script không hợp lệ.');
       return;
     }
 
     setTestSyncStatus('testing');
     setTestSyncMsg('Đang gửi dữ liệu kiểm tra kết nối...');
 
-    try {
-      const payload = {
-        fullName: 'Kiểm tra Hệ Thống',
-        className: 'Demo 12A',
+    const mockSession: SessionRecord = {
+      id: `test-${Date.now()}`,
+      subjectId: 'test-conn',
+      subjectName: 'Kiểm Tra Kết Nối Google Sheets',
+      studentInfo: {
+        fullName: 'Hệ Thống Kiểm Tra',
+        className: 'Lớp Demo',
         groupName: 'Tổ 1',
-        subjectName: 'Kiểm tra Kết Nối',
-        score: 10,
-        correctAnswers: 1,
-        totalQuestions: 1,
-        timeSpentFormatted: '00:15',
-        submittedAt: new Date().toLocaleString('vi-VN'),
-      };
+      },
+      score: 10,
+      totalQuestions: 1,
+      correctAnswers: 1,
+      timeSpent: 15,
+      date: new Date().toLocaleString('vi-VN'),
+      syncedToGoogleSheets: false,
+    };
 
-      const res = await fetch('/api/sync-google-sheets', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          scriptUrl: scriptUrl.trim(),
-          payload,
-        }),
-      });
+    const res = await syncSessionToGoogleSheets(mockSession, scriptUrl.trim());
 
-      if (res.ok) {
-        setTestSyncStatus('success');
-        setTestSyncMsg('Kết nối Google Sheets thành công! Dòng dữ liệu mẫu đã được ghi vào bảng tính.');
-      } else {
-        throw new Error(`Mã lỗi HTTP ${res.status}`);
-      }
-    } catch (err: any) {
+    if (res.success) {
+      setTestSyncStatus('success');
+      setTestSyncMsg(res.message || 'Kết nối Google Sheets thành công! Dòng dữ liệu mẫu đã được ghi vào bảng tính.');
+    } else {
       setTestSyncStatus('error');
-      setTestSyncMsg(`Không thể kết nối: ${err.message}. Đảm bảo đã chọn quyền 'Bất kỳ ai' (Anyone) khi triển khai Web App.`);
+      setTestSyncMsg(res.message);
     }
   };
 
@@ -261,6 +259,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white text-xs font-mono focus:outline-none focus:ring-2 focus:ring-teal-500"
               />
 
+              {scriptUrl.includes('docs.google.com/spreadsheets') && (
+                <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-800 dark:text-amber-200 leading-relaxed font-semibold">
+                  ⚠️ BẠN ĐÃ DÁN NHẦM LINK GOOGLE SHEET! Ô này yêu cầu dán link <strong>Web App Google Apps Script</strong> (bắt đầu bằng <code>https://script.google.com/macros/s/.../exec</code>), không phải link chỉnh sửa file Google Sheet. Hãy mở menu <em>Tiện ích mở rộng &gt; Apps Script &gt; Triển khai</em> để lấy link chuẩn!
+                </div>
+              )}
+
               <div>
                 <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-300 mb-1">
                   URL Google Sheet / Link CSV Công Khai Danh Sách Lớp Học Trực Tuyến (Tùy chọn riêng)
@@ -328,7 +332,26 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </details>
           </div>
 
-          {/* Section 4: Preferences & Data Backup */}
+          {/* Section 4: Security PIN Code for Role Switching */}
+          <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-700">
+            <label className="font-bold text-slate-800 dark:text-white flex items-center space-x-2">
+              <i className="fa-solid fa-lock text-amber-500"></i>
+              <span>Mã PIN Giáo Viên (Bảo vệ chuyển đổi quyền hạn)</span>
+            </label>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+              Mã PIN này được dùng để xác minh khi bấm đổi từ vai trò <strong>Học Sinh</strong> sang <strong>Giáo Viên</strong>. (Mặc định: <code>1234</code>)
+            </p>
+            <input
+              type="text"
+              maxLength={10}
+              value={teacherPin}
+              onChange={(e) => setTeacherPin(e.target.value)}
+              placeholder="VD: 1234, 6868"
+              className="w-full sm:w-48 px-3.5 py-2 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white text-xs font-mono font-bold focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
+
+          {/* Section 5: Preferences & Data Backup */}
           <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-700">
             <div className="flex items-center justify-between">
               <span className="font-bold text-slate-800 dark:text-white flex items-center space-x-2">
