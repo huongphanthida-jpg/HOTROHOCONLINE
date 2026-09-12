@@ -153,16 +153,50 @@ export function formatTimeSpent(seconds: number): string {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
+export function validateAppsScriptUrl(url?: string): { isValid: boolean; message?: string } {
+  const trimmed = (url || '').trim();
+  if (!trimmed) {
+    return {
+      isValid: false,
+      message: 'Chưa nhập URL Google Apps Script Web App. Vui lòng dán URL Web App trong phần Cài đặt.',
+    };
+  }
+
+  if (trimmed.includes('docs.google.com/spreadsheets')) {
+    return {
+      isValid: false,
+      message: '⚠️ BẠN ĐÃ DÁN NHẦM LINK GOOGLE SHEET (docs.google.com)! Vui lòng vào Google Sheet > Tiện ích mở rộng > Apps Script > Triển khai dưới dạng Web App để lấy link có dạng https://script.google.com/macros/s/.../exec !',
+    };
+  }
+
+  if (trimmed.endsWith('/dev')) {
+    return {
+      isValid: false,
+      message: '⚠️ BẠN ĐANG DÙNG LINK THỬ NGHIỆM (/dev). Link này chỉ dùng cho tài khoản cá nhân. Vui lòng bấm Triển khai (Deploy) > Tùy chọn triển khai mới (New deployment) để lấy link chính thức kết thúc bằng /exec !',
+    };
+  }
+
+  if (!trimmed.startsWith('https://script.google.com/macros/s/') && !trimmed.startsWith('http')) {
+    return {
+      isValid: false,
+      message: 'URL không hợp lệ. Link Web App chuẩn của Google Apps Script phải có dạng https://script.google.com/macros/s/.../exec',
+    };
+  }
+
+  return { isValid: true };
+}
+
 export async function syncSessionToGoogleSheets(
   session: SessionRecord,
   customScriptUrl?: string
 ): Promise<{ success: boolean; message: string }> {
   const scriptUrl = customScriptUrl || localStorage.getItem('google_apps_script_url');
 
-  if (!scriptUrl || !scriptUrl.trim().startsWith('http')) {
+  const validation = validateAppsScriptUrl(scriptUrl || '');
+  if (!validation.isValid) {
     return {
       success: false,
-      message: 'Chưa cấu hình URL Google Apps Script Web App. Vui lòng nhập trong Cài đặt để tự động đồng bộ.',
+      message: validation.message || 'URL Google Apps Script không hợp lệ.',
     };
   }
 
@@ -179,31 +213,39 @@ export async function syncSessionToGoogleSheets(
     timeSpentFormatted: formatTimeSpent(session.timeSpent),
   };
 
-  // 1. Thử gửi qua Server proxy để tránh lỗi CORS của trình duyệt
+  const targetUrl = (scriptUrl || '').trim();
+
+  // 1. Thử gửi qua Server proxy nếu backend có sẵn
   try {
     const proxyRes = await fetch('/api/sync-google-sheets', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        scriptUrl: scriptUrl.trim(),
+        scriptUrl: targetUrl,
         payload,
       }),
     });
 
     if (proxyRes.ok) {
       const data = await proxyRes.json();
+      if (data.error) {
+        return {
+          success: false,
+          message: `⚠️ Lỗi kết nối Google Sheets: ${data.error}`,
+        };
+      }
       return {
         success: true,
         message: data.result?.message || 'Đã đồng bộ kết quả lên Google Sheets thành công!',
       };
     }
   } catch (err) {
-    console.warn('Proxy sync failed, attempting direct fetch...', err);
+    console.warn('Proxy sync skipped/failed, switching to direct client fetch...', err);
   }
 
-  // 2. Thử fetch trực tiếp với mode: 'no-cors' nếu server proxy không gửi được
+  // 2. Fallback trực tiếp: Gửi request mode 'no-cors' thẳng đến Google Apps Script Web App
   try {
-    await fetch(scriptUrl.trim(), {
+    await fetch(targetUrl, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'application/json' },
@@ -212,7 +254,7 @@ export async function syncSessionToGoogleSheets(
 
     return {
       success: true,
-      message: 'Đã gửi yêu cầu đồng bộ đến Google Apps Script.',
+      message: '✅ Kết nối Google Sheets thành công! Dữ liệu đã được tự động gửi đến Google Sheets của bạn.',
     };
   } catch (directErr: any) {
     console.error('Direct sync failed:', directErr);
@@ -248,10 +290,11 @@ export async function syncGameResultToGoogleSheets(
 ): Promise<{ success: boolean; message: string }> {
   const scriptUrl = customScriptUrl || localStorage.getItem('google_apps_script_url');
 
-  if (!scriptUrl || !scriptUrl.trim().startsWith('http')) {
+  const validation = validateAppsScriptUrl(scriptUrl || '');
+  if (!validation.isValid) {
     return {
       success: false,
-      message: 'Chưa cấu hình URL Google Apps Script Web App. Vui lòng nhập URL Web App để tự động gửi kết quả.',
+      message: validation.message || 'URL Google Apps Script không hợp lệ.',
     };
   }
 
@@ -454,3 +497,24 @@ function parseCsvToClasses(csvText: string): OnlineClass[] {
 
   return classes;
 }
+
+export function validateAppsScriptUrl(url: string): { isValid: boolean; message: string } {
+  if (!url || !url.trim()) {
+    return { isValid: false, message: 'Chưa nhập URL Google Apps Script.' };
+  }
+  const cleanUrl = url.trim();
+  if (!cleanUrl.startsWith('https://script.google.com/macros/s/')) {
+    return { 
+      isValid: false, 
+      message: 'URL không đúng định dạng Google Apps Script Web App (phải bắt đầu bằng https://script.google.com/macros/s/...)' 
+    };
+  }
+  if (!cleanUrl.endsWith('/exec')) {
+    return { 
+      isValid: false, 
+      message: 'URL Web App phải kết thúc bằng "/exec". Vui lòng kiểm tra lại URL triển khai.' 
+    };
+  }
+  return { isValid: true, message: 'URL Google Apps Script hợp lệ!' };
+}
+
