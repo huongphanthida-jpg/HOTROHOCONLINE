@@ -24,11 +24,14 @@ import {
   HelpCircle,
   Check,
   FileSpreadsheet,
-  Download
+  Download,
+  Edit3,
+  Pencil
 } from 'lucide-react';
 import { summarizeTheoryDocument, generateQuestionsFromDoc } from '../services/aiService';
 import { exportDocumentToPowerPointPptx, exportToMoodleGIFT, exportExamToWordDocx } from '../utils/exportUtils';
 import { PPTPreviewModal } from './PPTPreviewModal';
+import { EditDocumentModal } from './EditDocumentModal';
 
 // Helpers to read files
 function readFileAsBase64(file: File): Promise<{ dataUrl: string; base64: string }> {
@@ -116,6 +119,10 @@ export const DocumentLearningView: React.FC<DocumentLearningViewProps> = ({
   // PPT Slide Preview Modal State
   const [isPptPreviewModalOpen, setIsPptPreviewModalOpen] = useState(false);
   const [previewPptDoc, setPreviewPptDoc] = useState<DocumentLearning | null>(null);
+
+  // Edit Document Modal State
+  const [isEditDocModalOpen, setIsEditDocModalOpen] = useState(false);
+  const [editingDoc, setEditingDoc] = useState<DocumentLearning | null>(null);
 
   // AI Loading states
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -511,9 +518,22 @@ export const DocumentLearningView: React.FC<DocumentLearningViewProps> = ({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
+                        setEditingDoc(doc);
+                        setIsEditDocModalOpen(true);
+                      }}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/40 transition-colors shrink-0"
+                      title={`Chỉnh sửa tài liệu "${doc.title}"`}
+                      aria-label={`Chỉnh sửa tài liệu ${doc.title}`}
+                    >
+                      <Edit3 className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
                         setDocToDelete(doc);
                       }}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors ml-2 shrink-0"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors ml-1 shrink-0"
                       title={`Xóa tài liệu "${doc.title}"`}
                       aria-label={`Xóa tài liệu ${doc.title}`}
                     >
@@ -901,6 +921,20 @@ export const DocumentLearningView: React.FC<DocumentLearningViewProps> = ({
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditingDoc(selectedDoc);
+                      setIsEditDocModalOpen(true);
+                    }}
+                    className="flex items-center space-x-1.5 px-3 py-2.5 bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/40 dark:hover:bg-teal-900/60 border border-teal-200 dark:border-teal-900/60 text-teal-700 dark:text-teal-300 text-xs font-bold rounded-xl shadow-xs transition-colors"
+                    title="Chỉnh sửa tiêu đề, nội dung tóm tắt, trọng tâm kiến thức và câu hỏi đề thi"
+                    id="btn-edit-current-doc"
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                    <span>Chỉnh Sửa Tài Liệu</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => setDocToDelete(selectedDoc)}
@@ -1576,6 +1610,22 @@ export const DocumentLearningView: React.FC<DocumentLearningViewProps> = ({
         onClose={() => {
           setIsPptPreviewModalOpen(false);
           setPreviewPptDoc(null);
+        }}
+      />
+
+      {/* Edit Document Modal */}
+      <EditDocumentModal
+        isOpen={isEditDocModalOpen}
+        doc={editingDoc}
+        onClose={() => {
+          setIsEditDocModalOpen(false);
+          setEditingDoc(null);
+        }}
+        onSave={(updatedDoc) => {
+          onSaveDocument(updatedDoc);
+          if (selectedDoc?.id === updatedDoc.id) {
+            setSelectedDoc(updatedDoc);
+          }
         }}
       />
     </div>
