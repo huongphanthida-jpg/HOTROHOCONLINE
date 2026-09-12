@@ -18,29 +18,6 @@ import {
   CloudOff,
   UserCheck,
   Tv,
-  FlaskConical
-} from 'lucide-react';
-
-import React from 'react';
-import { 
-  BookOpen, 
-  FileText, 
-  Gamepad2,
-  BarChart3, 
-  Bot, 
-  Settings, 
-  Sparkles, 
-  Moon, 
-  Sun, 
-  Volume2, 
-  VolumeX, 
-  ChevronLeft, 
-  ChevronRight, 
-  GraduationCap,
-  CloudCheck,
-  CloudOff,
-  UserCheck,
-  Tv,
   FlaskConical,
   ShieldCheck,
   User,
