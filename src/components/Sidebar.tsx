@@ -21,6 +21,33 @@ import {
   FlaskConical
 } from 'lucide-react';
 
+import React from 'react';
+import { 
+  BookOpen, 
+  FileText, 
+  Gamepad2,
+  BarChart3, 
+  Bot, 
+  Settings, 
+  Sparkles, 
+  Moon, 
+  Sun, 
+  Volume2, 
+  VolumeX, 
+  ChevronLeft, 
+  ChevronRight, 
+  GraduationCap,
+  CloudCheck,
+  CloudOff,
+  UserCheck,
+  Tv,
+  FlaskConical,
+  ShieldCheck,
+  User,
+  Lock
+} from 'lucide-react';
+import { UserRole } from '../types';
+
 export type NavigationTab = 'subjects' | 'online_classes' | 'documents' | 'games' | 'simulations' | 'progress' | 'tutor';
 
 interface SidebarProps {
@@ -37,6 +64,8 @@ interface SidebarProps {
   isOpenMobile: boolean;
   onCloseMobile: () => void;
   examInProgress?: boolean;
+  userRole: UserRole;
+  onSwitchRole: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -53,7 +82,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
   isOpenMobile,
   onCloseMobile,
   examInProgress = false,
+  userRole,
+  onSwitchRole,
 }) => {
+  const isStudent = userRole === 'student';
+
   const navSections = [
     {
       groupTitle: 'PHÂN HIỆU HỌC TẬP & THI CỬ',
@@ -193,8 +226,54 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
 
+        {/* Role Switcher Pill Bar */}
+        <div className="px-3 pt-3">
+          {!isCollapsed ? (
+            <div
+              onClick={onSwitchRole}
+              className={`p-2 rounded-xl border flex items-center justify-between cursor-pointer transition-all ${
+                isStudent
+                  ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-800 dark:text-amber-200 hover:bg-amber-100'
+                  : 'bg-teal-50 dark:bg-teal-950/40 border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-200 hover:bg-teal-100'
+              }`}
+              title={isStudent ? 'Bấm để đổi sang vai trò Giáo Viên (Cần nhập mã PIN)' : 'Bấm để đổi sang vai trò Học Sinh'}
+            >
+              <div className="flex items-center space-x-2 truncate">
+                <div
+                  className={`w-7 h-7 rounded-lg flex items-center justify-center text-white shrink-0 ${
+                    isStudent ? 'bg-amber-500' : 'bg-teal-600'
+                  }`}
+                >
+                  {isStudent ? <User className="w-4 h-4" /> : <ShieldCheck className="w-4 h-4" />}
+                </div>
+                <div className="min-w-0">
+                  <span className="text-[10px] font-bold uppercase tracking-wider block opacity-75">
+                    Quyền sử dụng
+                  </span>
+                  <span className="text-xs font-bold truncate block">
+                    {isStudent ? '🎓 Học Sinh' : '👨‍🏫 Giáo Viên'}
+                  </span>
+                </div>
+              </div>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-white/70 dark:bg-slate-800/80 shadow-2xs border border-slate-200 dark:border-slate-700">
+                Đổi
+              </span>
+            </div>
+          ) : (
+            <button
+              onClick={onSwitchRole}
+              className={`w-10 h-10 mx-auto rounded-xl flex items-center justify-center border text-white ${
+                isStudent ? 'bg-amber-500 border-amber-600' : 'bg-teal-600 border-teal-700'
+              }`}
+              title={isStudent ? 'Quyền: Học Sinh (Bấm để đổi)' : 'Quyền: Giáo Viên (Bấm để đổi)'}
+            >
+              {isStudent ? <User className="w-5 h-5" /> : <ShieldCheck className="w-5 h-5" />}
+            </button>
+          )}
+        </div>
+
         {/* Navigation Categories & Branches */}
-        <div className="flex-1 py-4 px-3 overflow-y-auto space-y-6 no-scrollbar">
+        <div className="flex-1 py-3 px-3 overflow-y-auto space-y-6 no-scrollbar">
           {examInProgress && !isCollapsed && (
             <div className="p-3 bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 rounded-xl text-xs space-y-1 animate-pulse">
               <div className="flex items-center space-x-1.5 font-bold text-teal-700 dark:text-teal-300">
@@ -276,38 +355,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           ))}
 
-          {/* Quick Settings Action in Nav List */}
-          <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1">
-            {!isCollapsed && (
-              <div className="px-2.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
-                HỆ THỐNG
-              </div>
-            )}
-
-            <button
-              onClick={() => {
-                onOpenSettings();
-                onCloseMobile();
-              }}
-              className={`w-full flex items-center rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-slate-900 dark:hover:text-white transition-all text-left ${
-                isCollapsed ? 'justify-center p-3' : 'px-3 py-2.5 space-x-3'
-              }`}
-              id="sidebar-settings-btn"
-              title="Cấu hình & Tích hợp"
-            >
-              <Settings className="w-5 h-5 text-slate-400 shrink-0" />
+          {/* Quick Settings Action (Only for Teacher) */}
+          {!isStudent && (
+            <div className="pt-2 border-t border-slate-100 dark:border-slate-800 space-y-1">
               {!isCollapsed && (
-                <div className="min-w-0 flex-1">
-                  <span className="text-xs font-semibold block leading-tight">
-                    Cài Đặt & Kết Nối AI
-                  </span>
-                  <span className="text-[10px] text-slate-400 block truncate mt-0.5">
-                    API Key, Apps Script & Sao lưu
-                  </span>
+                <div className="px-2.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                  HỆ THỐNG
                 </div>
               )}
-            </button>
-          </div>
+
+              <button
+                onClick={() => {
+                  onOpenSettings();
+                  onCloseMobile();
+                }}
+                className={`w-full flex items-center rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800/70 hover:text-slate-900 dark:hover:text-white transition-all text-left ${
+                  isCollapsed ? 'justify-center p-3' : 'px-3 py-2.5 space-x-3'
+                }`}
+                id="sidebar-settings-btn"
+                title="Cài đặt & Tích hợp"
+              >
+                <Settings className="w-5 h-5 text-slate-400 shrink-0" />
+                {!isCollapsed && (
+                  <div className="min-w-0 flex-1">
+                    <span className="text-xs font-semibold block leading-tight">
+                      Cài Đặt & Kết Nối AI
+                    </span>
+                    <span className="text-[10px] text-slate-400 block truncate mt-0.5">
+                      API Key, Apps Script & Mã PIN
+                    </span>
+                  </div>
+                )}
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Bottom Utility Footer */}
