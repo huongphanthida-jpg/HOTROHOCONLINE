@@ -29,6 +29,8 @@ import {
 } from 'lucide-react';
 import { exportExamToWordDocx } from '../utils/exportUtils';
 
+import { UserRole } from '../types';
+
 interface SubjectCardsViewProps {
   subjects: Subject[];
   progress: ProgressData;
@@ -41,6 +43,7 @@ interface SubjectCardsViewProps {
   onAddSubject?: (newSub: Subject, generatedQuestions?: Question[]) => void;
   onSyncFromDocuments?: () => void;
   hasUnsyncedDocuments?: boolean;
+  userRole?: UserRole;
 }
 
 export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
@@ -55,7 +58,9 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
   onAddSubject,
   onSyncFromDocuments,
   hasUnsyncedDocuments,
+  userRole = 'teacher',
 }) => {
+  const isStudent = userRole === 'student';
   const [searchTerm, setSearchTerm] = useState('');
   const [gradeFilter, setGradeFilter] = useState<'all' | '10' | '11' | '12' | 'document_ai'>('all');
   const [classFilter, setClassFilter] = useState<string>('all');
@@ -351,7 +356,7 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
             </div>
 
             {/* Add Subject Button */}
-            {onAddSubject && (
+            {!isStudent && onAddSubject && (
               <button
                 type="button"
                 onClick={() => setIsAddModalOpen(true)}
@@ -365,7 +370,7 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
             )}
 
             {/* Restore default subjects button */}
-            {onRestoreDefaultSubjects && subjects.length < 8 && (
+            {!isStudent && onRestoreDefaultSubjects && subjects.length < 8 && (
               <button
                 type="button"
                 onClick={onRestoreDefaultSubjects}
@@ -379,7 +384,7 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
             )}
 
             {/* Clear All Data Button */}
-            {onClearAllSubjects && (
+            {!isStudent && onClearAllSubjects && (
               <button
                 type="button"
                 onClick={() => setIsConfirmClearAllOpen(true)}
@@ -463,40 +468,44 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
                       {sub.questionsCount} câu hỏi
                     </span>
 
-                    {/* Activated Edit Button next to Delete Button */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSubjectToEdit(sub);
-                        setEditSubName(sub.name);
-                        setEditSubDesc(sub.description || '');
-                        setEditSubClassName(sub.className || '');
-                        setEditSubGrade(sub.grade || '10');
-                      }}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/50 transition-colors"
-                      title={`Chỉnh sửa tên và thông tin đề thi "${sub.name}"`}
-                      aria-label={`Chỉnh sửa tên đề thi ${sub.name}`}
-                      id={`btn-edit-icon-${sub.id}`}
-                    >
-                      <Edit3 className="w-4 h-4 text-teal-600 dark:text-teal-400" />
-                    </button>
+                    {!isStudent && (
+                      <>
+                        {/* Activated Edit Button next to Delete Button */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSubjectToEdit(sub);
+                            setEditSubName(sub.name);
+                            setEditSubDesc(sub.description || '');
+                            setEditSubClassName(sub.className || '');
+                            setEditSubGrade(sub.grade || '10');
+                          }}
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:bg-teal-950/50 transition-colors"
+                          title={`Chỉnh sửa tên và thông tin đề thi "${sub.name}"`}
+                          aria-label={`Chỉnh sửa tên đề thi ${sub.name}`}
+                          id={`btn-edit-icon-${sub.id}`}
+                        >
+                          <Edit3 className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                        </button>
 
-                    {/* Activated Delete Button next to Subject Data */}
-                    {onDeleteSubject && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSubjectToDelete(sub);
-                        }}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
-                        title={`Xóa môn học "${sub.name}"`}
-                        aria-label={`Xóa môn học ${sub.name}`}
-                        id={`btn-delete-icon-${sub.id}`}
-                      >
-                        <Trash2 className="w-4 h-4 text-rose-500 hover:text-rose-600" />
-                      </button>
+                        {/* Activated Delete Button next to Subject Data */}
+                        {onDeleteSubject && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSubjectToDelete(sub);
+                            }}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 transition-colors"
+                            title={`Xóa môn học "${sub.name}"`}
+                            aria-label={`Xóa môn học ${sub.name}`}
+                            id={`btn-delete-icon-${sub.id}`}
+                          >
+                            <Trash2 className="w-4 h-4 text-rose-500 hover:text-rose-600" />
+                          </button>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
