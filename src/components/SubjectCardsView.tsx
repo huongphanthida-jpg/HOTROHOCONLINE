@@ -829,6 +829,8 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
             questionsCount: qrSubject.questionsCount,
           }}
         />
+      )}
+
       {/* MODAL: Chỉnh Sửa Tên & Thông Tin Đề Thi */}
       {subjectToEdit && (
         <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
