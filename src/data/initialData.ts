@@ -1289,5 +1289,15 @@ III. ĐƯỜNG TIỆM CẬN
       updatedAt: '2026-09-11T10:00:00.000Z',
     },
   ],
+  settings: {
+    theme: 'light',
+    soundEnabled: true,
+    autoSave: true,
+    geminiApiKey: '',
+    selectedModel: 'gemini-3-flash-preview',
+    googleAppsScriptUrl: '',
+    currentRole: 'teacher',
+    teacherPin: '1234',
+  },
 };
 
