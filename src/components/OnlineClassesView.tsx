@@ -25,11 +25,14 @@ import {
 } from 'lucide-react';
 import { fetchOnlineClassesFromGoogleSheets, APPS_SCRIPT_SAMPLE_CODE } from '../services/sheetSyncService';
 
+import { UserRole } from '../types';
+
 interface OnlineClassesViewProps {
   onlineClasses: OnlineClass[];
   settings: AppSettings;
   onUpdateClasses: (classes: OnlineClass[]) => void;
   onOpenSettings: () => void;
+  userRole?: UserRole;
 }
 
 export const OnlineClassesView: React.FC<OnlineClassesViewProps> = ({
@@ -37,7 +40,9 @@ export const OnlineClassesView: React.FC<OnlineClassesViewProps> = ({
   settings,
   onUpdateClasses,
   onOpenSettings,
+  userRole = 'teacher',
 }) => {
+  const isStudent = userRole === 'student';
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGrade, setSelectedGrade] = useState<string>('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
