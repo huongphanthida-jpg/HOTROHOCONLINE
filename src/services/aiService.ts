@@ -18,33 +18,113 @@ export interface AICallParams {
 }
 
 export const AVAILABLE_MODELS = [
-  { id: 'gemini-3.8-flash', name: 'gemini-3-flash-preview (Mặc định - Nhanh & Chuẩn)', tag: 'Mặc định' },
-  { id: 'gemini-3.1-pro-preview', name: 'gemini-3-pro-preview (Suy luận sâu - Nâng cao)', tag: 'Pro Suy Luận' },
+  { id: 'gemini-3-flash-preview', name: 'gemini-3-flash-preview (Mặc định - Nhanh & Chuẩn)', tag: 'Mặc định' },
+  { id: 'gemini-3-pro-preview', name: 'gemini-3-pro-preview (Suy luận sâu - Nâng cao)', tag: 'Pro Suy Luận' },
   { id: 'gemini-2.5-flash', name: 'gemini-2.5-flash (Tự động dự phòng khi lỗi API)', tag: 'Ổn định' },
   { id: 'gemini-3.1-flash-lite', name: 'gemini-3.1-flash-lite (Siêu tốc & Chịu tải cao)', tag: 'Siêu tốc' },
 ];
 
 /**
- * Gọi Gemini AI qua Server API Proxy hoặc Fallback Client
+ * Gọi Gemini AI qua Direct Client API hoặc Server API Proxy với cơ chế Tự động Fallback Model
  */
 export async function callGeminiAI(params: AICallParams): Promise<{ text: string; usedModel: string }> {
-  const localKey = localStorage.getItem('gemini_api_key') || '';
-  let localModel = localStorage.getItem('selected_model') || 'gemini-3.8-flash';
-
-  // Automatically migrate invalid or discontinued models from localStorage if previously stored
-  if (
-    localModel === 'gemini-3.6-flash' || 
-    localModel === 'gemini-2.0-flash'
-  ) {
-    localModel = 'gemini-3.8-flash';
-    localStorage.setItem('selected_model', 'gemini-3.8-flash');
-  }
+  const localKey = (localStorage.getItem('gemini_api_key') || '').trim();
+  let localModel = localStorage.getItem('selected_model') || 'gemini-3-flash-preview';
 
   let model = params.model || localModel;
-  if (model === 'gemini-3.6-flash' || model === 'gemini-2.0-flash') {
-    model = 'gemini-3.8-flash';
+
+  const candidateModels = Array.from(
+    new Set([
+      model,
+      'gemini-3-flash-preview',
+      'gemini-3-pro-preview',
+      'gemini-2.5-flash',
+      'gemini-1.5-flash',
+      'gemini-1.5-pro',
+    ])
+  );
+
+  // 1. Direct Google Gemini API call if user has localKey
+  if (localKey && localKey.length > 0) {
+    const parts: any[] = [];
+    if (params.images && params.images.length > 0) {
+      for (const img of params.images) {
+        parts.push({
+          inline_data: {
+            mime_type: img.mimeType || 'image/jpeg',
+            data: img.data,
+          },
+        });
+      }
+    }
+    if (params.prompt) {
+      parts.push({ text: params.prompt });
+    }
+
+    const contentsPayload = parts.length === 1 && params.prompt ? [{ parts: [{ text: params.prompt }] }] : [{ parts }];
+
+    let lastErrorMessage = '';
+
+    for (const candidateModel of candidateModels) {
+      try {
+        const directRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${candidateModel}:generateContent?key=${localKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: contentsPayload,
+              generationConfig: {
+                temperature: params.temperature ?? 0.7,
+                maxOutputTokens: params.maxOutputTokens ?? 4096,
+                responseMimeType: params.responseMimeType,
+              },
+            }),
+          }
+        );
+
+        const rawDirectText = await directRes.text();
+
+        if (directRes.ok && rawDirectText && rawDirectText.trim()) {
+          try {
+            const directData = JSON.parse(rawDirectText);
+            const text = directData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            if (text) {
+              return { text, usedModel: candidateModel };
+            }
+          } catch (jsonErr) {
+            console.warn(`Direct Gemini model ${candidateModel} JSON parse error:`, jsonErr);
+          }
+        } else if (!directRes.ok) {
+          let errMsg = `Mã lỗi HTTP ${directRes.status}`;
+          try {
+            const errJson = JSON.parse(rawDirectText);
+            if (errJson.error?.message) errMsg = errJson.error.message;
+          } catch {}
+
+          if (directRes.status === 401 || directRes.status === 403) {
+            throw new Error('API Key không hợp lệ hoặc đã hết hạn. Vui lòng bấm link màu đỏ trên Header để lấy API Key mới!');
+          }
+          
+          lastErrorMessage = `${candidateModel}: ${errMsg}`;
+          console.warn(`Gemini model ${candidateModel} failed with status ${directRes.status}, trying fallback model...`);
+          // Continue loop to try next candidate model
+        }
+      } catch (directErr: any) {
+        if (directErr.message && directErr.message.includes('API Key')) {
+          throw directErr;
+        }
+        lastErrorMessage = directErr.message || String(directErr);
+        console.warn(`Error trying candidate model ${candidateModel}:`, lastErrorMessage);
+      }
+    }
+
+    if (lastErrorMessage && lastErrorMessage.includes('429')) {
+      throw new Error('API Key của bạn đã vượt quá giới hạn lượt gọi (Rate Limit 429). Vui lòng đổi Key khác hoặc thử lại sau.');
+    }
   }
 
+  // 2. Server Proxy Attempt / Fallback
   try {
     const response = await fetch('/api/gemini/generate', {
       method: 'POST',
@@ -56,11 +136,25 @@ export async function callGeminiAI(params: AICallParams): Promise<{ text: string
       }),
     });
 
-    const data = await response.json();
+    const rawText = await response.text();
+
+    if (!rawText || !rawText.trim() || rawText.trim().startsWith('<')) {
+      if (!localKey) {
+        throw new Error('Chưa cấu hình Gemini API Key! Vui lòng bấm vào dòng chữ màu đỏ "Lấy API key để sử dụng app" trên Header để dán API Key của bạn.');
+      }
+      throw new Error('Máy chủ AI không trả về dữ liệu JSON hợp lệ. Vui lòng kiểm tra lại Gemini API Key trong phần Cài đặt.');
+    }
+
+    let data: any;
+    try {
+      data = JSON.parse(rawText);
+    } catch (e) {
+      throw new Error('Phản hồi từ máy chủ không đúng định dạng JSON. Vui lòng nhập Gemini API Key cá nhân trong phần Cài đặt.');
+    }
 
     if (!response.ok) {
       if (response.status === 401 || response.status === 403) {
-        throw new Error(data.error || 'API Key không hợp lệ hoặc đã hết hạn. Vui lòng kiểm tra lại trong Cài đặt.');
+        throw new Error(data.error || 'API Key không hợp lệ hoặc đã hết hạn. Vui lòng bấm link màu đỏ trên Header để lấy API Key mới.');
       }
       if (response.status === 429) {
         throw new Error('Đã đạt giới hạn yêu cầu (Rate Limit / Quota 429). Vui lòng thử lại sau giây lát.');
@@ -76,50 +170,9 @@ export async function callGeminiAI(params: AICallParams): Promise<{ text: string
       usedModel: data.usedModel || model,
     };
   } catch (err: any) {
-    // Nếu gặp lỗi mạng hoặc proxy server chưa sẵn sàng, thử gọi trực tiếp nếu có localKey
-    if (localKey && (!err.message || !err.message.includes('API Key'))) {
-      try {
-        const directModel = (model === 'gemini-3.6-flash' || model === 'gemini-2.0-flash') ? 'gemini-3.8-flash' : model;
-        const parts: any[] = [];
-        if (params.images && params.images.length > 0) {
-          for (const img of params.images) {
-            parts.push({
-              inline_data: {
-                mime_type: img.mimeType || 'image/jpeg',
-                data: img.data,
-              },
-            });
-          }
-        }
-        if (params.prompt) {
-          parts.push({ text: params.prompt });
-        }
-
-        const directRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${directModel}:generateContent?key=${localKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts }],
-              generationConfig: {
-                temperature: params.temperature ?? 0.7,
-                maxOutputTokens: params.maxOutputTokens ?? 4096,
-                responseMimeType: params.responseMimeType,
-              },
-            }),
-          }
-        );
-        if (directRes.ok) {
-          const directData = await directRes.json();
-          const text = directData.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          return { text, usedModel: directModel };
-        }
-      } catch (directErr) {
-        console.warn('Direct fetch also failed:', directErr);
-      }
+    if (!localKey && (err.message?.includes('JSON') || err.message?.includes('Unexpected'))) {
+      throw new Error('Chưa cấu hình Gemini API Key! Vui lòng bấm vào dòng chữ màu đỏ "Lấy API key để sử dụng app" trên Header để dán API Key của bạn.');
     }
-
     throw err;
   }
 }
