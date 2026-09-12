@@ -3,6 +3,8 @@ import { ProgressData, SessionRecord } from '../types';
 import { BarChart3, TrendingUp, Award, Users, AlertCircle, Search, RefreshCw, CheckCircle2, XCircle, FileSpreadsheet, Eye, Trash2, Gamepad2, GraduationCap, Filter, Trophy } from 'lucide-react';
 import { syncSessionToGoogleSheets, formatTimeSpent } from '../services/sheetSyncService';
 
+import { UserRole } from '../types';
+
 interface ProgressDashboardProps {
   progress: ProgressData;
   sessions: SessionRecord[];
@@ -10,6 +12,7 @@ interface ProgressDashboardProps {
   onUpdateSession: (updated: SessionRecord) => void;
   onDeleteSession?: (sessionId: string) => void;
   onClearAllSessions?: () => void;
+  userRole?: UserRole;
 }
 
 export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
@@ -19,7 +22,9 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
   onUpdateSession,
   onDeleteSession,
   onClearAllSessions,
+  userRole = 'teacher',
 }) => {
+  const isStudent = userRole === 'student';
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState<'all' | 'exam' | 'game'>('all');
   const [syncingId, setSyncingId] = useState<string | null>(null);
