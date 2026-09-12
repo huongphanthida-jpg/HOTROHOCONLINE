@@ -92,6 +92,8 @@ export interface OnlineClass {
   updatedAt?: string;
 }
 
+export type UserRole = 'teacher' | 'student';
+
 export interface AppSettings {
   theme: 'light' | 'dark';
   soundEnabled: boolean;
@@ -100,6 +102,8 @@ export interface AppSettings {
   selectedModel: string;
   googleAppsScriptUrl: string;
   onlineClassSheetUrl?: string; // URL Google Sheet / Web App danh sách lớp học trực tuyến
+  currentRole?: UserRole; // 'teacher' (Giáo viên) hoặc 'student' (Học sinh)
+  teacherPin?: string; // Mã PIN để chuyển sang quyền Giáo viên (mặc định "1234")
 }
 
 export type GameType = 'quiz' | 'drag_drop' | 'matching';
