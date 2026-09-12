@@ -197,13 +197,35 @@ app.post("/api/sync-google-sheets", async (req, res) => {
       return res.status(400).json({ error: "Thiếu URL Google Apps Script Web App" });
     }
 
-    const response = await fetch(scriptUrl, {
+    const trimmedUrl = String(scriptUrl).trim();
+
+    if (trimmedUrl.includes("docs.google.com/spreadsheets")) {
+      return res.status(400).json({
+        error: "Bạn đang dán nhầm URL trang Google Sheet (docs.google.com)! Vui lòng dán URL Web App của Google Apps Script (có dạng https://script.google.com/macros/s/.../exec). Xem hướng dẫn bên dưới!",
+      });
+    }
+
+    const response = await fetch(trimmedUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+      redirect: "follow",
     });
 
+    if (response.status === 405) {
+      return res.status(405).json({
+        error: "Lỗi HTTP 405 (Method Not Allowed): Google Apps Script của bạn CHƯA CÓ hàm doPost(e) hoặc bạn CHƯA TẠO PHIÊN BẢN MỚI khi Triển khai lại! Hãy dán lại mã mẫu và chọn 'Phiên bản mới' (New version) khi Triển khai.",
+      });
+    }
+
     const text = await response.text();
+
+    if (text.includes("<!DOCTYPE html") || text.includes("<html") || text.includes("accounts.google.com")) {
+      return res.status(400).json({
+        error: "Google Apps Script yêu cầu đăng nhập. Hãy đảm bảo bạn chọn quyền 'Bất kỳ ai' (Anyone) tại mục 'Ai có quyền truy cập' khi Triển khai Web App!",
+      });
+    }
+
     let jsonResult;
     try {
       jsonResult = JSON.parse(text);
