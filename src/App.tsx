@@ -519,6 +519,14 @@ export default function App() {
     }));
   };
 
+  // Update a single subject (e.g. edit name, description, class, grade)
+  const handleUpdateSubject = (updatedSubject: Subject) => {
+    setAppData((prev) => ({
+      ...prev,
+      subjects: prev.subjects.map((s) => (s.id === updatedSubject.id ? updatedSubject : s)),
+    }));
+  };
+
   // Clear all subjects and questions
   const handleClearAllSubjects = () => {
     setAppData((prev) => ({
@@ -867,6 +875,7 @@ export default function App() {
                   documents={appData.documents || []}
                   onSelectSubjectToExam={handleSelectSubjectToExam}
                   onDeleteSubject={handleDeleteSubject}
+                  onUpdateSubject={handleUpdateSubject}
                   onClearAllSubjects={handleClearAllSubjects}
                   onRestoreDefaultSubjects={handleRestoreDefaultSubjects}
                   onAddSubject={handleAddSubject}
