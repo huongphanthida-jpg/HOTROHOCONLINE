@@ -18,6 +18,9 @@ import { soundEffects } from './utils/soundEffects';
 import { EducationalGame } from './types';
 import { GameSessionResult, syncSessionToGoogleSheets } from './services/sheetSyncService';
 
+import { UserRole } from './types';
+import { Lock, AlertCircle, X, ShieldCheck, User } from 'lucide-react';
+
 export default function App() {
   // Load application data from LocalStorage or use INITIAL_DATA
   const [appData, setAppData] = useState<AppData>(() => {
@@ -70,12 +73,57 @@ export default function App() {
     return INITIAL_DATA;
   });
 
+  // Role State ('teacher' | 'student')
+  const [userRole, setUserRole] = useState<UserRole>(() => {
+    return (localStorage.getItem('user_role') as UserRole) || appData.settings?.currentRole || 'teacher';
+  });
+
+  // Role PIN Verification Modal State
+  const [isRolePinModalOpen, setIsRolePinModalOpen] = useState(false);
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState('');
+
   // Current navigation tab: 'subjects' | 'documents' | 'progress' | 'tutor'
   const [currentTab, setCurrentTab] = useState<NavigationTab>('subjects');
 
   // Sidebar collapse and mobile state
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  // Role switcher request handler
+  const handleSwitchRoleRequest = () => {
+    if (userRole === 'teacher') {
+      // Switch directly to Student mode
+      setUserRole('student');
+      localStorage.setItem('user_role', 'student');
+      setAppData((prev) => ({
+        ...prev,
+        settings: { ...prev.settings, currentRole: 'student' },
+      }));
+    } else {
+      // Student to Teacher mode requires PIN
+      setPinInput('');
+      setPinError('');
+      setIsRolePinModalOpen(true);
+    }
+  };
+
+  const handleVerifyTeacherPin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const targetPin = appData.settings?.teacherPin || localStorage.getItem('teacher_pin') || '1234';
+    if (pinInput.trim() === targetPin.trim()) {
+      setUserRole('teacher');
+      localStorage.setItem('user_role', 'teacher');
+      setAppData((prev) => ({
+        ...prev,
+        settings: { ...prev.settings, currentRole: 'teacher' },
+      }));
+      setIsRolePinModalOpen(false);
+      setPinError('');
+    } else {
+      setPinError('Mã PIN không chính xác! Vui lòng thử lại (Mặc định: 1234)');
+    }
+  };
 
   // Exam flow states
   const [pendingSubject, setPendingSubject] = useState<{ name: string; id: string; questions: Question[] } | null>(null);
@@ -857,6 +905,8 @@ export default function App() {
         isOpenMobile={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
         examInProgress={Boolean(activeExam)}
+        userRole={userRole}
+        onSwitchRole={handleSwitchRoleRequest}
       />
 
       {/* 2. BÊN PHẢI: Khu vực tính năng (Right Feature Area) */}
@@ -870,6 +920,8 @@ export default function App() {
           onToggleTheme={handleToggleTheme}
           examInProgress={Boolean(activeExam)}
           activeExamTitle={activeExam?.subjectName}
+          userRole={userRole}
+          onSwitchRole={handleSwitchRoleRequest}
         />
 
         {/* Feature Body */}
@@ -911,6 +963,7 @@ export default function App() {
                   onRestoreDefaultSubjects={handleRestoreDefaultSubjects}
                   onAddSubject={handleAddSubject}
                   onSyncFromDocuments={handleSyncFromDocuments}
+                  userRole={userRole}
                 />
               )}
 
@@ -920,6 +973,7 @@ export default function App() {
                   settings={appData.settings}
                   onUpdateClasses={handleUpdateOnlineClasses}
                   onOpenSettings={() => setIsSettingsOpen(true)}
+                  userRole={userRole}
                 />
               )}
 
@@ -930,6 +984,7 @@ export default function App() {
                   onDeleteDocument={handleDeleteDocument}
                   onStartExamFromQuestions={handleStartExamFromQuestions}
                   onSyncToSubjects={handleSyncDocumentToSubject}
+                  userRole={userRole}
                 />
               )}
 
@@ -944,7 +999,7 @@ export default function App() {
                   onClearAllGames={handleClearAllGames}
                   onRestoreDefaultGames={handleRestoreDefaultGames}
                   onRecordGameSession={handleRecordGameSession}
-                  googleScriptUrl={appData.settings.googleScriptUrl}
+                  googleScriptUrl={appData.settings.googleAppsScriptUrl}
                 />
               )}
 
@@ -960,6 +1015,7 @@ export default function App() {
                   onUpdateSession={handleUpdateSession}
                   onDeleteSession={handleDeleteSession}
                   onClearAllSessions={handleClearAllSessions}
+                  userRole={userRole}
                 />
               )}
 
@@ -997,6 +1053,75 @@ export default function App() {
           onClose={() => setIsStudentModalOpen(false)}
           onSubmit={handleConfirmStudentInfo}
         />
+      )}
+
+      {/* Role PIN Verification Modal */}
+      {isRolePinModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-700">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center font-bold">
+                  <Lock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base text-slate-800 dark:text-white">Xác Nhận Mã PIN Giáo Viên</h3>
+                  <p className="text-xs text-slate-400">Chuyển sang vai trò Giáo Viên / Quản Trị</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsRolePinModalOpen(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleVerifyTeacherPin} className="space-y-4">
+              {pinError && (
+                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{pinError}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Nhập mã PIN bảo vệ (Mặc định: 1234)
+                </label>
+                <input
+                  type="password"
+                  maxLength={10}
+                  value={pinInput}
+                  onChange={(e) => {
+                    setPinInput(e.target.value);
+                    setPinError('');
+                  }}
+                  placeholder="Nhập mã PIN..."
+                  autoFocus
+                  className="w-full text-center tracking-widest text-lg font-mono px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              <div className="flex items-center justify-end space-x-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsRolePinModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 shadow-md transition-all active:scale-95"
+                >
+                  Xác Nhận Đổi Vai Trò
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
 
       {/* Settings Modal */}
