@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { summarizeTheoryDocument, generateQuestionsFromDoc } from '../services/aiService';
 import { exportDocumentToPowerPointPptx, exportToMoodleGIFT, exportExamToWordDocx } from '../utils/exportUtils';
+import { PPTPreviewModal } from './PPTPreviewModal';
 
 // Helpers to read files
 function readFileAsBase64(file: File): Promise<{ dataUrl: string; base64: string }> {
@@ -111,6 +112,10 @@ export const DocumentLearningView: React.FC<DocumentLearningViewProps> = ({
   const [customReGenCount, setCustomReGenCount] = useState(5);
   const [customReGenFormat, setCustomReGenFormat] = useState<'multiple_choice' | 'short_answer' | 'true_false' | 'essay' | 'mixed'>('multiple_choice');
   const [customReGenDifficulty, setCustomReGenDifficulty] = useState<'balanced' | 'easy' | 'medium' | 'hard'>('balanced');
+
+  // PPT Slide Preview Modal State
+  const [isPptPreviewModalOpen, setIsPptPreviewModalOpen] = useState(false);
+  const [previewPptDoc, setPreviewPptDoc] = useState<DocumentLearning | null>(null);
 
   // AI Loading states
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -909,6 +914,20 @@ export const DocumentLearningView: React.FC<DocumentLearningViewProps> = ({
 
                   <button
                     type="button"
+                    onClick={() => {
+                      setPreviewPptDoc(selectedDoc);
+                      setIsPptPreviewModalOpen(true);
+                    }}
+                    className="flex items-center space-x-1.5 px-3 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-bold rounded-xl shadow-xs hover:shadow-md transition-all"
+                    title="Xem trước slide bài giảng điện tử 16:9 trực tiếp"
+                    id="btn-preview-pptx"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-white" />
+                    <span>Xem Trước Slide PPT</span>
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => exportDocumentToPowerPointPptx(selectedDoc)}
                     className="flex items-center space-x-1.5 px-3 py-2.5 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/60 border border-amber-200 dark:border-amber-900/60 text-amber-700 dark:text-amber-300 text-xs font-semibold rounded-xl shadow-xs transition-colors"
                     title="Tự động chuyển tóm tắt tài liệu thành Slide PowerPoint (.pptx)"
@@ -1549,6 +1568,16 @@ export const DocumentLearningView: React.FC<DocumentLearningViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* PPT Slide Preview Modal */}
+      <PPTPreviewModal
+        isOpen={isPptPreviewModalOpen}
+        doc={previewPptDoc}
+        onClose={() => {
+          setIsPptPreviewModalOpen(false);
+          setPreviewPptDoc(null);
+        }}
+      />
     </div>
   );
 };
