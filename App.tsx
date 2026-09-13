@@ -25,6 +25,8 @@ import { InteractiveSimulationsView } from './components/InteractiveSimulationsV
 import { ProgressDashboard } from './components/ProgressDashboard';
 import { AITutorModal } from './components/AITutorModal';
 import { SettingsModal } from './components/SettingsModal';
+import { EnterTaskCodeModal } from './components/EnterTaskCodeModal';
+import { decodeExamPayload, decodeGamePayload } from './utils/sharePayloadUtils';
 import { soundEffects } from './utils/soundEffects';
 import { GameSessionResult, syncSessionToGoogleSheets } from './services/sheetSyncService';
 import { Lock, AlertCircle, X, ShieldCheck, User } from 'lucide-react';
@@ -155,9 +157,76 @@ export default function App() {
   } | null>(null);
   const [activeResult, setActiveResult] = useState<SessionRecord | null>(null);
 
-  // Settings & Tutor Context modal states
+  // Settings & Tutor Context & Enter Code modal states
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isEnterCodeModalOpen, setIsEnterCodeModalOpen] = useState(false);
   const [tutorContext, setTutorContext] = useState<string | undefined>(undefined);
+
+  // Handle opening exam or game directly by ID code
+  const handleOpenTaskById = (codeInput: string): { success: boolean; message?: string } => {
+    const raw = codeInput.trim().toLowerCase();
+    if (!raw) return { success: false, message: 'Vui lòng nhập Mã ID!' };
+
+    // 1. Search Subjects (by id, className, or name)
+    const matchedSubject = appData.subjects.find(
+      (s) =>
+        s.id.toLowerCase() === raw ||
+        (s.className && s.className.toLowerCase() === raw) ||
+        s.name.toLowerCase().includes(raw)
+    );
+
+    if (matchedSubject) {
+      setUserRole('student');
+      localStorage.setItem('user_role', 'student');
+      setAppData((prev) => ({
+        ...prev,
+        settings: { ...prev.settings, currentRole: 'student' },
+      }));
+      setIsDirectSingleTaskMode(true);
+      setCurrentTab('subjects');
+      handleSelectSubjectToExam(matchedSubject);
+      return { success: true };
+    }
+
+    // 2. Search Documents with generated questions
+    const matchedDoc = appData.documents?.find(
+      (d) => d.id.toLowerCase() === raw || d.title.toLowerCase().includes(raw)
+    );
+    if (matchedDoc && matchedDoc.generatedQuestions && matchedDoc.generatedQuestions.length > 0) {
+      setUserRole('student');
+      localStorage.setItem('user_role', 'student');
+      setAppData((prev) => ({
+        ...prev,
+        settings: { ...prev.settings, currentRole: 'student' },
+      }));
+      setIsDirectSingleTaskMode(true);
+      setCurrentTab('subjects');
+      handleStartExamFromQuestions(matchedDoc.title, matchedDoc.generatedQuestions);
+      return { success: true };
+    }
+
+    // 3. Search Games
+    const matchedGame = appData.games?.find(
+      (g) => g.id.toLowerCase() === raw || g.title.toLowerCase().includes(raw)
+    );
+    if (matchedGame) {
+      setUserRole('student');
+      localStorage.setItem('user_role', 'student');
+      setAppData((prev) => ({
+        ...prev,
+        settings: { ...prev.settings, currentRole: 'student' },
+      }));
+      setIsDirectSingleTaskMode(true);
+      setCurrentTab('games');
+      setTargetGameIdFromUrl(matchedGame.id);
+      return { success: true };
+    }
+
+    return {
+      success: false,
+      message: `Không tìm thấy bài tập, đề thi hay trò chơi nào có Mã ID: "${codeInput}". Vui lòng hỏi lại thầy/cô bộ môn.`,
+    };
+  };
 
   // Auto-save effect
   useEffect(() => {
@@ -288,10 +357,12 @@ export default function App() {
     if (typeof window === 'undefined' || urlParamsProcessed) return;
 
     try {
+      const params = new URLSearchParams(window.location.search);
       const codeParam = params.get('code') || params.get('id');
       const examParam = params.get('exam') || codeParam;
       const gameParam = params.get('game');
       const roleParam = params.get('role');
+      const payloadParam = params.get('payload');
 
       // Automatically establish Student Role when accessing via QR Code or Direct Link
       if (examParam || gameParam || roleParam === 'student') {
@@ -309,20 +380,70 @@ export default function App() {
 
       if (examParam) {
         setUrlParamsProcessed(true);
-        // Direct link to an exam
-        const targetSub = appData.subjects.find((s) => s.id === examParam);
+
+        // 1. Priority 1: Decode embedded full exam payload directly from QR code URL
+        if (payloadParam) {
+          const decoded = decodeExamPayload(payloadParam);
+          if (decoded && decoded.questions && decoded.questions.length > 0) {
+            const { subject: decodedSub, questions: decodedQuestions } = decoded;
+            setAppData((prev) => {
+              const updatedSubjs = [
+                decodedSub,
+                ...prev.subjects.filter((s) => s.id !== decodedSub.id),
+              ];
+              const updatedQs = [
+                ...prev.questions.filter((q) => q.subjectId !== decodedSub.id),
+                ...decodedQuestions,
+              ];
+              return {
+                ...prev,
+                subjects: updatedSubjs,
+                questions: updatedQs,
+              };
+            });
+
+            setPendingSubject({
+              name: decodedSub.name,
+              id: decodedSub.id,
+              questions: decodedQuestions,
+            });
+            setIsStudentModalOpen(true);
+            return;
+          }
+        }
+
+        // 2. Priority 2: Direct lookup in local appData subjects
+        const targetSub = appData.subjects.find((s) => s.id.toLowerCase() === examParam.toLowerCase());
         if (targetSub) {
           handleSelectSubjectToExam(targetSub);
         } else {
-          // Check documents as well
-          const targetDoc = appData.documents?.find((d) => d.id === examParam);
+          // Check documents
+          const targetDoc = appData.documents?.find((d) => d.id.toLowerCase() === examParam.toLowerCase());
           if (targetDoc && targetDoc.generatedQuestions && targetDoc.generatedQuestions.length > 0) {
             handleStartExamFromQuestions(targetDoc.title, targetDoc.generatedQuestions);
+          } else {
+            // Check partial class or name match
+            const partialSub = appData.subjects.find(
+              (s) =>
+                (s.className && s.className.toLowerCase() === examParam.toLowerCase()) ||
+                s.name.toLowerCase().includes(examParam.toLowerCase())
+            );
+            if (partialSub) {
+              handleSelectSubjectToExam(partialSub);
+            }
           }
         }
       } else if (gameParam) {
         setUrlParamsProcessed(true);
-        // Direct link to a game
+        if (payloadParam) {
+          const decodedGame = decodeGamePayload(payloadParam);
+          if (decodedGame) {
+            setAppData((prev) => ({
+              ...prev,
+              games: [decodedGame, ...(prev.games || []).filter((g) => g.id !== decodedGame.id)],
+            }));
+          }
+        }
         setCurrentTab('games');
         setTargetGameIdFromUrl(gameParam);
       }
@@ -980,6 +1101,7 @@ export default function App() {
             currentTab={currentTab}
             onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
             onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenEnterCodeModal={() => setIsEnterCodeModalOpen(true)}
             theme={appData.settings?.theme || 'light'}
             onToggleTheme={handleToggleTheme}
             examInProgress={Boolean(activeExam)}
@@ -1004,6 +1126,15 @@ export default function App() {
             </div>
 
             <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={() => setIsEnterCodeModalOpen(true)}
+                className="text-[11px] font-bold px-3 py-1 rounded-full bg-amber-500 text-white shadow-xs hover:bg-amber-600 transition-colors flex items-center space-x-1"
+                title="Nhập mã bài tập khác"
+              >
+                <span>🔑 Đổi Mã ID</span>
+              </button>
+
               <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                 🎓 Quyền Học Sinh
               </span>
@@ -1053,6 +1184,7 @@ export default function App() {
               {currentTab === 'subjects' && !isDirectSingleTaskMode && (
                 <SubjectCardsView
                   subjects={appData.subjects}
+                  questions={appData.questions}
                   progress={appData.progress}
                   documents={appData.documents || []}
                   onSelectSubjectToExam={handleSelectSubjectToExam}
@@ -1062,6 +1194,7 @@ export default function App() {
                   onRestoreDefaultSubjects={handleRestoreDefaultSubjects}
                   onAddSubject={handleAddSubject}
                   onSyncFromDocuments={handleSyncFromDocuments}
+                  onOpenEnterCodeModal={() => setIsEnterCodeModalOpen(true)}
                   userRole={userRole}
                 />
               )}
@@ -1249,6 +1382,15 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* MODAL: Nhập Mã ID Bài Tập / Đề Thi Dành Cho Học Sinh */}
+      <EnterTaskCodeModal
+        isOpen={isEnterCodeModalOpen}
+        onClose={() => setIsEnterCodeModalOpen(false)}
+        onSubmitCode={handleOpenTaskById}
+        availableSubjects={appData.subjects}
+        availableGames={appData.games}
+      />
 
     </div>
   );
