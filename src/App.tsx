@@ -1224,14 +1224,18 @@ export default function App() {
                   value={pinInput}
                   onChange={(e) => setPinInput(e.target.value)}
                   placeholder="Nhập mã PIN..."
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 shadow-md transition-all active:scale-95"
-                >
-                  Xác Nhận Đổi Vai Trò
-                </button>
+                  className="w-full px-4 py-3 rounded-2xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-center text-lg font-mono font-bold tracking-widest focus:ring-2 focus:ring-amber-500"
+                />
               </div>
+
+              {pinError && <p className="text-xs text-rose-500 font-bold text-center">{pinError}</p>}
+
+              <button
+                type="submit"
+                className="w-full py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-md transition-all active:scale-95"
+              >
+                Xác Nhận Mở Quản Trị
+              </button>
             </form>
           </div>
         </div>
