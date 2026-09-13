@@ -289,7 +289,8 @@ export default function App() {
 
     try {
       const params = new URLSearchParams(window.location.search);
-      const examParam = params.get('exam');
+      const codeParam = params.get('code') || params.get('id');
+      const examParam = params.get('exam') || codeParam;
       const gameParam = params.get('game');
       const roleParam = params.get('role');
 
@@ -318,6 +319,9 @@ export default function App() {
           const targetDoc = appData.documents?.find((d) => d.id === examParam);
           if (targetDoc && targetDoc.generatedQuestions && targetDoc.generatedQuestions.length > 0) {
             handleStartExamFromQuestions(targetDoc.title, targetDoc.generatedQuestions);
+          } else if (appData.subjects.length > 0) {
+            // Fallback to first available subject if newly created subject ID was not saved in student localstorage
+            handleSelectSubjectToExam(appData.subjects[0]);
           }
         }
       } else if (gameParam) {
