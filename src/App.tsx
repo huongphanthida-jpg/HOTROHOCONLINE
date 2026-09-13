@@ -930,43 +930,89 @@ export default function App() {
     }));
   };
 
-  // If accessed via direct QR Code / Share link (?exam=... or ?game=...), render strictly ISOLATED SINGLE-TASK STUDENT VIEW
-  if (isDirectSingleTaskMode) {
-    return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 flex flex-col font-['Be_Vietnam_Pro',sans-serif]">
-        {/* Minimal Student Task Header */}
-        <header className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 px-4 sm:px-6 py-3 flex items-center justify-between shadow-2xs sticky top-0 z-30">
-          <div className="flex items-center space-x-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-teal-600 to-emerald-600 text-white flex items-center justify-center font-extrabold shadow-sm">
-              🎓
-            </div>
-            <div>
-              <h1 className="text-sm sm:text-base font-extrabold text-slate-800 dark:text-white leading-tight">
-                GIAO DIỆN KHẢO THÍ HỌC SINH ĐỘC LẬP
-              </h1>
-              <p className="text-[10px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider">
-                Làm bài theo Mã QR & Link phân công (Chỉ truy cập duy nhất bài làm này)
-              </p>
-            </div>
-          </div>
+  return (
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors flex font-['Be_Vietnam_Pro',sans-serif]">
+      {/* 1. BÊN TRÁI: Thanh điều hướng (Hiển thị nếu không ở chế độ Độc Lập qua QR) */}
+      {!isDirectSingleTaskMode && (
+        <Sidebar
+          currentTab={currentTab}
+          onSelectTab={(tab) => {
+            if (activeExam) {
+              if (window.confirm('Bạn đang làm bài thi. Chuyển phân hiệu sẽ hủy bài làm hiện tại. Tiếp tục?')) {
+                setActiveExam(null);
+              } else {
+                return;
+              }
+            }
+            setActiveResult(null);
+            setCurrentTab(tab);
+          }}
+          onOpenSettings={() => setIsSettingsOpen(true)}
+          theme={appData.settings?.theme || 'light'}
+          onToggleTheme={handleToggleTheme}
+          soundEnabled={appData.settings?.soundEnabled ?? true}
+          onToggleSound={handleToggleSound}
+          isSheetsConfigured={Boolean(appData.settings?.googleAppsScriptUrl?.trim())}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          isOpenMobile={isMobileSidebarOpen}
+          onCloseMobile={() => setIsMobileSidebarOpen(false)}
+          examInProgress={Boolean(activeExam)}
+          userRole={userRole}
+          onSwitchRole={handleSwitchRoleRequest}
+        />
+      )}
 
-          <div className="flex items-center space-x-2">
-            <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-              🎓 Quyền Học Sinh
-            </span>
-            <button
-              type="button"
-              onClick={handleSwitchRoleRequest}
-              className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
-              title="Dành cho Giáo viên: Nhập mã PIN để mở toàn bộ hệ thống quản trị"
-            >
-              🔑 Quản Trị (PIN)
-            </button>
-          </div>
-        </header>
+      {/* 2. BÊN PHẢI: Khu vực tính năng (Right Feature Area) */}
+      <div className="flex-1 min-w-0 flex flex-col min-h-screen overflow-x-hidden">
+        {/* Top Header of Right Content Area */}
+        {!isDirectSingleTaskMode ? (
+          <FeatureHeader
+            currentTab={currentTab}
+            onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
+            onOpenSettings={() => setIsSettingsOpen(true)}
+            theme={appData.settings?.theme || 'light'}
+            onToggleTheme={handleToggleTheme}
+            examInProgress={Boolean(activeExam)}
+            activeExamTitle={activeExam?.subjectName}
+            userRole={userRole}
+            onSwitchRole={handleSwitchRoleRequest}
+          />
+        ) : (
+          <header className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 px-4 sm:px-6 py-3 flex items-center justify-between shadow-2xs sticky top-0 z-30">
+            <div className="flex items-center space-x-3">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-teal-600 to-emerald-600 text-white flex items-center justify-center font-extrabold shadow-sm">
+                🎓
+              </div>
+              <div>
+                <h1 className="text-sm sm:text-base font-extrabold text-slate-800 dark:text-white leading-tight">
+                  GIAO DIỆN KHẢO THÍ HỌC SINH ĐỘC LẬP
+                </h1>
+                <p className="text-[10px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider">
+                  Làm bài theo Mã QR & Link phân công (Cách ly tuyệt đối)
+                </p>
+              </div>
+            </div>
 
-        {/* Isolated Student Main Content Body */}
-        <main className="flex-1 p-3 sm:p-6 lg:p-8 max-w-4xl mx-auto w-full">
+            <div className="flex items-center space-x-2">
+              <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                🎓 Quyền Học Sinh
+              </span>
+              <button
+                type="button"
+                onClick={handleSwitchRoleRequest}
+                className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+                title="Dành cho Giáo viên: Nhập mã PIN để mở toàn bộ giao diện quản trị"
+              >
+                🔑 Quản Trị (PIN)
+              </button>
+            </div>
+          </header>
+        )}
+
+        {/* Feature Body */}
+        <main className={`flex-1 p-3 sm:p-6 lg:p-8 ${isDirectSingleTaskMode ? 'max-w-4xl mx-auto w-full' : ''}`}>
+          {/* If user is actively taking an exam */}
           {activeExam ? (
             <ExamView
               subjectName={activeExam.subjectName}
@@ -979,192 +1025,6 @@ export default function App() {
                   setActiveExam(null);
                 }
               }}
-            />
-          ) : activeResult ? (
-            <ExamResultView
-              session={activeResult}
-              onRetake={handleRetakeExam}
-              onBackToSubjects={() => setActiveResult(null)}
-            />
-          ) : (
-            <div className="animate-fadeIn">
-              {targetGameIdFromUrl ? (
-                <EducationalGamesView
-                  games={appData.games || []}
-                  documents={appData.documents || []}
-                  initialGameId={targetGameIdFromUrl}
-                  onSaveGame={handleSaveGame}
-                  onUpdateGameHighScore={handleUpdateGameHighScore}
-                  onRecordGameSession={handleRecordGameSession}
-                  googleScriptUrl={appData.settings.googleAppsScriptUrl}
-                />
-              ) : pendingSubject ? (
-                <div className="bg-white dark:bg-slate-800 p-8 sm:p-12 rounded-3xl text-center space-y-5 shadow-xl border border-slate-200 dark:border-slate-700 max-w-lg mx-auto my-6">
-                  <div className="w-20 h-20 rounded-3xl bg-teal-100 dark:bg-teal-950/60 text-teal-600 mx-auto flex items-center justify-center text-3xl font-extrabold shadow-inner">
-                    📝
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/40">
-                      Bài Tập / Đề Thi Được Giao Trực Tiếp
-                    </span>
-                    <h2 className="text-xl font-extrabold text-slate-800 dark:text-white mt-2">
-                      {pendingSubject.name}
-                    </h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      Bài làm độc lập gồm {pendingSubject.questions.length} câu hỏi chuẩn SGK.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsStudentModalOpen(true)}
-                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold text-sm shadow-md transition-all active:scale-95 flex items-center justify-center space-x-2"
-                  >
-                    <span>Bắt Đầu Nhập Thông Tin & Làm Bài</span>
-                  </button>
-                </div>
-              ) : (
-                <div className="p-8 text-center bg-white dark:bg-slate-800 rounded-3xl shadow-md space-y-3">
-                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                    Đang kết nối bài thi / trò chơi từ Mã QR...
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
-        </main>
-
-        {/* Minimal Footer */}
-        <footer className="py-3 px-4 text-center text-xs text-slate-400 border-t border-slate-200 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40">
-          Hệ Thống Khảo Thí Trực Tuyến 2026-2027 • Tự Động Đồng Bộ Kết Quả Về Google Sheets
-        </footer>
-
-        {/* Student Info Registration Modal */}
-        {isStudentModalOpen && pendingSubject && (
-          <StudentInfoModal
-            isOpen={isStudentModalOpen}
-            subjectName={pendingSubject.name}
-            totalQuestions={pendingSubject.questions.length}
-            onClose={() => setIsStudentModalOpen(false)}
-            onSubmit={handleConfirmStudentInfo}
-          />
-        )}
-
-        {/* PIN Verification Modal to exit single task mode for teacher */}
-        {isRolePinModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
-            <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-700">
-                <div className="flex items-center space-x-2.5">
-                  <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center font-bold">
-                    <Lock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-base text-slate-800 dark:text-white">Xác Nhận PIN Giáo Viên</h3>
-                    <p className="text-xs text-slate-400">Mở toàn bộ giao diện quản trị hệ thống</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setIsRolePinModalOpen(false)}
-                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <form
-                onSubmit={(e) => {
-                  handleVerifyTeacherPin(e);
-                  setIsDirectSingleTaskMode(false);
-                }}
-                className="space-y-4"
-              >
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                    Nhập mã PIN Giáo Viên (Mặc định: 1234)
-                  </label>
-                  <input
-                    type="password"
-                    maxLength={10}
-                    autoFocus
-                    value={pinInput}
-                    onChange={(e) => setPinInput(e.target.value)}
-                    placeholder="Nhập mã PIN..."
-                    className="w-full px-4 py-3 rounded-2xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-center text-lg font-mono font-bold tracking-widest focus:ring-2 focus:ring-amber-500"
-                  />
-                  {pinError && <p className="text-xs text-rose-500 font-bold mt-1 text-center">{pinError}</p>}
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-md transition-all active:scale-95"
-                >
-                  Xác Nhận Mở Quản Trị
-                </button>
-              </form>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors flex font-['Be_Vietnam_Pro',sans-serif]">
-      {/* 1. BÊN TRÁI: Thanh điều hướng gồm các phân hiệu (Sidebar Navigation) */}
-      <Sidebar
-        currentTab={currentTab}
-        onSelectTab={(tab) => {
-          if (activeExam) {
-            if (window.confirm('Bạn đang làm bài thi. Chuyển phân hiệu sẽ hủy bài làm hiện tại. Tiếp tục?')) {
-              setActiveExam(null);
-            } else {
-              return;
-            }
-          }
-          setActiveResult(null);
-          setCurrentTab(tab);
-        }}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        theme={appData.settings?.theme || 'light'}
-        onToggleTheme={handleToggleTheme}
-        soundEnabled={appData.settings?.soundEnabled ?? true}
-        onToggleSound={handleToggleSound}
-        isSheetsConfigured={Boolean(appData.settings?.googleAppsScriptUrl?.trim())}
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-        isOpenMobile={isMobileSidebarOpen}
-        onCloseMobile={() => setIsMobileSidebarOpen(false)}
-        examInProgress={Boolean(activeExam)}
-        userRole={userRole}
-        onSwitchRole={handleSwitchRoleRequest}
-      />
-
-      {/* 2. BÊN PHẢI: Khu vực tính năng (Right Feature Area) */}
-      <div className="flex-1 min-w-0 flex flex-col min-h-screen overflow-x-hidden">
-        {/* Top Header of Right Content Area */}
-        <FeatureHeader
-          currentTab={currentTab}
-          onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
-          onOpenSettings={() => setIsSettingsOpen(true)}
-          theme={appData.settings?.theme || 'light'}
-          onToggleTheme={handleToggleTheme}
-          examInProgress={Boolean(activeExam)}
-          activeExamTitle={activeExam?.subjectName}
-          userRole={userRole}
-          onSwitchRole={handleSwitchRoleRequest}
-        />
-
-        {/* Feature Body */}
-        <main className="flex-1 p-3 sm:p-6 lg:p-8">
-          {/* If user is actively taking an exam */}
-          {activeExam ? (
-            <ExamView
-              subjectName={activeExam.subjectName}
-              subjectId={activeExam.subjectId}
-              questions={activeExam.questions}
-              studentInfo={activeExam.studentInfo}
-              onFinishExam={handleFinishExam}
-              onCancelExam={() => setActiveExam(null)}
             />
           ) : activeResult ? (
             /* If user is viewing the exam result score board */
@@ -1181,7 +1041,7 @@ export default function App() {
           ) : (
             /* Selected Functional View */
             <div className="animate-fadeIn">
-              {currentTab === 'subjects' && (
+              {currentTab === 'subjects' && !isDirectSingleTaskMode && (
                 <SubjectCardsView
                   subjects={appData.subjects}
                   progress={appData.progress}
@@ -1197,7 +1057,7 @@ export default function App() {
                 />
               )}
 
-              {currentTab === 'online_classes' && (
+              {currentTab === 'online_classes' && !isDirectSingleTaskMode && (
                 <OnlineClassesView
                   onlineClasses={appData.onlineClasses || []}
                   settings={appData.settings}
@@ -1207,7 +1067,7 @@ export default function App() {
                 />
               )}
 
-              {currentTab === 'documents' && (
+              {currentTab === 'documents' && !isDirectSingleTaskMode && (
                 <DocumentLearningView
                   documents={appData.documents || []}
                   onSaveDocument={handleSaveDocument}
@@ -1233,11 +1093,11 @@ export default function App() {
                 />
               )}
 
-              {currentTab === 'simulations' && (
+              {currentTab === 'simulations' && !isDirectSingleTaskMode && (
                 <InteractiveSimulationsView />
               )}
 
-              {currentTab === 'progress' && (
+              {currentTab === 'progress' && !isDirectSingleTaskMode && (
                 <ProgressDashboard
                   progress={appData.progress}
                   sessions={appData.sessions}
@@ -1249,8 +1109,34 @@ export default function App() {
                 />
               )}
 
-              {currentTab === 'tutor' && (
+              {currentTab === 'tutor' && !isDirectSingleTaskMode && (
                 <AITutorModal initialContext={tutorContext} />
+              )}
+
+              {isDirectSingleTaskMode && !targetGameIdFromUrl && pendingSubject && (
+                <div className="bg-white dark:bg-slate-800 p-8 sm:p-12 rounded-3xl text-center space-y-5 shadow-xl border border-slate-200 dark:border-slate-700 max-w-lg mx-auto my-6">
+                  <div className="w-20 h-20 rounded-3xl bg-teal-100 dark:bg-teal-950/60 text-teal-600 mx-auto flex items-center justify-center text-3xl font-extrabold shadow-inner">
+                    📝
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/40">
+                      Bài Tập / Đề Thi Được Giao Trực Tiếp
+                    </span>
+                    <h2 className="text-xl font-extrabold text-slate-800 dark:text-white mt-2">
+                      {pendingSubject.name}
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      Bài làm độc lập gồm {pendingSubject.questions.length} câu hỏi chuẩn SGK.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsStudentModalOpen(true)}
+                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold text-sm shadow-md transition-all active:scale-95 flex items-center justify-center space-x-2"
+                  >
+                    <span>Bắt Đầu Nhập Thông Tin & Làm Bài</span>
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -1285,6 +1171,19 @@ export default function App() {
         />
       )}
 
+      {/* Settings Modal */}
+      {isSettingsOpen && (
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          settings={appData.settings}
+          appData={appData}
+          onClose={() => setIsSettingsOpen(false)}
+          onSaveSettings={handleSaveSettings}
+          onImportData={handleImportData}
+          onResetData={handleResetData}
+        />
+      )}
+
       {/* Role PIN Verification Modal */}
       {isRolePinModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
@@ -1295,52 +1194,36 @@ export default function App() {
                   <Lock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                 </div>
                 <div>
-                  <h3 className="font-bold text-base text-slate-800 dark:text-white">Xác Nhận Mã PIN Giáo Viên</h3>
-                  <p className="text-xs text-slate-400">Chuyển sang vai trò Giáo Viên / Quản Trị</p>
+                  <h3 className="font-bold text-base text-slate-800 dark:text-white">Xác Nhận PIN Giáo Viên</h3>
+                  <p className="text-xs text-slate-400">Mở toàn bộ giao diện quản trị hệ thống</p>
                 </div>
               </div>
               <button
-                type="button"
                 onClick={() => setIsRolePinModalOpen(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleVerifyTeacherPin} className="space-y-4">
-              {pinError && (
-                <div className="p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-300 flex items-center space-x-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{pinError}</span>
-                </div>
-              )}
-
+            <form
+              onSubmit={(e) => {
+                handleVerifyTeacherPin(e);
+                setIsDirectSingleTaskMode(false);
+              }}
+              className="space-y-4"
+            >
               <div>
-                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Nhập mã PIN bảo vệ (Mặc định: 1234)
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                  Nhập mã PIN Giáo Viên (Mặc định: 1234)
                 </label>
                 <input
                   type="password"
                   maxLength={10}
-                  value={pinInput}
-                  onChange={(e) => {
-                    setPinInput(e.target.value);
-                    setPinError('');
-                  }}
-                  placeholder="Nhập mã PIN..."
                   autoFocus
-                  className="w-full text-center tracking-widest text-lg font-mono px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-                />
-              </div>
-
-              <div className="flex items-center justify-end space-x-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setIsRolePinModalOpen(false)}
-                  className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                >
-                  Hủy
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value)}
+                  placeholder="Nhập mã PIN..."
                 </button>
                 <button
                   type="submit"
