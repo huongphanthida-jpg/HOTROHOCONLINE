@@ -939,7 +939,15 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
           type="exam"
           targetId={qrSubject.id}
           subject={qrSubject}
-          questions={qrQuestions.length > 0 ? qrQuestions : questions.filter((q) => q.subjectId === qrSubject.id)}
+          questions={
+            qrQuestions.length > 0
+              ? qrQuestions
+              : (qrSubject as any).generatedQuestions && (qrSubject as any).generatedQuestions.length > 0
+              ? (qrSubject as any).generatedQuestions
+              : questions.filter((q) => q.subjectId === qrSubject.id || (q.subjectId && q.subjectId.toLowerCase() === qrSubject.id.toLowerCase())).length > 0
+              ? questions.filter((q) => q.subjectId === qrSubject.id || (q.subjectId && q.subjectId.toLowerCase() === qrSubject.id.toLowerCase()))
+              : documents?.find((d) => d.id === qrSubject.id || (d.title && qrSubject.name && d.title.toLowerCase().includes(qrSubject.name.toLowerCase())))?.generatedQuestions || []
+          }
           metaInfo={{
             className: qrSubject.className,
             grade: qrSubject.grade,
