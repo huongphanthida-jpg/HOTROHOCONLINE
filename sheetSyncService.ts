@@ -616,10 +616,5 @@ export async function pullFullAppDataFromGoogleSheets(
   }
 }
 
-export {
-  pushFullAppDataToGoogleSheets,
-  pullFullAppDataFromGoogleSheets
-};
-
 
 
