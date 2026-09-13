@@ -1339,6 +1339,8 @@ export default function App() {
                   onRestoreDefaultGames={handleRestoreDefaultGames}
                   onRecordGameSession={handleRecordGameSession}
                   googleScriptUrl={appData.settings.googleAppsScriptUrl}
+                  userRole={userRole}
+                  isDirectSingleTaskMode={isDirectSingleTaskMode}
                 />
               )}
 
