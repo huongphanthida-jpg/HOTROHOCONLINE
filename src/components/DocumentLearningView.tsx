@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { DocumentLearning, Question, StudentInfo, UploadedSourceItem } from '../types';
+import { DocumentLearning, Question, StudentInfo, UploadedSourceItem, UserRole } from '../types';
 import {
   Upload,
   FileText,
@@ -64,8 +64,6 @@ function readFileSliceAsText(file: File): Promise<string> {
     reader.readAsText(file.slice(0, 10000));
   });
 }
-
-import { UserRole } from '../types';
 
 interface DocumentLearningViewProps {
   documents: DocumentLearning[];
