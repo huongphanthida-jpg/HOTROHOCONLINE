@@ -265,15 +265,37 @@ export default function App() {
           if (res.ok) {
             const json = await res.json();
             if (json.status === 'success' && json.appData) {
-              setAppData((prev) => ({
-                ...prev,
-                ...json.appData,
-                subjects: json.appData?.subjects || prev.subjects,
-                questions: json.appData?.questions || prev.questions,
-                documents: json.appData?.documents || prev.documents,
-                games: json.appData?.games || prev.games,
-                onlineClasses: json.appData?.onlineClasses || prev.onlineClasses,
-              }));
+              setAppData((prev) => {
+                const cloudSubjs: Subject[] = json.appData?.subjects || [];
+                const cloudQs: Question[] = json.appData?.questions || [];
+
+                // Preserve custom subjects created locally by teacher
+                const customLocalSubjs = prev.subjects.filter(
+                  (s) => s.source === 'teacher_custom' || s.id.startsWith('sub-custom-') || s.id.startsWith('subj-')
+                );
+                const mergedSubjects = [
+                  ...customLocalSubjs,
+                  ...cloudSubjs.filter((cs) => !customLocalSubjs.some((ls) => ls.id === cs.id)),
+                ];
+
+                // Preserve custom questions created locally by teacher
+                const customLocalQs = prev.questions.filter(
+                  (q) => q.subjectId && (q.subjectId.startsWith('sub-custom-') || q.subjectId.startsWith('subj-'))
+                );
+                const mergedQuestions = [
+                  ...customLocalQs,
+                  ...cloudQs.filter((cq) => !customLocalQs.some((lq) => lq.id === cq.id)),
+                ];
+
+                return {
+                  ...prev,
+                  subjects: mergedSubjects.length > 0 ? mergedSubjects : prev.subjects,
+                  questions: mergedQuestions.length > 0 ? mergedQuestions : prev.questions,
+                  documents: json.appData?.documents || prev.documents,
+                  games: json.appData?.games || prev.games,
+                  onlineClasses: json.appData?.onlineClasses || prev.onlineClasses,
+                };
+              });
             }
           }
         } catch (err) {
@@ -460,9 +482,9 @@ export default function App() {
         }
 
         // 3. Fallback: Generate 5 realistic grade-matched SGK questions so student always gets a complete 5-question exam
-        const isGrade10 = examParam.toLowerCase().includes('10');
+        const isGrade12 = examParam.toLowerCase().includes('12');
         const isGrade11 = examParam.toLowerCase().includes('11');
-        const gradeLabel = isGrade10 ? '10T2' : isGrade11 ? '11A2' : '12D1';
+        const gradeLabel = isGrade12 ? '12D1' : isGrade11 ? '11A2' : '10T2';
         const cleanTitle = `Toán học lớp ${gradeLabel} - Đề thi khảo thí`;
 
         const fallbackQs: Question[] = [
