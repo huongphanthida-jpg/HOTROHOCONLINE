@@ -39,8 +39,26 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
 }) => {
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedImage, setCopiedImage] = useState(false);
+  const [copiedIdCode, setCopiedIdCode] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [showUrlSettings, setShowUrlSettings] = useState(false);
+
+  const handleCopyIdCodeOnly = async () => {
+    try {
+      await navigator.clipboard.writeText(targetId);
+      setCopiedIdCode(true);
+      setTimeout(() => setCopiedIdCode(false), 2500);
+    } catch {
+      const input = document.createElement('input');
+      input.value = targetId;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+      setCopiedIdCode(true);
+      setTimeout(() => setCopiedIdCode(false), 2500);
+    }
+  };
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Persistent custom base URL (for sharing to students)
@@ -238,23 +256,33 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
         </div>
 
         {/* Unique Access Code Box */}
-        <div className="mb-3 p-3 rounded-2xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/80 flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-extrabold uppercase text-teal-700 dark:text-teal-300 tracking-wider block">
-              🔑 Mã ID Bài Tập Riêng:
+        <div className="mb-4 p-4 rounded-2xl bg-teal-50 dark:bg-teal-950/50 border-2 border-teal-300 dark:border-teal-700/80 shadow-xs space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-extrabold uppercase text-teal-700 dark:text-teal-300 tracking-wider flex items-center space-x-1">
+              <span>🔑 MÃ ID BÀI TẬP RIÊNG:</span>
             </span>
-            <span className="text-sm font-mono font-extrabold text-teal-900 dark:text-teal-100 tracking-wider">
-              {targetId}
+            <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+              (Chỉ gửi mã này cho học sinh)
             </span>
           </div>
-          <button
-            type="button"
-            onClick={handleCopyLink}
-            className="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-xs active:scale-95 transition-all flex items-center space-x-1"
-          >
-            <Copy className="w-3.5 h-3.5" />
-            <span>Sao Chép Link Zalo</span>
-          </button>
+          <div className="flex items-center space-x-2">
+            <div className="flex-1 text-center py-2 px-3 bg-white dark:bg-slate-900 rounded-xl border border-teal-200 dark:border-teal-800 text-teal-900 dark:text-teal-100 font-mono text-base font-extrabold tracking-widest shadow-inner truncate">
+              {targetId}
+            </div>
+            <button
+              type="button"
+              onClick={handleCopyIdCodeOnly}
+              className={`px-3.5 py-2.5 rounded-xl font-bold text-xs shadow-xs active:scale-95 transition-all flex items-center space-x-1.5 shrink-0 ${
+                copiedIdCode
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-teal-600 hover:bg-teal-700 text-white'
+              }`}
+              title="Sao chép chỉ duy nhất chuỗi Mã ID bài tập"
+            >
+              {copiedIdCode ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              <span>{copiedIdCode ? 'Đã Chép Mã ID!' : 'Chép Mỗi Mã ID'}</span>
+            </button>
+          </div>
         </div>
 
         {/* QR Code Presentation Box */}
