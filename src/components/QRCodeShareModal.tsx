@@ -110,12 +110,12 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
     return url;
   }, [resolvedBaseUrl, type, targetId, subject, questions, game]);
 
-  // Clean short URL for Zalo direct 1-tap browser opening
+  // Clean short URL for Zalo direct 1-tap browser opening (always includes payload for 100% exact questions)
   const shortShareUrl = useMemo(() => {
-    return `${resolvedBaseUrl}?${type}=${encodeURIComponent(targetId)}&role=student`;
-  }, [resolvedBaseUrl, type, targetId]);
+    return fullPayloadUrl;
+  }, [fullPayloadUrl]);
 
-  const shareUrl = useCompactZaloUrl ? shortShareUrl : fullPayloadUrl;
+  const shareUrl = fullPayloadUrl;
 
   useEffect(() => {
     if (!isOpen || !targetId) return;
