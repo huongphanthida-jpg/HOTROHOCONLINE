@@ -889,6 +889,8 @@ export const INITIAL_DATA: AppData = {
     averageScore: 8.75,
     streakDays: 3,
     weakTopics: [
+      { topic: 'Sóng ánh sáng', wrongCount: 1, subjectId: 'vat-ly' },
+    ],
   },
   documents: [
     {
