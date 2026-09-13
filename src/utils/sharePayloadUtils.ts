@@ -83,10 +83,10 @@ export function buildSlugSubjectId(stype: string, cname: string): string {
 
 export function generateFallbackQuestionsBySubject(subject: Partial<Subject>): Question[] {
   const subId = subject.id || `sub-gen-${Date.now()}`;
-  const subName = subject.name || 'Đề thi khảo thí';
   const stype = detectSubjectType(subject);
-  const grade = extractGrade(subject);
   const cname = extractClassName(subject);
+  const grade = extractGrade(subject);
+  const subName = subject.name || `${stype} lớp ${cname} - Đề kiểm tra định kỳ`;
 
   if (stype === 'Hóa học') {
     if (grade === '10') {
