@@ -737,6 +737,7 @@ export const EducationalGamesView: React.FC<EducationalGamesViewProps> = ({
           subtitle={qrGame.description}
           type="game"
           targetId={qrGame.id}
+          game={qrGame}
           metaInfo={{
             gameTypeLabel:
               qrGame.type === 'quiz'
