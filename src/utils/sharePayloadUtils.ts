@@ -2,11 +2,9 @@ import { Subject, Question, EducationalGame } from '../types';
 
 function toBase64Url(str: string): string {
   try {
-    const base64 = btoa(
-      encodeURIComponent(str).replace(/%([0-9A-F]{2})/g, (_, p1) =>
-        String.fromCharCode(parseInt(p1, 16))
-      )
-    );
+    const bytes = new TextEncoder().encode(str);
+    const binary = Array.from(bytes, (b) => String.fromCharCode(b)).join('');
+    const base64 = btoa(binary);
     return base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   } catch {
     return encodeURIComponent(str);
@@ -14,14 +12,21 @@ function toBase64Url(str: string): string {
 }
 
 function fromBase64Url(str: string): string {
+  if (!str) return '';
   try {
-    let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+    let cleaned = str;
+    try {
+      cleaned = decodeURIComponent(str);
+    } catch {
+      cleaned = str;
+    }
+
+    let base64 = cleaned.replace(/-/g, '+').replace(/_/g, '/');
     while (base64.length % 4) base64 += '=';
-    return decodeURIComponent(
-      Array.from(atob(base64))
-        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join('')
-    );
+
+    const binary = atob(base64);
+    const bytes = Uint8Array.from(binary, (c) => c.charCodeAt(0));
+    return new TextDecoder().decode(bytes);
   } catch {
     try {
       return decodeURIComponent(str);
@@ -426,22 +431,20 @@ export function encodeExamPayload(subject: Subject, questions: Question[]): stri
 
     const minified = {
       i: subject.id,
-      n: subject.name,
-      d: (subject.description || '').slice(0, 80),
+      n: (subject.name || '').slice(0, 45),
       c: className,
       g: grade,
       st: subjectType,
-      q: listToEncode.slice(0, 10).map((q) => {
+      q: listToEncode.slice(0, 5).map((q) => {
         const cleanContent = (q.content || '')
           .replace(/=== DANH MỤC \d+ TRANG HÌNH ÁNH SÁCH GIÁO KHOA \/ TÀI LIỆU ĐƯỢC TẢI LÊN ===/gi, '')
           .replace(/===.*?===/g, '')
           .replace(/\s+/g, ' ')
           .trim();
         return {
-          c: cleanContent.slice(0, 120),
-          o: q.options ? q.options.map((opt) => String(opt).slice(0, 70)) : [],
+          c: cleanContent.slice(0, 160),
+          o: q.options ? q.options.map((opt) => String(opt).slice(0, 80)) : [],
           a: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
-          e: (q.explanation || '').slice(0, 40),
         };
       }),
     };
