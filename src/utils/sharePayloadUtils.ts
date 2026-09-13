@@ -426,22 +426,20 @@ export function encodeExamPayload(subject: Subject, questions: Question[]): stri
 
     const minified = {
       i: subject.id,
-      n: subject.name,
-      d: (subject.description || '').slice(0, 80),
+      n: (subject.name || '').slice(0, 45),
       c: className,
       g: grade,
       st: subjectType,
-      q: listToEncode.slice(0, 10).map((q) => {
+      q: listToEncode.slice(0, 5).map((q) => {
         const cleanContent = (q.content || '')
           .replace(/=== DANH MỤC \d+ TRANG HÌNH ÁNH SÁCH GIÁO KHOA \/ TÀI LIỆU ĐƯỢC TẢI LÊN ===/gi, '')
           .replace(/===.*?===/g, '')
           .replace(/\s+/g, ' ')
           .trim();
         return {
-          c: cleanContent.slice(0, 120),
-          o: q.options ? q.options.map((opt) => String(opt).slice(0, 70)) : [],
+          c: cleanContent.slice(0, 85),
+          o: q.options ? q.options.map((opt) => String(opt).slice(0, 45)) : [],
           a: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
-          e: (q.explanation || '').slice(0, 40),
         };
       }),
     };
