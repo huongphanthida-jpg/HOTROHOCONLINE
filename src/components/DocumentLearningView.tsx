@@ -26,12 +26,14 @@ import {
   FileSpreadsheet,
   Download,
   Edit3,
-  Pencil
+  Pencil,
+  QrCode,
 } from 'lucide-react';
 import { summarizeTheoryDocument, generateQuestionsFromDoc } from '../services/aiService';
 import { exportDocumentToPowerPointPptx, exportToMoodleGIFT, exportExamToWordDocx } from '../utils/exportUtils';
 import { PPTPreviewModal } from './PPTPreviewModal';
 import { EditDocumentModal } from './EditDocumentModal';
+import { QRCodeShareModal } from './QRCodeShareModal';
 
 // Helpers to read files
 function readFileAsBase64(file: File): Promise<{ dataUrl: string; base64: string }> {
@@ -89,6 +91,7 @@ export const DocumentLearningView: React.FC<DocumentLearningViewProps> = ({
 
   // Deletion modal state
   const [docToDelete, setDocToDelete] = useState<DocumentLearning | null>(null);
+  const [qrDoc, setQrDoc] = useState<DocumentLearning | null>(null);
 
   // Sync modal state
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
@@ -1249,6 +1252,17 @@ export const DocumentLearningView: React.FC<DocumentLearningViewProps> = ({
                       )}
 
                       <button
+                        type="button"
+                        onClick={() => setQrDoc(selectedDoc)}
+                        className="px-3.5 py-2 bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/40 dark:hover:bg-teal-900/60 border border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300 font-bold rounded-xl text-xs flex items-center space-x-1.5 shadow-2xs transition-all"
+                        title="Tạo Mã QR & Link Chia Sẻ Đề Thi Này Cho Học Sinh"
+                        id="btn-qr-doc-quiz"
+                      >
+                        <QrCode className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                        <span>Mã QR Đề Thi</span>
+                      </button>
+
+                      <button
                         onClick={() =>
                           onStartExamFromQuestions(
                             `Đề thi: ${selectedDoc.title}`,
@@ -1852,6 +1866,33 @@ export const DocumentLearningView: React.FC<DocumentLearningViewProps> = ({
           }
         }}
       />
+
+      {/* MODAL: QR Code Share for Document Quiz */}
+      {qrDoc && qrDoc.generatedQuestions && qrDoc.generatedQuestions.length > 0 && (
+        <QRCodeShareModal
+          isOpen={Boolean(qrDoc)}
+          onClose={() => setQrDoc(null)}
+          title={qrDoc.title}
+          subtitle={`Đề thi trắc nghiệm AI biên soạn từ tài liệu "${qrDoc.title}"`}
+          type="exam"
+          targetId={qrDoc.id}
+          subject={{
+            id: qrDoc.id,
+            name: qrDoc.title,
+            description: `Đề thi trắc nghiệm (${qrDoc.generatedQuestions.length} câu) biên soạn từ tài liệu`,
+            questionsCount: qrDoc.generatedQuestions.length,
+            className: qrDoc.title.includes('10') ? '10T2' : qrDoc.title.includes('11') ? '11A2' : '12D1',
+            grade: qrDoc.title.includes('10') ? '10' : qrDoc.title.includes('11') ? '11' : '12',
+            subjectType: qrDoc.title.includes('Hóa') ? 'Hóa học' : qrDoc.title.includes('Lý') ? 'Vật lý' : qrDoc.title.includes('Sinh') ? 'Sinh học' : 'Toán học',
+            color: 'from-emerald-600 to-teal-600',
+            icon: 'fa-solid fa-file-lines',
+          }}
+          questions={qrDoc.generatedQuestions}
+          metaInfo={{
+            questionsCount: qrDoc.generatedQuestions.length,
+          }}
+        />
+      )}
     </div>
   );
 };
