@@ -89,6 +89,86 @@ export function generateFallbackQuestionsBySubject(subject: Partial<Subject>): Q
   const cname = extractClassName(subject);
 
   if (stype === 'Hóa học') {
+    if (grade === '10') {
+      return [
+        {
+          id: `q-${subId}-1`,
+          subjectId: subId,
+          content: `Câu 1 (Hóa học ${cname}): Trong nguyên tử, hạt mang điện tích dương nằm ở hạt nhân là:`,
+          type: 'multiple_choice' as const,
+          options: ['Proton (p)', 'Electron (e)', 'Neutron (n)', 'Photon'],
+          correctAnswer: 0,
+          explanation: 'Hạt nhân nguyên tử gồm proton (mang điện +) và neutron (không mang điện).',
+          difficulty: 'easy' as const,
+          topic: subName,
+        },
+        {
+          id: `q-${subId}-2`,
+          subjectId: subId,
+          content: `Câu 2 (Hóa học ${cname}): Số hiệu nguyên tử (Z) của một nguyên tố hóa học cho biết:`,
+          type: 'multiple_choice' as const,
+          options: [
+            'Số proton trong hạt nhân và số electron ở vỏ nguyên tử',
+            'Số neutron trong hạt nhân',
+            'Khối lượng nguyên tử tính bằng gam',
+            'Bán kính của nguyên tử',
+          ],
+          correctAnswer: 0,
+          explanation: 'Số hiệu nguyên tử Z = số proton = số electron.',
+          difficulty: 'easy' as const,
+          topic: subName,
+        },
+        {
+          id: `q-${subId}-3`,
+          subjectId: subId,
+          content: `Câu 3 (Hóa học ${cname}): Phản ứng oxi hóa - khử là phản ứng hóa học trong đó có sự:`,
+          type: 'multiple_choice' as const,
+          options: [
+            'Chuyển dời electron giữa các chất phản ứng (thay đổi số oxi hóa)',
+            'Thay đổi màu sắc của dung dịch mà không đổi số oxi hóa',
+            'Tạo ra chất kết tủa trắng',
+            'Giải phóng khí không màu',
+          ],
+          correctAnswer: 0,
+          explanation: 'Phản ứng oxi hóa - khử có sự cho và nhận electron dẫn đến thay đổi số oxi hóa.',
+          difficulty: 'easy' as const,
+          topic: subName,
+        },
+        {
+          id: `q-${subId}-4`,
+          subjectId: subId,
+          content: `Câu 4 (Hóa học ${cname}): Liên kết cộng hóa trị là liên kết được hình thành giữa hai nguyên tử bằng:`,
+          type: 'multiple_choice' as const,
+          options: [
+            'Một hay nhiều cặp electron chung',
+            'Lực hút tĩnh điện giữa các ion trái dấu',
+            'Lực hút giữa các hạt nhân',
+            'Sự cho nhận hoàn toàn 1 electron',
+          ],
+          correctAnswer: 0,
+          explanation: 'Liên kết cộng hóa trị hình thành bằng các cặp electron chung giữa hai nguyên tử.',
+          difficulty: 'medium' as const,
+          topic: subName,
+        },
+        {
+          id: `q-${subId}-5`,
+          subjectId: subId,
+          content: `Câu 5 (Hóa học ${cname}): Quy tắc an toàn tối quan trọng trong phòng thí nghiệm Hóa học 10 là:`,
+          type: 'multiple_choice' as const,
+          options: [
+            'Luôn đeo kính bảo hộ, tuân thủ hướng dẫn và không ngửi trực tiếp hóa chất',
+            'Dùng tay cầm trực tiếp ống nghiệm đang đun nóng',
+            'Ghế ngồi gần khu vực hóa chất dễ cháy',
+            'Tự ý trộn các hóa chất lạ với nhau',
+          ],
+          correctAnswer: 0,
+          explanation: 'Luôn đeo kính bảo hộ và tuân thủ an toàn thí nghiệm Hóa học SGK.',
+          difficulty: 'easy' as const,
+          topic: subName,
+        },
+      ];
+    }
+
     return [
       {
         id: `q-${subId}-1`,
@@ -431,19 +511,20 @@ export function encodeExamPayload(subject: Subject, questions: Question[]): stri
 
     const minified = {
       i: subject.id,
-      n: (subject.name || '').slice(0, 45),
+      n: (subject.name || '').slice(0, 80),
       c: className,
       g: grade,
       st: subjectType,
-      q: listToEncode.slice(0, 5).map((q) => {
-        const cleanContent = (q.content || '')
-          .replace(/=== DANH MỤC \d+ TRANG HÌNH ÁNH SÁCH GIÁO KHOA \/ TÀI LIỆU ĐƯỢC TẢI LÊN ===/gi, '')
-          .replace(/===.*?===/g, '')
+      q: listToEncode.slice(0, 10).map((q) => {
+        const rawContent = q.content || '';
+        const cleanContent = rawContent
+          .replace(/===\s*DANH MỤC[\s\S]*?===/gi, '')
+          .replace(/===[\s\S]*?===/g, '')
           .replace(/\s+/g, ' ')
           .trim();
         return {
-          c: cleanContent.slice(0, 160),
-          o: q.options ? q.options.map((opt) => String(opt).slice(0, 80)) : [],
+          c: (cleanContent || rawContent).slice(0, 350),
+          o: q.options ? q.options.map((opt) => String(opt).slice(0, 150)) : [],
           a: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
         };
       }),
