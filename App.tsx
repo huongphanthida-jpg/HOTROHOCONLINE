@@ -27,9 +27,9 @@ import { AITutorModal } from './components/AITutorModal';
 import { SettingsModal } from './components/SettingsModal';
 import { EnterTaskCodeModal } from './components/EnterTaskCodeModal';
 import { StudentSingleTaskView } from './components/StudentSingleTaskView';
-import { decodeExamPayload, decodeGamePayload } from './utils/sharePayloadUtils';
+import { decodeExamPayload, decodeGamePayload, generateFallbackQuestionsBySubject, detectSubjectType, extractClassName, extractGrade } from './utils/sharePayloadUtils';
 import { soundEffects } from './utils/soundEffects';
-import { GameSessionResult, syncSessionToGoogleSheets, pushFullAppDataToGoogleSheets } from './services/sheetSyncService';
+import { GameSessionResult, syncSessionToGoogleSheets } from './services/sheetSyncService';
 import { Lock, AlertCircle, X, ShieldCheck, User } from 'lucide-react';
 
 export default function App() {
@@ -306,65 +306,29 @@ export default function App() {
     }
   }, []);
 
-  // Handle choosing a subject to take exam
   const handleSelectSubjectToExam = (subject: Subject) => {
-    let subjectQuestions = appData.questions.filter((q) => q.subjectId === subject.id);
-    if (subjectQuestions.length === 0) {
-      if (appData.questions.length > 0) {
-        subjectQuestions = appData.questions.slice(0, 5);
-      } else {
-        // Fallback default questions if all questions were deleted, ensuring exam never crashes
-        subjectQuestions = [
-          {
-            id: `q-${subject.id}-1`,
-            subjectId: subject.id,
-            content: `Câu 1: Kiến thức nền tảng chuẩn chương trình môn ${subject.name}. Đâu là phát biểu đúng nhất?`,
-            type: 'multiple_choice',
-            options: [
-              'Phương án A: Khái niệm chính xác theo chuẩn SGK',
-              'Phương án B: Nhận định chưa đầy đủ điều kiện',
-              'Phương án C: Phát biểu còn mâu thuẫn lý thuyết',
-              'Phương án D: Định nghĩa dành riêng cho ngoại lệ',
-            ],
-            correctAnswer: 0,
-            explanation: `Theo lý thuyết căn bản của môn ${subject.name}, phát biểu tại phương án A là chính xác nhất.`,
-            difficulty: 'easy',
-            topic: subject.name,
-          },
-          {
-            id: `q-${subject.id}-2`,
-            subjectId: subject.id,
-            content: `Câu 2: Vận dụng phương pháp giải quyết tình huống môn ${subject.name}, bước nào dưới đây là quan trọng nhất?`,
-            type: 'multiple_choice',
-            options: [
-              'Phân tích kỹ lưỡng dữ kiện ban đầu và yêu cầu cốt lõi',
-              'Chọn ngẫu nhiên công thức gần giống nhất',
-              'Bỏ qua các bước kiểm tra lại kết quả',
-              'Chỉ tập trung vào suy đoán cảm tính',
-            ],
-            correctAnswer: 0,
-            explanation: 'Phân tích giả thiết và câu hỏi đề bài là bước tiên quyết để tìm ra hướng giải đúng.',
-            difficulty: 'medium',
-            topic: subject.name,
-          },
-          {
-            id: `q-${subject.id}-3`,
-            subjectId: subject.id,
-            content: `Câu 3: Để củng cố kỹ năng môn ${subject.name}, phương pháp học tập nào mang lại hiệu quả cao nhất?`,
-            type: 'multiple_choice',
-            options: [
-              'Chỉ đọc lướt qua lý thuyết trước ngày thi',
-              'Hệ thống hóa kiến thức định kỳ và luyện đề thực chiến',
-              'Học thuộc lòng mà không làm bài tập rèn luyện',
-              'Không đối chiếu lại đáp án sau khi làm bài',
-            ],
-            correctAnswer: 1,
-            explanation: 'Luyện tập thường xuyên và hệ thống hóa kiến thức giúp nắm vững bản chất môn học.',
-            difficulty: 'easy',
-            topic: subject.name,
-          },
-        ];
+    let subjectQuestions = appData.questions.filter(
+      (q) => q.subjectId === subject.id || (q.subjectId && q.subjectId.toLowerCase() === subject.id.toLowerCase())
+    );
+
+    if (subjectQuestions.length === 0 && appData.documents && appData.documents.length > 0) {
+      const docMatch = appData.documents.find(
+        (d) =>
+          d.id === subject.id ||
+          (d.title && subject.sourceDocTitle && d.title.toLowerCase() === subject.sourceDocTitle.toLowerCase()) ||
+          (d.title && subject.name && d.title.toLowerCase() === subject.name.toLowerCase())
+      );
+      if (docMatch && docMatch.generatedQuestions && docMatch.generatedQuestions.length > 0) {
+        subjectQuestions = docMatch.generatedQuestions;
       }
+    }
+
+    if (subjectQuestions.length === 0 && (subject as any).generatedQuestions && (subject as any).generatedQuestions.length > 0) {
+      subjectQuestions = (subject as any).generatedQuestions;
+    }
+
+    if (subjectQuestions.length === 0) {
+      subjectQuestions = generateFallbackQuestionsBySubject(subject);
     }
 
     setPendingSubject({
@@ -434,6 +398,27 @@ export default function App() {
           }
         }
 
+        // Check persistent shared questions registry
+        const cachedQsStr = localStorage.getItem('shared_qs_' + examParam);
+        if (cachedQsStr) {
+          try {
+            const cachedQs = JSON.parse(cachedQsStr);
+            if (Array.isArray(cachedQs) && cachedQs.length > 0) {
+              const displayTitle = `Đề Thi Khảo Thí (${examParam})`;
+              setPendingSubject({
+                name: displayTitle,
+                id: examParam,
+                questions: cachedQs,
+              });
+              setIsStudentModalOpen(true);
+              setUrlParamsProcessed(true);
+              return;
+            }
+          } catch {
+            // Ignore parse errors
+          }
+        }
+
         // 2. Priority 2: Direct lookup in local appData subjects
         const targetSub = appData.subjects.find((s) => s.id.toLowerCase() === examParam.toLowerCase());
         if (targetSub) {
@@ -481,94 +466,18 @@ export default function App() {
           return;
         }
 
-        // 3. Fallback: Generate 5 realistic grade-matched SGK questions so student always gets a complete 5-question exam
-        const isGrade12 = examParam.toLowerCase().includes('12');
-        const isGrade11 = examParam.toLowerCase().includes('11');
-        const gradeLabel = isGrade12 ? '12D1' : isGrade11 ? '11A2' : '10T2';
-        const cleanTitle = `Toán học lớp ${gradeLabel} - Đề thi khảo thí`;
-
-        const fallbackQs: Question[] = [
-          {
-            id: `q-${examParam}-1`,
-            subjectId: examParam,
-            content: `Câu 1 (Toán lớp ${gradeLabel}): Cho hai véctơ u và v cùng phương. Phát biểu nào sau đây là chính xác nhất?`,
-            type: 'multiple_choice',
-            options: [
-              'Hai véctơ có giá song song hoặc trùng nhau',
-              'Hai véctơ có cùng độ dài và cùng hướng',
-              'Hai véctơ luôn có điểm đầu trùng nhau',
-              'Hai véctơ vuông góc với nhau tại gốc O',
-            ],
-            correctAnswer: 0,
-            explanation: 'Theo chuẩn SGK, hai véctơ cùng phương nếu giá của chúng song song hoặc trùng nhau.',
-            difficulty: 'easy',
-            topic: cleanTitle,
-          },
-          {
-            id: `q-${examParam}-2`,
-            subjectId: examParam,
-            content: `Câu 2 (Toán lớp ${gradeLabel}): Quy tắc 3 điểm đối với tổng hai véctơ AB và BC được phát biểu như thế nào?`,
-            type: 'multiple_choice',
-            options: [
-              'AB + BC = AC',
-              'AB + BC = BA',
-              'AB - BC = AC',
-              'AB + AC = BC',
-            ],
-            correctAnswer: 0,
-            explanation: 'Quy tắc 3 điểm: Với 3 điểm A, B, C bất kỳ luôn có AB + BC = AC.',
-            difficulty: 'easy',
-            topic: cleanTitle,
-          },
-          {
-            id: `q-${examParam}-3`,
-            subjectId: examParam,
-            content: `Câu 3 (Toán lớp ${gradeLabel}): Điều kiện cần và đủ để hai véctơ u và v khác 0 vuông góc với nhau là:`,
-            type: 'multiple_choice',
-            options: [
-              'Tích vô hướng u . v = 0',
-              'Tổng độ dài |u| + |v| = 0',
-              'Hiệu hai véctơ u - v = 0',
-              'Tích độ dài |u| . |v| = 1',
-            ],
-            correctAnswer: 0,
-            explanation: 'Hai véctơ vuông góc khi và chỉ khi tích vô hướng của chúng bằng 0.',
-            difficulty: 'medium',
-            topic: cleanTitle,
-          },
-          {
-            id: `q-${examParam}-4`,
-            subjectId: examParam,
-            content: `Câu 4 (Toán lớp ${gradeLabel}): Cho hình bình hành ABCD. Tổng hai véctơ AB + AD bằng véctơ đường chéo nào?`,
-            type: 'multiple_choice',
-            options: [
-              'Véctơ AC',
-              'Véctơ BD',
-              'Véctơ CA',
-              'Véctơ DB',
-            ],
-            correctAnswer: 0,
-            explanation: 'Theo quy tắc hình bình hành: AB + AD = AC (với AC là đường chéo xuất phát từ đỉnh A).',
-            difficulty: 'medium',
-            topic: cleanTitle,
-          },
-          {
-            id: `q-${examParam}-5`,
-            subjectId: examParam,
-            content: `Câu 5 (Toán lớp ${gradeLabel}): Phương pháp rà soát và kiểm tra lại kết quả bài thi mang lại hiệu quả cao nhất là:`,
-            type: 'multiple_choice',
-            options: [
-              'Đọc kỹ lại đề bài, đối chiếu giả thiết và kiểm tra lại từng bước tính toán',
-              'Chỉ chọn lại đáp án ngẫu nhiên trước khi nộp bài',
-              'Không đọc lại bài làm để tiết kiệm thời gian',
-              'Sửa đáp án theo cảm tính cá nhân',
-            ],
-            correctAnswer: 0,
-            explanation: 'Đọc kỹ đề bài và rà soát từng bước giải là phương pháp tốt nhất để tránh sai sót.',
-            difficulty: 'easy',
-            topic: cleanTitle,
-          },
-        ];
+        // 3. Fallback: Generate realistic subject-aware SGK questions so student always gets a complete 5-question exam matching subject & class
+        const fallbackSub: Partial<Subject> = {
+          id: examParam,
+          name: examParam.includes('-') ? `Bài kiểm tra (${examParam})` : examParam,
+        };
+        const detectedStype = detectSubjectType(fallbackSub);
+        const detectedClass = extractClassName(fallbackSub);
+        const cleanTitle = `${detectedStype} lớp ${detectedClass} - Đề thi khảo thí`;
+        const fallbackQs = generateFallbackQuestionsBySubject({
+          ...fallbackSub,
+          name: cleanTitle,
+        });
 
         setPendingSubject({
           name: cleanTitle,
@@ -950,6 +859,43 @@ export default function App() {
     }));
   };
 
+  // Helper to push full AppData to Google Sheets cloud
+  const pushFullAppDataToGoogleSheets = async (data: AppData, scriptUrl?: string) => {
+    const url = (scriptUrl || localStorage.getItem('google_apps_script_url') || '').trim();
+    if (!url || !url.startsWith('http')) return;
+
+    const payload = {
+      action: 'syncFullAppData',
+      timestamp: new Date().toISOString(),
+      appData: {
+        subjects: data.subjects || [],
+        questions: data.questions || [],
+        documents: data.documents || [],
+        games: data.games || [],
+        onlineClasses: data.onlineClasses || [],
+      },
+    };
+
+    try {
+      await fetch('/api/sync-google-sheets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scriptUrl: url, payload }),
+      });
+    } catch {
+      try {
+        await fetch(url, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload),
+        });
+      } catch (e) {
+        console.warn('Auto cloud push failed:', e);
+      }
+    }
+  };
+
   // Add custom subject with AI generated questions or fallback questions
   const handleAddSubject = (newSubject: Subject, generatedQuestions?: Question[]) => {
     const finalQuestions: Question[] =
@@ -1008,7 +954,7 @@ export default function App() {
 
     setAppData((prev) => {
       const newSubjs = [
-        { ...newSubject, questionsCount: finalQuestions.length },
+        { ...newSubject, questionsCount: finalQuestions.length, generatedQuestions: finalQuestions },
         ...prev.subjects.filter((s) => s.id !== newSubject.id),
       ];
       const newQs = [
@@ -1023,6 +969,7 @@ export default function App() {
 
       try {
         localStorage.setItem('eduexam_app_data', JSON.stringify(nextData));
+        localStorage.setItem('shared_qs_' + newSubject.id, JSON.stringify(finalQuestions));
       } catch (e) {
         console.warn('LocalStorage save failed:', e);
       }
