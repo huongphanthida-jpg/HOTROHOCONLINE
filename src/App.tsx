@@ -26,6 +26,7 @@ import { ProgressDashboard } from './components/ProgressDashboard';
 import { AITutorModal } from './components/AITutorModal';
 import { SettingsModal } from './components/SettingsModal';
 import { EnterTaskCodeModal } from './components/EnterTaskCodeModal';
+import { decodeExamPayload, decodeGamePayload } from './utils/sharePayloadUtils';
 import { soundEffects } from './utils/soundEffects';
 import { GameSessionResult, syncSessionToGoogleSheets } from './services/sheetSyncService';
 import { Lock, AlertCircle, X, ShieldCheck, User } from 'lucide-react';
@@ -361,6 +362,7 @@ export default function App() {
       const examParam = params.get('exam') || codeParam;
       const gameParam = params.get('game');
       const roleParam = params.get('role');
+      const payloadParam = params.get('payload');
 
       // Automatically establish Student Role when accessing via QR Code or Direct Link
       if (examParam || gameParam || roleParam === 'student') {
@@ -378,23 +380,70 @@ export default function App() {
 
       if (examParam) {
         setUrlParamsProcessed(true);
-        // Direct link to an exam
-        const targetSub = appData.subjects.find((s) => s.id === examParam);
+
+        // 1. Priority 1: Decode embedded full exam payload directly from QR code URL
+        if (payloadParam) {
+          const decoded = decodeExamPayload(payloadParam);
+          if (decoded && decoded.questions && decoded.questions.length > 0) {
+            const { subject: decodedSub, questions: decodedQuestions } = decoded;
+            setAppData((prev) => {
+              const updatedSubjs = [
+                decodedSub,
+                ...prev.subjects.filter((s) => s.id !== decodedSub.id),
+              ];
+              const updatedQs = [
+                ...prev.questions.filter((q) => q.subjectId !== decodedSub.id),
+                ...decodedQuestions,
+              ];
+              return {
+                ...prev,
+                subjects: updatedSubjs,
+                questions: updatedQs,
+              };
+            });
+
+            setPendingSubject({
+              name: decodedSub.name,
+              id: decodedSub.id,
+              questions: decodedQuestions,
+            });
+            setIsStudentModalOpen(true);
+            return;
+          }
+        }
+
+        // 2. Priority 2: Direct lookup in local appData subjects
+        const targetSub = appData.subjects.find((s) => s.id.toLowerCase() === examParam.toLowerCase());
         if (targetSub) {
           handleSelectSubjectToExam(targetSub);
         } else {
-          // Check documents as well
-          const targetDoc = appData.documents?.find((d) => d.id === examParam);
+          // Check documents
+          const targetDoc = appData.documents?.find((d) => d.id.toLowerCase() === examParam.toLowerCase());
           if (targetDoc && targetDoc.generatedQuestions && targetDoc.generatedQuestions.length > 0) {
             handleStartExamFromQuestions(targetDoc.title, targetDoc.generatedQuestions);
-          } else if (appData.subjects.length > 0) {
-            // Fallback to first available subject if newly created subject ID was not saved in student localstorage
-            handleSelectSubjectToExam(appData.subjects[0]);
+          } else {
+            // Check partial class or name match
+            const partialSub = appData.subjects.find(
+              (s) =>
+                (s.className && s.className.toLowerCase() === examParam.toLowerCase()) ||
+                s.name.toLowerCase().includes(examParam.toLowerCase())
+            );
+            if (partialSub) {
+              handleSelectSubjectToExam(partialSub);
+            }
           }
         }
       } else if (gameParam) {
         setUrlParamsProcessed(true);
-        // Direct link to a game
+        if (payloadParam) {
+          const decodedGame = decodeGamePayload(payloadParam);
+          if (decodedGame) {
+            setAppData((prev) => ({
+              ...prev,
+              games: [decodedGame, ...(prev.games || []).filter((g) => g.id !== decodedGame.id)],
+            }));
+          }
+        }
         setCurrentTab('games');
         setTargetGameIdFromUrl(gameParam);
       }
@@ -1135,6 +1184,7 @@ export default function App() {
               {currentTab === 'subjects' && !isDirectSingleTaskMode && (
                 <SubjectCardsView
                   subjects={appData.subjects}
+                  questions={appData.questions}
                   progress={appData.progress}
                   documents={appData.documents || []}
                   onSelectSubjectToExam={handleSelectSubjectToExam}
