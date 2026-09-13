@@ -16,7 +16,7 @@ import { AITutorModal } from './components/AITutorModal';
 import { SettingsModal } from './components/SettingsModal';
 import { soundEffects } from './utils/soundEffects';
 import { EducationalGame } from './types';
-import { GameSessionResult, syncSessionToGoogleSheets } from './services/sheetSyncService';
+import { GameSessionResult, syncSessionToGoogleSheets, pullFullAppDataFromGoogleSheets } from './services/sheetSyncService';
 
 import { UserRole } from './types';
 import { Lock, AlertCircle, X, ShieldCheck, User } from 'lucide-react';
@@ -130,6 +130,15 @@ export default function App() {
   const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
   const [targetGameIdFromUrl, setTargetGameIdFromUrl] = useState<string | null>(null);
   const [urlParamsProcessed, setUrlParamsProcessed] = useState(false);
+
+  // Track if accessed via direct QR / Share link for single-task student isolation
+  const [isDirectSingleTaskMode, setIsDirectSingleTaskMode] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return Boolean(params.get('exam') || params.get('game'));
+    }
+    return false;
+  });
   const [activeExam, setActiveExam] = useState<{
     subjectName: string;
     subjectId: string;
@@ -167,6 +176,26 @@ export default function App() {
   useEffect(() => {
     soundEffects.enabled = appData.settings?.soundEnabled ?? true;
   }, [appData.settings?.soundEnabled]);
+
+  // Auto Cloud Data Sync on App Mount (pulls newest subjects, documents, games from Google Sheets)
+  useEffect(() => {
+    const scriptUrl = appData.settings?.googleAppsScriptUrl || localStorage.getItem('google_apps_script_url');
+    if (scriptUrl && scriptUrl.trim().startsWith('http')) {
+      pullFullAppDataFromGoogleSheets(scriptUrl.trim()).then((res) => {
+        if (res.success && res.data) {
+          setAppData((prev) => ({
+            ...prev,
+            ...res.data,
+            subjects: res.data?.subjects || prev.subjects,
+            questions: res.data?.questions || prev.questions,
+            documents: res.data?.documents || prev.documents,
+            games: res.data?.games || prev.games,
+            onlineClasses: res.data?.onlineClasses || prev.onlineClasses,
+          }));
+        }
+      });
+    }
+  }, []);
 
   // Handle choosing a subject to take exam
   const handleSelectSubjectToExam = (subject: Subject) => {
@@ -255,6 +284,10 @@ export default function App() {
           ...prev,
           settings: { ...prev.settings, currentRole: 'student' },
         }));
+      }
+
+      if (examParam || gameParam) {
+        setIsDirectSingleTaskMode(true);
       }
 
       if (examParam) {
@@ -888,6 +921,184 @@ export default function App() {
       games: INITIAL_DATA.games || [],
     }));
   };
+
+  // If accessed via direct QR Code / Share link (?exam=... or ?game=...), render strictly ISOLATED SINGLE-TASK STUDENT VIEW
+  if (isDirectSingleTaskMode) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 flex flex-col font-['Be_Vietnam_Pro',sans-serif]">
+        {/* Minimal Student Task Header */}
+        <header className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 px-4 sm:px-6 py-3 flex items-center justify-between shadow-2xs sticky top-0 z-30">
+          <div className="flex items-center space-x-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-teal-600 to-emerald-600 text-white flex items-center justify-center font-extrabold shadow-sm">
+              🎓
+            </div>
+            <div>
+              <h1 className="text-sm sm:text-base font-extrabold text-slate-800 dark:text-white leading-tight">
+                GIAO DIỆN KHẢO THÍ HỌC SINH ĐỘC LẬP
+              </h1>
+              <p className="text-[10px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider">
+                Làm bài theo Mã QR & Link phân công (Chỉ truy cập duy nhất bài làm này)
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+              🎓 Quyền Học Sinh
+            </span>
+            <button
+              type="button"
+              onClick={handleSwitchRoleRequest}
+              className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600"
+              title="Dành cho Giáo viên: Nhập mã PIN để mở toàn bộ hệ thống quản trị"
+            >
+              🔑 Quản Trị (PIN)
+            </button>
+          </div>
+        </header>
+
+        {/* Isolated Student Main Content Body */}
+        <main className="flex-1 p-3 sm:p-6 lg:p-8 max-w-4xl mx-auto w-full">
+          {activeExam ? (
+            <ExamView
+              subjectName={activeExam.subjectName}
+              subjectId={activeExam.subjectId}
+              questions={activeExam.questions}
+              studentInfo={activeExam.studentInfo}
+              onFinishExam={handleFinishExam}
+              onCancelExam={() => {
+                if (window.confirm('Bạn có chắc muốn tạm dừng bài thi này không?')) {
+                  setActiveExam(null);
+                }
+              }}
+            />
+          ) : activeResult ? (
+            <ExamResultView
+              session={activeResult}
+              onRetake={handleRetakeExam}
+              onBackToSubjects={() => setActiveResult(null)}
+            />
+          ) : (
+            <div className="animate-fadeIn">
+              {targetGameIdFromUrl ? (
+                <EducationalGamesView
+                  games={appData.games || []}
+                  documents={appData.documents || []}
+                  initialGameId={targetGameIdFromUrl}
+                  onSaveGame={handleSaveGame}
+                  onUpdateGameHighScore={handleUpdateGameHighScore}
+                  onRecordGameSession={handleRecordGameSession}
+                  googleScriptUrl={appData.settings.googleAppsScriptUrl}
+                />
+              ) : pendingSubject ? (
+                <div className="bg-white dark:bg-slate-800 p-8 sm:p-12 rounded-3xl text-center space-y-5 shadow-xl border border-slate-200 dark:border-slate-700 max-w-lg mx-auto my-6">
+                  <div className="w-20 h-20 rounded-3xl bg-teal-100 dark:bg-teal-950/60 text-teal-600 mx-auto flex items-center justify-center text-3xl font-extrabold shadow-inner">
+                    📝
+                  </div>
+                  <div>
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/40">
+                      Bài Tập / Đề Thi Được Giao Trực Tiếp
+                    </span>
+                    <h2 className="text-xl font-extrabold text-slate-800 dark:text-white mt-2">
+                      {pendingSubject.name}
+                    </h2>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                      Bài làm độc lập gồm {pendingSubject.questions.length} câu hỏi chuẩn SGK.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsStudentModalOpen(true)}
+                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold text-sm shadow-md transition-all active:scale-95 flex items-center justify-center space-x-2"
+                  >
+                    <span>Bắt Đầu Nhập Thông Tin & Làm Bài</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="p-8 text-center bg-white dark:bg-slate-800 rounded-3xl shadow-md space-y-3">
+                  <p className="text-sm font-bold text-slate-700 dark:text-slate-300">
+                    Đang kết nối bài thi / trò chơi từ Mã QR...
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </main>
+
+        {/* Minimal Footer */}
+        <footer className="py-3 px-4 text-center text-xs text-slate-400 border-t border-slate-200 dark:border-slate-800 bg-white/40 dark:bg-slate-900/40">
+          Hệ Thống Khảo Thí Trực Tuyến 2026-2027 • Tự Động Đồng Bộ Kết Quả Về Google Sheets
+        </footer>
+
+        {/* Student Info Registration Modal */}
+        {isStudentModalOpen && pendingSubject && (
+          <StudentInfoModal
+            isOpen={isStudentModalOpen}
+            subjectName={pendingSubject.name}
+            totalQuestions={pendingSubject.questions.length}
+            onClose={() => setIsStudentModalOpen(false)}
+            onSubmit={handleConfirmStudentInfo}
+          />
+        )}
+
+        {/* PIN Verification Modal to exit single task mode for teacher */}
+        {isRolePinModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fadeIn">
+            <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-700">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center font-bold">
+                    <Lock className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-base text-slate-800 dark:text-white">Xác Nhận PIN Giáo Viên</h3>
+                    <p className="text-xs text-slate-400">Mở toàn bộ giao diện quản trị hệ thống</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsRolePinModalOpen(false)}
+                  className="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  handleVerifyTeacherPin(e);
+                  setIsDirectSingleTaskMode(false);
+                }}
+                className="space-y-4"
+              >
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Nhập mã PIN Giáo Viên (Mặc định: 1234)
+                  </label>
+                  <input
+                    type="password"
+                    maxLength={10}
+                    autoFocus
+                    value={pinInput}
+                    onChange={(e) => setPinInput(e.target.value)}
+                    placeholder="Nhập mã PIN..."
+                    className="w-full px-4 py-3 rounded-2xl border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white text-center text-lg font-mono font-bold tracking-widest focus:ring-2 focus:ring-amber-500"
+                  />
+                  {pinError && <p className="text-xs text-rose-500 font-bold mt-1 text-center">{pinError}</p>}
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 rounded-2xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm shadow-md transition-all active:scale-95"
+                >
+                  Xác Nhận Mở Quản Trị
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors flex font-['Be_Vietnam_Pro',sans-serif]">
