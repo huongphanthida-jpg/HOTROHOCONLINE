@@ -25,6 +25,7 @@ import { InteractiveSimulationsView } from './components/InteractiveSimulationsV
 import { ProgressDashboard } from './components/ProgressDashboard';
 import { AITutorModal } from './components/AITutorModal';
 import { SettingsModal } from './components/SettingsModal';
+import { EnterTaskCodeModal } from './components/EnterTaskCodeModal';
 import { soundEffects } from './utils/soundEffects';
 import { GameSessionResult, syncSessionToGoogleSheets } from './services/sheetSyncService';
 import { Lock, AlertCircle, X, ShieldCheck, User } from 'lucide-react';
@@ -155,9 +156,76 @@ export default function App() {
   } | null>(null);
   const [activeResult, setActiveResult] = useState<SessionRecord | null>(null);
 
-  // Settings & Tutor Context modal states
+  // Settings & Tutor Context & Enter Code modal states
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isEnterCodeModalOpen, setIsEnterCodeModalOpen] = useState(false);
   const [tutorContext, setTutorContext] = useState<string | undefined>(undefined);
+
+  // Handle opening exam or game directly by ID code
+  const handleOpenTaskById = (codeInput: string): { success: boolean; message?: string } => {
+    const raw = codeInput.trim().toLowerCase();
+    if (!raw) return { success: false, message: 'Vui lòng nhập Mã ID!' };
+
+    // 1. Search Subjects (by id, className, or name)
+    const matchedSubject = appData.subjects.find(
+      (s) =>
+        s.id.toLowerCase() === raw ||
+        (s.className && s.className.toLowerCase() === raw) ||
+        s.name.toLowerCase().includes(raw)
+    );
+
+    if (matchedSubject) {
+      setUserRole('student');
+      localStorage.setItem('user_role', 'student');
+      setAppData((prev) => ({
+        ...prev,
+        settings: { ...prev.settings, currentRole: 'student' },
+      }));
+      setIsDirectSingleTaskMode(true);
+      setCurrentTab('subjects');
+      handleSelectSubjectToExam(matchedSubject);
+      return { success: true };
+    }
+
+    // 2. Search Documents with generated questions
+    const matchedDoc = appData.documents?.find(
+      (d) => d.id.toLowerCase() === raw || d.title.toLowerCase().includes(raw)
+    );
+    if (matchedDoc && matchedDoc.generatedQuestions && matchedDoc.generatedQuestions.length > 0) {
+      setUserRole('student');
+      localStorage.setItem('user_role', 'student');
+      setAppData((prev) => ({
+        ...prev,
+        settings: { ...prev.settings, currentRole: 'student' },
+      }));
+      setIsDirectSingleTaskMode(true);
+      setCurrentTab('subjects');
+      handleStartExamFromQuestions(matchedDoc.title, matchedDoc.generatedQuestions);
+      return { success: true };
+    }
+
+    // 3. Search Games
+    const matchedGame = appData.games?.find(
+      (g) => g.id.toLowerCase() === raw || g.title.toLowerCase().includes(raw)
+    );
+    if (matchedGame) {
+      setUserRole('student');
+      localStorage.setItem('user_role', 'student');
+      setAppData((prev) => ({
+        ...prev,
+        settings: { ...prev.settings, currentRole: 'student' },
+      }));
+      setIsDirectSingleTaskMode(true);
+      setCurrentTab('games');
+      setTargetGameIdFromUrl(matchedGame.id);
+      return { success: true };
+    }
+
+    return {
+      success: false,
+      message: `Không tìm thấy bài tập, đề thi hay trò chơi nào có Mã ID: "${codeInput}". Vui lòng hỏi lại thầy/cô bộ môn.`,
+    };
+  };
 
   // Auto-save effect
   useEffect(() => {
@@ -984,6 +1052,7 @@ export default function App() {
             currentTab={currentTab}
             onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
             onOpenSettings={() => setIsSettingsOpen(true)}
+            onOpenEnterCodeModal={() => setIsEnterCodeModalOpen(true)}
             theme={appData.settings?.theme || 'light'}
             onToggleTheme={handleToggleTheme}
             examInProgress={Boolean(activeExam)}
@@ -1008,6 +1077,15 @@ export default function App() {
             </div>
 
             <div className="flex items-center space-x-2">
+              <button
+                type="button"
+                onClick={() => setIsEnterCodeModalOpen(true)}
+                className="text-[11px] font-bold px-3 py-1 rounded-full bg-amber-500 text-white shadow-xs hover:bg-amber-600 transition-colors flex items-center space-x-1"
+                title="Nhập mã bài tập khác"
+              >
+                <span>🔑 Đổi Mã ID</span>
+              </button>
+
               <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                 🎓 Quyền Học Sinh
               </span>
@@ -1066,6 +1144,7 @@ export default function App() {
                   onRestoreDefaultSubjects={handleRestoreDefaultSubjects}
                   onAddSubject={handleAddSubject}
                   onSyncFromDocuments={handleSyncFromDocuments}
+                  onOpenEnterCodeModal={() => setIsEnterCodeModalOpen(true)}
                   userRole={userRole}
                 />
               )}
@@ -1253,6 +1332,15 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* MODAL: Nhập Mã ID Bài Tập / Đề Thi Dành Cho Học Sinh */}
+      <EnterTaskCodeModal
+        isOpen={isEnterCodeModalOpen}
+        onClose={() => setIsEnterCodeModalOpen(false)}
+        onSubmitCode={handleOpenTaskById}
+        availableSubjects={appData.subjects}
+        availableGames={appData.games}
+      />
 
     </div>
   );
