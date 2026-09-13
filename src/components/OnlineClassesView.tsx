@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { OnlineClass, AppSettings } from '../types';
+import { OnlineClass, AppSettings, UserRole } from '../types';
 import { 
   Tv, 
   Video, 
@@ -24,8 +24,6 @@ import {
   Info
 } from 'lucide-react';
 import { fetchOnlineClassesFromGoogleSheets, APPS_SCRIPT_SAMPLE_CODE } from '../services/sheetSyncService';
-
-import { UserRole } from '../types';
 
 interface OnlineClassesViewProps {
   onlineClasses: OnlineClass[];
