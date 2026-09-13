@@ -90,8 +90,8 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
   // Construct direct target URL for student with full encoded payload integration
   const shareUrl = useMemo(() => {
     let url = `${resolvedBaseUrl}?${type}=${encodeURIComponent(targetId)}&role=student`;
-    if (type === 'exam' && subject && questions && questions.length > 0) {
-      const payload = encodeExamPayload(subject, questions);
+    if (type === 'exam' && subject) {
+      const payload = encodeExamPayload(subject, questions || []);
       if (payload) {
         url += `&payload=${payload}`;
       }
