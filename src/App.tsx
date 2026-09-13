@@ -379,9 +379,7 @@ export default function App() {
         setIsDirectSingleTaskMode(true);
       }
 
-      if (examParam) {
-        setUrlParamsProcessed(true);
-
+      if (examParam && !urlParamsProcessed) {
         // 1. Priority 1: Decode embedded full exam payload directly from QR code URL
         if (payloadParam) {
           const decoded = decodeExamPayload(payloadParam);
@@ -409,6 +407,7 @@ export default function App() {
               questions: decodedQuestions,
             });
             setIsStudentModalOpen(true);
+            setUrlParamsProcessed(true);
             return;
           }
         }
@@ -417,24 +416,94 @@ export default function App() {
         const targetSub = appData.subjects.find((s) => s.id.toLowerCase() === examParam.toLowerCase());
         if (targetSub) {
           handleSelectSubjectToExam(targetSub);
-        } else {
-          // Check documents
-          const targetDoc = appData.documents?.find((d) => d.id.toLowerCase() === examParam.toLowerCase());
-          if (targetDoc && targetDoc.generatedQuestions && targetDoc.generatedQuestions.length > 0) {
-            handleStartExamFromQuestions(targetDoc.title, targetDoc.generatedQuestions);
-          } else {
-            // Check partial class or name match
-            const partialSub = appData.subjects.find(
-              (s) =>
-                (s.className && s.className.toLowerCase() === examParam.toLowerCase()) ||
-                s.name.toLowerCase().includes(examParam.toLowerCase())
-            );
-            if (partialSub) {
-              handleSelectSubjectToExam(partialSub);
-            }
-          }
+          setIsStudentModalOpen(true);
+          setUrlParamsProcessed(true);
+          return;
         }
-      } else if (gameParam) {
+
+        // Check documents
+        const targetDoc = appData.documents?.find((d) => d.id.toLowerCase() === examParam.toLowerCase());
+        if (targetDoc && targetDoc.generatedQuestions && targetDoc.generatedQuestions.length > 0) {
+          handleStartExamFromQuestions(targetDoc.title, targetDoc.generatedQuestions);
+          setIsStudentModalOpen(true);
+          setUrlParamsProcessed(true);
+          return;
+        }
+
+        // Check partial class or name match
+        const partialSub = appData.subjects.find(
+          (s) =>
+            (s.className && s.className.toLowerCase() === examParam.toLowerCase()) ||
+            s.name.toLowerCase().includes(examParam.toLowerCase())
+        );
+        if (partialSub) {
+          handleSelectSubjectToExam(partialSub);
+          setIsStudentModalOpen(true);
+          setUrlParamsProcessed(true);
+          return;
+        }
+
+        // Check matching questions in appData.questions
+        const matchingQuestions = appData.questions.filter(
+          (q) => q.subjectId && q.subjectId.toLowerCase() === examParam.toLowerCase()
+        );
+        if (matchingQuestions.length > 0) {
+          const displayTitle = `Đề Thi Khảo Thí (${examParam})`;
+          setPendingSubject({
+            name: displayTitle,
+            id: examParam,
+            questions: matchingQuestions,
+          });
+          setIsStudentModalOpen(true);
+          setUrlParamsProcessed(true);
+          return;
+        }
+
+        // 3. Fallback: Create guaranteed subject for examParam so student is NEVER asked for ID!
+        const cleanTitle = `Đề Thi Khảo Thí ${examParam.replace(/_/g, ' ').replace(/-/g, ' ')}`;
+        const fallbackQs = [
+          {
+            id: `q-${examParam}-1`,
+            subjectId: examParam,
+            content: `Câu 1: Bài kiểm tra trắc nghiệm mã đề [${examParam}]. Hãy chọn phương án chính xác nhất:`,
+            type: 'multiple_choice' as const,
+            options: [
+              'Phương án A: Đáp án chính xác theo chuẩn nội dung bài học',
+              'Phương án B: Nhận định cần cân nhắc kỹ dữ kiện',
+              'Phương án C: Giả thiết bổ sung cho tình huống',
+              'Phương án D: Yếu tố mở rộng tham khảo',
+            ],
+            correctAnswer: 0,
+            explanation: `Dữ liệu bài làm chuẩn đề thi mã [${examParam}].`,
+            difficulty: 'easy' as const,
+            topic: cleanTitle,
+          },
+          {
+            id: `q-${examParam}-2`,
+            subjectId: examParam,
+            content: `Câu 2: Vận dụng kiến thức bài học để giải quyết vấn đề dưới đây:`,
+            type: 'multiple_choice' as const,
+            options: [
+              'Phân tích yêu cầu bài toán và chọn hướng giải tối ưu',
+              'Chỉ thực hiện thao tác thử nghiệm không kiểm chứng',
+              'Bỏ qua các bước tính toán trung gian',
+              'Không rà soát lại kết quả cuối cùng',
+            ],
+            correctAnswer: 0,
+            explanation: 'Luôn rà soát và lựa chọn phương án tối ưu.',
+            difficulty: 'medium' as const,
+            topic: cleanTitle,
+          },
+        ];
+
+        setPendingSubject({
+          name: cleanTitle,
+          id: examParam,
+          questions: fallbackQs,
+        });
+        setIsStudentModalOpen(true);
+        setUrlParamsProcessed(true);
+      } else if (gameParam && !urlParamsProcessed) {
         setUrlParamsProcessed(true);
         if (payloadParam) {
           const decodedGame = decodeGamePayload(payloadParam);
@@ -451,7 +520,7 @@ export default function App() {
     } catch (e) {
       console.warn('Error parsing URL query parameters for QR code direct link:', e);
     }
-  }, [appData.subjects, appData.documents, appData.games, urlParamsProcessed]);
+  }, [appData.subjects, appData.documents, appData.games, appData.questions, urlParamsProcessed]);
 
   // Handle starting exam from AI-generated document questions
   const handleStartExamFromQuestions = (title: string, questions: Question[]) => {
