@@ -105,32 +105,45 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
     return url;
   }, [resolvedBaseUrl, type, targetId, subject, questions, game]);
 
+  // Clean short URL (guaranteed < 100 chars, always renders QR code instantly)
+  const shortShareUrl = useMemo(() => {
+    return `${resolvedBaseUrl}?${type}=${encodeURIComponent(targetId)}&role=student`;
+  }, [resolvedBaseUrl, type, targetId]);
+
   useEffect(() => {
     if (!isOpen || !targetId) return;
 
-    // Generate QR Code onto canvas and dataURL
     if (canvasRef.current) {
-      QRCode.toCanvas(
-        canvasRef.current,
-        shareUrl,
-        {
-          width: 240,
-          margin: 2,
-          color: {
-            dark: type === 'exam' ? '#0f766e' : '#4338ca', // teal-700 for exam, indigo-700 for game
-            light: '#ffffff',
+      const renderQR = (textToRender: string) => {
+        if (!canvasRef.current) return;
+        QRCode.toCanvas(
+          canvasRef.current,
+          textToRender,
+          {
+            width: 240,
+            margin: 2,
+            errorCorrectionLevel: 'L',
+            color: {
+              dark: type === 'exam' ? '#0f766e' : '#4338ca',
+              light: '#ffffff',
+            },
           },
-        },
-        (error) => {
-          if (error) {
-            console.error('QR code generation error:', error);
-          } else if (canvasRef.current) {
-            setQrDataUrl(canvasRef.current.toDataURL('image/png'));
+          (error) => {
+            if (error) {
+              console.warn('QR code generation warning, falling back to short URL:', error);
+              if (textToRender !== shortShareUrl && canvasRef.current) {
+                renderQR(shortShareUrl);
+              }
+            } else if (canvasRef.current) {
+              setQrDataUrl(canvasRef.current.toDataURL('image/png'));
+            }
           }
-        }
-      );
+        );
+      };
+
+      renderQR(shareUrl);
     }
-  }, [isOpen, targetId, shareUrl, type]);
+  }, [isOpen, targetId, shareUrl, shortShareUrl, type]);
 
   if (!isOpen) return null;
 
@@ -308,8 +321,13 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
 
         {/* QR Code Presentation Box */}
         <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/80 flex flex-col items-center justify-center space-y-2">
-          <div className="p-2.5 bg-white rounded-2xl shadow-sm border border-slate-200/80 dark:border-slate-600">
-            <canvas ref={canvasRef} className="max-w-[180px] max-h-[180px] w-full h-auto block" />
+          <div className="p-2 bg-white rounded-2xl shadow-sm border border-slate-200/80 dark:border-slate-600 flex items-center justify-center">
+            {qrDataUrl ? (
+              <img src={qrDataUrl} alt="Mã QR Bài Tập" className="w-[180px] h-[180px] object-contain block rounded-xl" />
+            ) : (
+              <canvas ref={canvasRef} width={180} height={180} className="w-[180px] h-[180px] block" />
+            )}
+            <canvas ref={canvasRef} width={180} height={180} className="hidden" />
           </div>
           <p className="text-[11px] text-center text-slate-500 dark:text-slate-400 max-w-xs">
             Quét mã QR hoặc nhập Mã ID <strong className="text-teal-600 font-mono">{targetId}</strong> để làm bài độc lập.
