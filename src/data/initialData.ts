@@ -889,16 +889,6 @@ export const INITIAL_DATA: AppData = {
     averageScore: 8.75,
     streakDays: 3,
     weakTopics: [
-      { topic: 'Sóng ánh sáng', wrongCount: 1, subjectId: 'vat-ly' },
-    ],
-  },
-  settings: {
-    theme: 'light',
-    soundEnabled: true,
-    autoSave: true,
-    geminiApiKey: '',
-    selectedModel: 'gemini-3.8-flash',
-    googleAppsScriptUrl: 'https://script.google.com/macros/s/AKfycbz_SAMPLE_EDU_EXAM_URL/exec',
   },
   documents: [
     {
@@ -1294,7 +1284,7 @@ III. ĐƯỜNG TIỆM CẬN
     soundEnabled: true,
     autoSave: true,
     geminiApiKey: '',
-    selectedModel: 'gemini-3-flash-preview',
+    selectedModel: 'gemini-3.8-flash',
     googleAppsScriptUrl: '',
     currentRole: 'teacher',
     teacherPin: '1234',
