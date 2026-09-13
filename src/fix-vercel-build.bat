@@ -9,7 +9,7 @@ echo Executing git commands to fix bun.lock and update code...
 git rm --cached bun.lock 2>nul
 git rm --cached bun.lockb 2>nul
 git add -A
-git commit -m "Fix: Bulletproof fallback imports for sheetSyncService and Vercel build success"
+git commit -m "Fix: Export pullFullAppDataFromGoogleSheets and pushFullAppDataToGoogleSheets in sheetSyncService"
 git push origin main
 
 echo.
