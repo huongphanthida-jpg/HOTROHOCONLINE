@@ -2,18 +2,20 @@ import { Subject, Question, EducationalGame } from '../types';
 
 export function encodeExamPayload(subject: Subject, questions: Question[]): string {
   try {
+    const listToEncode = questions && questions.length > 0 ? questions : [];
+
     const minified = {
       i: subject.id,
       n: subject.name,
-      d: (subject.description || '').slice(0, 120),
+      d: (subject.description || '').slice(0, 60),
       c: subject.className || '',
       g: subject.grade || '12',
       st: subject.subjectType || 'Toán học',
-      q: questions.slice(0, 15).map((q) => ({
+      q: listToEncode.slice(0, 20).map((q) => ({
         c: q.content,
-        o: q.options,
-        a: q.correctAnswer,
-        e: (q.explanation || '').slice(0, 120),
+        o: q.options ? q.options.map((opt) => String(opt).slice(0, 80)) : [],
+        a: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
+        e: (q.explanation || '').slice(0, 60),
       })),
     };
     return encodeURIComponent(JSON.stringify(minified));
@@ -26,8 +28,29 @@ export function encodeExamPayload(subject: Subject, questions: Question[]): stri
 export function decodeExamPayload(payloadStr: string): { subject: Subject; questions: Question[] } | null {
   try {
     const jsonStr = decodeURIComponent(payloadStr);
-    const data = JSON.parse(jsonStr);
-    if (!data || !data.q || !Array.isArray(data.q)) return null;
+    let data: any = null;
+
+    try {
+      data = JSON.parse(jsonStr);
+    } catch {
+      // Attempt to repair JSON if truncated by Zalo or mobile browsers
+      const lastObjEnd = jsonStr.lastIndexOf('}');
+      if (lastObjEnd > 0) {
+        const repairedJson = jsonStr.substring(0, lastObjEnd + 1) + ']}';
+        try {
+          data = JSON.parse(repairedJson);
+        } catch {
+          const repairedArray = jsonStr.substring(0, lastObjEnd + 1) + ']';
+          try {
+            data = JSON.parse(repairedArray);
+          } catch {
+            // Repair failed
+          }
+        }
+      }
+    }
+
+    if (!data || !data.q || !Array.isArray(data.q) || data.q.length === 0) return null;
 
     const subjectId = data.i || `sub-shared-${Date.now()}`;
     const subjectName = data.n || 'Đề thi trắc nghiệm chia sẻ';
