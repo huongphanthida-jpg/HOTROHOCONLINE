@@ -12,6 +12,7 @@ import {
   Settings2,
   Globe,
   Maximize2,
+  AlertTriangle,
 } from 'lucide-react';
 
 import { Subject, Question, EducationalGame } from '../types';
@@ -129,7 +130,7 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
         const url = await QRCode.toDataURL(textToRender, {
           width: 600,
           margin: 2,
-          errorCorrectionLevel: 'M',
+          errorCorrectionLevel: 'L',
           color: {
             dark: type === 'exam' ? '#042f2e' : '#1e1b4b',
             light: '#ffffff',
@@ -139,7 +140,28 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
           setQrDataUrl(url);
         }
       } catch (err) {
-        console.warn('QR code generation warning, falling back to short URL:', err);
+        console.warn('QR code generation warning:', err);
+        // If full payload URL failed, try compact payload (3 questions) before giving up on payload
+        if (type === 'exam' && subject && questions && textToRender === fullPayloadUrl) {
+          try {
+            const compactPayload = encodeExamPayload(subject, questions, 3);
+            if (compactPayload) {
+              const fallbackUrl = `${resolvedBaseUrl}?${type}=${encodeURIComponent(targetId)}&role=student&payload=${compactPayload}`;
+              const url = await QRCode.toDataURL(fallbackUrl, {
+                width: 600,
+                margin: 2,
+                errorCorrectionLevel: 'L',
+                color: { dark: '#042f2e', light: '#ffffff' },
+              });
+              if (isMounted) {
+                setQrDataUrl(url);
+                return;
+              }
+            }
+          } catch (e2) {
+            console.warn('Compact payload QR failed:', e2);
+          }
+        }
         if (textToRender !== shortShareUrl) {
           generateQR(shortShareUrl);
         }
@@ -151,7 +173,7 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, targetId, shareUrl, shortShareUrl, type]);
+  }, [isOpen, targetId, shareUrl, shortShareUrl, type, fullPayloadUrl, subject, questions, resolvedBaseUrl]);
 
   if (!isOpen) return null;
 
@@ -355,6 +377,18 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
             ⚡ Link Rút Gọn Zalo (Khối To)
           </button>
         </div>
+
+        {useCompactZaloUrl && (
+          <div className="mb-3 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-100 text-[11px] font-semibold space-y-1 animate-fadeIn">
+            <div className="flex items-center space-x-1.5 font-extrabold text-amber-800 dark:text-amber-200">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>LƯU Ý KHI DÙNG LINK RÚT GỌN ZALO:</span>
+            </div>
+            <p className="leading-relaxed">
+              Link rút gọn chỉ chứa Mã ID (<code className="font-mono">{targetId}</code>). Để học sinh trên điện thoại khác nhận trọn vẹn 100% câu hỏi vừa tạo từ tài liệu mà không bị về bài thi mặc định, khuyến nghị dùng nút <strong>"📦 Đóng Gói Đề AI (Rõ Nét)"</strong> ở trên!
+            </p>
+          </div>
+        )}
 
         {/* QR Code Presentation Box */}
         <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/80 flex flex-col items-center justify-center space-y-2.5">
