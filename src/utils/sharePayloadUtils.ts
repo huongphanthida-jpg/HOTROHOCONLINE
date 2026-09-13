@@ -33,15 +33,20 @@ function fromBase64Url(str: string): string {
 
 export function detectSubjectType(subject: Partial<Subject>): string {
   if (subject.subjectType && subject.subjectType.trim()) return subject.subjectType.trim();
-  const text = `${subject.name || ''} ${subject.description || ''} ${subject.id || ''}`.toLowerCase();
-  if (text.includes('hóa') || text.includes('hoa') || text.includes('chem')) return 'Hóa học';
-  if (text.includes('lý') || text.includes('ly') || text.includes('phys')) return 'Vật lý';
+  const rawText = `${subject.name || ''} ${subject.description || ''} ${subject.id || ''}`;
+  const text = rawText
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
+  if (text.includes('hoa') || text.includes('chem')) return 'Hóa học';
+  if (text.includes('ly') || text.includes('phys')) return 'Vật lý';
   if (text.includes('sinh') || text.includes('bio')) return 'Sinh học';
   if (text.includes('anh') || text.includes('eng')) return 'Tiếng Anh';
-  if (text.includes('sử') || text.includes('su') || text.includes('his')) return 'Lịch sử';
-  if (text.includes('địa') || text.includes('dia') || text.includes('geo')) return 'Địa lý';
+  if (text.includes('su') || text.includes('his')) return 'Lịch sử';
+  if (text.includes('dia') || text.includes('geo')) return 'Địa lý';
   if (text.includes('tin') || text.includes('info')) return 'Tin học';
-  if (text.includes('gdcd') || text.includes('công dân')) return 'GDCD';
+  if (text.includes('gdcd') || text.includes('cong dan')) return 'GDCD';
   return 'Toán học';
 }
 
@@ -55,11 +60,20 @@ export function extractGrade(subject: Partial<Subject>): string {
 
 export function extractClassName(subject: Partial<Subject>): string {
   if (subject.className && subject.className.trim()) return subject.className.trim();
-  const text = `${subject.name || ''} ${subject.description || ''}`;
+  const text = `${subject.name || ''} ${subject.description || ''} ${subject.id || ''}`;
   const match = text.match(/1[012][A-Z0-9]+/i);
   if (match) return match[0].toUpperCase();
   const grade = extractGrade(subject);
   return grade === '12' ? '12D1' : grade === '11' ? '11A2' : '10T2';
+}
+
+export function buildSlugSubjectId(stype: string, cname: string): string {
+  const normStype = (stype || 'Hoa_hoc')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]/g, '_');
+  const normCname = (cname || '11A2').replace(/[^a-zA-Z0-9]/g, '');
+  return `sub-custom-${normStype}_${normCname}-${Date.now()}`;
 }
 
 export function generateFallbackQuestionsBySubject(subject: Partial<Subject>): Question[] {
@@ -417,11 +431,11 @@ export function encodeExamPayload(subject: Subject, questions: Question[]): stri
       c: className,
       g: grade,
       st: subjectType,
-      q: listToEncode.slice(0, 25).map((q) => ({
+      q: listToEncode.slice(0, 15).map((q) => ({
         c: q.content,
-        o: q.options ? q.options.map((opt) => String(opt).slice(0, 100)) : [],
+        o: q.options ? q.options.map((opt) => String(opt).slice(0, 90)) : [],
         a: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
-        e: (q.explanation || '').slice(0, 80),
+        e: (q.explanation || '').slice(0, 60),
       })),
     };
     return toBase64Url(JSON.stringify(minified));
