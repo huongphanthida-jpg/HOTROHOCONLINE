@@ -91,27 +91,12 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
     return '';
   }, [customBaseUrl]);
 
-  // Construct direct target URL for student with full encoded payload integration
+  // Construct direct Zalo & web clean URL (guaranteed < 100 chars, triggers native 1-tap "Mở liên kết" in Zalo)
   const shareUrl = useMemo(() => {
-    let url = `${resolvedBaseUrl}?${type}=${encodeURIComponent(targetId)}&role=student`;
-    if (type === 'exam' && subject) {
-      const payload = encodeExamPayload(subject, questions || []);
-      if (payload) {
-        url += `&payload=${payload}`;
-      }
-    } else if (type === 'game' && game) {
-      const payload = encodeGamePayload(game);
-      if (payload) {
-        url += `&payload=${payload}`;
-      }
-    }
-    return url;
-  }, [resolvedBaseUrl, type, targetId, subject, questions, game]);
-
-  // Clean short URL (guaranteed < 100 chars, always renders QR code instantly)
-  const shortShareUrl = useMemo(() => {
     return `${resolvedBaseUrl}?${type}=${encodeURIComponent(targetId)}&role=student`;
   }, [resolvedBaseUrl, type, targetId]);
+
+  const shortShareUrl = shareUrl;
 
   useEffect(() => {
     if (!isOpen || !targetId) return;
@@ -121,8 +106,8 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
     const generateQR = async (textToRender: string) => {
       try {
         const url = await QRCode.toDataURL(textToRender, {
-          width: 300,
-          margin: 2,
+          width: 360,
+          margin: 1,
           errorCorrectionLevel: 'L',
           color: {
             dark: type === 'exam' ? '#0f766e' : '#4338ca',
@@ -330,9 +315,9 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
             title="Bấm trực tiếp vào khung ảnh để sao chép ảnh Mã QR ngay"
           >
             {qrDataUrl ? (
-              <img src={qrDataUrl} alt="Mã QR Bài Tập" className="w-[180px] h-[180px] object-contain block rounded-xl" />
+              <img src={qrDataUrl} alt="Mã QR Bài Tập" className="w-[220px] h-[220px] object-contain block rounded-xl" />
             ) : (
-              <div className="w-[180px] h-[180px] flex items-center justify-center text-xs text-slate-400 font-bold">
+              <div className="w-[220px] h-[220px] flex items-center justify-center text-xs text-slate-400 font-bold">
                 Đang tạo mã QR...
               </div>
             )}
@@ -492,5 +477,3 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
     </div>
   );
 };
-
-
