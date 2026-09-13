@@ -1,5 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { AppData, Subject, Question, StudentInfo, SessionRecord, DocumentLearning, AppSettings, OnlineClass } from './types';
+import { 
+  AppData, 
+  Subject, 
+  Question, 
+  StudentInfo, 
+  SessionRecord, 
+  DocumentLearning, 
+  AppSettings, 
+  OnlineClass, 
+  EducationalGame, 
+  UserRole 
+} from './types';
 import { INITIAL_DATA } from './data/initialData';
 import { Sidebar, NavigationTab } from './components/Sidebar';
 import { FeatureHeader } from './components/FeatureHeader';
@@ -15,10 +26,7 @@ import { ProgressDashboard } from './components/ProgressDashboard';
 import { AITutorModal } from './components/AITutorModal';
 import { SettingsModal } from './components/SettingsModal';
 import { soundEffects } from './utils/soundEffects';
-import { EducationalGame } from './types';
 import { GameSessionResult, syncSessionToGoogleSheets, pullFullAppDataFromGoogleSheets } from './services/sheetSyncService';
-
-import { UserRole } from './types';
 import { Lock, AlertCircle, X, ShieldCheck, User } from 'lucide-react';
 
 export default function App() {
