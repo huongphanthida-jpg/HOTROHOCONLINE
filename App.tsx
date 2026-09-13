@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   AppData, 
   Subject, 
@@ -141,6 +141,36 @@ export default function App() {
   const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
   const [targetGameIdFromUrl, setTargetGameIdFromUrl] = useState<string | null>(null);
   const [urlParamsProcessed, setUrlParamsProcessed] = useState(false);
+  const [currentUrlSearch, setCurrentUrlSearch] = useState<string>(() => {
+    return typeof window !== 'undefined' ? window.location.search : '';
+  });
+  const lastProcessedSearchRef = useRef<string>('');
+
+  // Active listener & polling for URL search changes (especially in mobile WebViews like Zalo)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleUrlChange = () => {
+      const search = window.location.search;
+      setCurrentUrlSearch(search);
+    };
+
+    window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener('hashchange', handleUrlChange);
+
+    // Poll every 300ms to instantly react when scanning a new QR code in Zalo in the same session
+    const timer = setInterval(() => {
+      if (window.location.search !== currentUrlSearch) {
+        handleUrlChange();
+      }
+    }, 300);
+
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('hashchange', handleUrlChange);
+      clearInterval(timer);
+    };
+  }, [currentUrlSearch]);
 
   // Track if accessed via direct QR / Share link for single-task student isolation
   const [isDirectSingleTaskMode, setIsDirectSingleTaskMode] = useState<boolean>(() => {
@@ -339,17 +369,25 @@ export default function App() {
     setIsStudentModalOpen(true);
   };
 
-  // Check URL parameters on mount / app load for direct QR code links (?exam=id or ?game=id or ?role=student)
+  // Check URL parameters on mount / app load or when URL query parameters change (?exam=id or ?game=id or ?role=student)
   useEffect(() => {
-    if (typeof window === 'undefined' || urlParamsProcessed) return;
+    if (typeof window === 'undefined') return;
+    const currentSearch = window.location.search;
+    if (!currentSearch) return;
+
+    if (lastProcessedSearchRef.current === currentSearch && urlParamsProcessed) return;
 
     try {
-      const params = new URLSearchParams(window.location.search);
+      const params = new URLSearchParams(currentSearch);
       const codeParam = params.get('code') || params.get('id');
       const examParam = params.get('exam') || codeParam;
       const gameParam = params.get('game');
       const roleParam = params.get('role');
       const payloadParam = params.get('payload');
+
+      if (!examParam && !gameParam && roleParam !== 'student') return;
+
+      lastProcessedSearchRef.current = currentSearch;
 
       // Automatically establish Student Role when accessing via QR Code or Direct Link
       if (examParam || gameParam || roleParam === 'student') {
@@ -363,9 +401,12 @@ export default function App() {
 
       if (examParam || gameParam) {
         setIsDirectSingleTaskMode(true);
+        // Reset previous active exam and results to force opening the newly scanned QR task
+        setActiveExam(null);
+        setActiveResult(null);
       }
 
-      if (examParam && !urlParamsProcessed) {
+      if (examParam) {
         // 1. Priority 1: Decode embedded full exam payload directly from QR code URL
         if (payloadParam) {
           const decoded = decodeExamPayload(payloadParam);
@@ -387,6 +428,11 @@ export default function App() {
               };
             });
 
+            try {
+              localStorage.setItem('shared_qs_' + decodedSub.id, JSON.stringify(decodedQuestions));
+              localStorage.setItem('shared_subj_' + decodedSub.id, JSON.stringify(decodedSub));
+            } catch {}
+
             setPendingSubject({
               name: decodedSub.name,
               id: decodedSub.id,
@@ -398,13 +444,20 @@ export default function App() {
           }
         }
 
-        // Check persistent shared questions registry
+        // Check persistent shared questions & subject registry
         const cachedQsStr = localStorage.getItem('shared_qs_' + examParam);
+        const cachedSubjStr = localStorage.getItem('shared_subj_' + examParam);
         if (cachedQsStr) {
           try {
             const cachedQs = JSON.parse(cachedQsStr);
+            let cachedSubj: Subject | null = null;
+            if (cachedSubjStr) {
+              try { cachedSubj = JSON.parse(cachedSubjStr); } catch {}
+            }
             if (Array.isArray(cachedQs) && cachedQs.length > 0) {
-              const displayTitle = `Đề Thi Khảo Thí (${examParam})`;
+              const detectedStype = detectSubjectType({ id: examParam, name: examParam });
+              const detectedClass = extractClassName({ id: examParam, name: examParam });
+              const displayTitle = cachedSubj?.name || `${detectedStype} lớp ${detectedClass} - Đề kiểm tra định kỳ`;
               setPendingSubject({
                 name: displayTitle,
                 id: examParam,
@@ -437,25 +490,14 @@ export default function App() {
           return;
         }
 
-        // Check partial class or name match
-        const partialSub = appData.subjects.find(
-          (s) =>
-            (s.className && s.className.toLowerCase() === examParam.toLowerCase()) ||
-            s.name.toLowerCase().includes(examParam.toLowerCase())
-        );
-        if (partialSub) {
-          handleSelectSubjectToExam(partialSub);
-          setIsStudentModalOpen(true);
-          setUrlParamsProcessed(true);
-          return;
-        }
-
         // Check matching questions in appData.questions
         const matchingQuestions = appData.questions.filter(
           (q) => q.subjectId && q.subjectId.toLowerCase() === examParam.toLowerCase()
         );
         if (matchingQuestions.length > 0) {
-          const displayTitle = `Đề Thi Khảo Thí (${examParam})`;
+          const detectedStype = detectSubjectType({ id: examParam, name: examParam });
+          const detectedClass = extractClassName({ id: examParam, name: examParam });
+          const displayTitle = `${detectedStype} lớp ${detectedClass} - Đề kiểm tra định kỳ`;
           setPendingSubject({
             name: displayTitle,
             id: examParam,
@@ -473,7 +515,7 @@ export default function App() {
         };
         const detectedStype = detectSubjectType(fallbackSub);
         const detectedClass = extractClassName(fallbackSub);
-        const cleanTitle = `${detectedStype} lớp ${detectedClass} - Đề thi khảo thí`;
+        const cleanTitle = `${detectedStype} lớp ${detectedClass} - Đề kiểm tra định kỳ`;
         const fallbackQs = generateFallbackQuestionsBySubject({
           ...fallbackSub,
           name: cleanTitle,
@@ -486,7 +528,7 @@ export default function App() {
         });
         setIsStudentModalOpen(true);
         setUrlParamsProcessed(true);
-      } else if (gameParam && !urlParamsProcessed) {
+      } else if (gameParam) {
         setUrlParamsProcessed(true);
         if (payloadParam) {
           const decodedGame = decodeGamePayload(payloadParam);
@@ -503,7 +545,7 @@ export default function App() {
     } catch (e) {
       console.warn('Error parsing URL query parameters for QR code direct link:', e);
     }
-  }, [appData.subjects, appData.documents, appData.games, appData.questions, urlParamsProcessed]);
+  }, [currentUrlSearch, appData.subjects, appData.documents, appData.games, appData.questions]);
 
   // Handle starting exam from AI-generated document questions
   const handleStartExamFromQuestions = (title: string, questions: Question[]) => {
@@ -1340,6 +1382,8 @@ export default function App() {
                   onRestoreDefaultGames={handleRestoreDefaultGames}
                   onRecordGameSession={handleRecordGameSession}
                   googleScriptUrl={appData.settings.googleAppsScriptUrl}
+                  userRole={userRole}
+                  isDirectSingleTaskMode={isDirectSingleTaskMode}
                 />
               )}
 
