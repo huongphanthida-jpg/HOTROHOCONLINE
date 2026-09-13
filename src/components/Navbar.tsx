@@ -1,11 +1,12 @@
 import React from 'react';
-import { Settings, BookOpen, FileText, BarChart3, Bot, Sparkles, Moon, Sun, CloudOff, Tv } from 'lucide-react';
+import { Settings, BookOpen, FileText, BarChart3, Bot, Sparkles, Moon, Sun, CloudOff, Tv, Key } from 'lucide-react';
 import { NavigationTab } from './Sidebar';
 
 interface NavbarProps {
   currentTab: NavigationTab;
   onSelectTab: (tab: NavigationTab) => void;
   onOpenSettings: () => void;
+  onOpenEnterCodeModal?: () => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
   isSheetsConfigured: boolean;
@@ -15,6 +16,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   currentTab,
   onSelectTab,
   onOpenSettings,
+  onOpenEnterCodeModal,
   theme,
   onToggleTheme,
   isSheetsConfigured,
@@ -158,6 +160,20 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>Lấy API key để sử dụng app</span>
             </a>
 
+            {/* Nhập Mã ID Bài Tập button */}
+            {onOpenEnterCodeModal && (
+              <button
+                type="button"
+                onClick={onOpenEnterCodeModal}
+                className="flex items-center space-x-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white rounded-xl text-xs font-extrabold shadow-sm hover:shadow-md transition-all active:scale-95 border border-amber-300/40"
+                title="Nhập Mã ID Bài tập / Đề thi do giáo viên gửi để làm bài ngay"
+                id="btn-open-enter-code-modal"
+              >
+                <Key className="w-3.5 h-3.5" />
+                <span>🔑 Nhập Mã ID Bài Tập</span>
+              </button>
+            )}
+
             {/* Settings button */}
             <button
               onClick={onOpenSettings}
@@ -173,6 +189,17 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Mobile Bottom Bar navigation */}
       <div className="md:hidden flex items-center justify-around border-t border-slate-200 dark:border-slate-800 bg-white/95 dark:bg-slate-900/95 py-2 px-1">
+        {onOpenEnterCodeModal && (
+          <button
+            onClick={onOpenEnterCodeModal}
+            className="flex flex-col items-center py-1 px-3 rounded-lg text-[10px] font-bold text-amber-600 dark:text-amber-400"
+            id="mobile-btn-enter-code"
+          >
+            <Key className="w-4 h-4 mb-0.5" />
+            <span>Nhập Mã ID</span>
+          </button>
+        )}
+
         <button
           onClick={() => onSelectTab('subjects')}
           className={`flex flex-col items-center py-1 px-3 rounded-lg text-[10px] font-medium ${
