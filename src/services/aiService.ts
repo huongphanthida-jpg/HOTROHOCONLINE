@@ -6,6 +6,7 @@ import {
   DragDropItem, 
   MatchingPair 
 } from '../types';
+import { buildSlugSubjectId } from '../utils/sharePayloadUtils';
 
 export interface AICallParams {
   prompt: string;
@@ -571,7 +572,7 @@ Trả về DUY NHẤT một mảng JSON hợp lệ chứa đúng ${count} câu h
 
         return {
           id: `ai-src-${Date.now()}-${idx + 1}`,
-          subjectId: `sub-custom-${Date.now()}`,
+          subjectId: buildSlugSubjectId(subjectName, className),
           content: item.content || `Câu hỏi ${idx + 1} bám sát tài liệu môn ${subjectName}`,
           type: qType,
           options: finalOptions,
@@ -681,7 +682,7 @@ function generateFallbackExamQuestions(params: {
     if (format === 'short_answer') {
       fallbackQuestions.push({
         id: `ai-src-fb-${Date.now()}-${i + 1}`,
-        subjectId: `sub-custom-${Date.now()}`,
+        subjectId: buildSlugSubjectId(subjectName, className),
         content: `Câu ${i + 1} (Trả lời ngắn - Lớp ${className}): Căn cứ vào nội dung tài liệu đưa lên: "${sourceRef.slice(0, 110)}...", hãy xác định giá trị hoặc từ khóa chính xác trả lời cho câu hỏi này.`,
         type: 'short_answer',
         options: [],
@@ -696,7 +697,7 @@ function generateFallbackExamQuestions(params: {
     } else if (format === 'true_false') {
       fallbackQuestions.push({
         id: `ai-src-fb-${Date.now()}-${i + 1}`,
-        subjectId: `sub-custom-${Date.now()}`,
+        subjectId: buildSlugSubjectId(subjectName, className),
         content: `Câu ${i + 1} (Đúng/Sai - Lớp ${className}): Dựa trên tài liệu đưa lên: "${sourceRef.slice(0, 110)}...", khẳng định sau đây là ĐÚNG hay SAI?`,
         type: 'true_false',
         options: ['Đúng', 'Sai'],
@@ -709,7 +710,7 @@ function generateFallbackExamQuestions(params: {
     } else if (format === 'essay') {
       fallbackQuestions.push({
         id: `ai-src-fb-${Date.now()}-${i + 1}`,
-        subjectId: `sub-custom-${Date.now()}`,
+        subjectId: buildSlugSubjectId(subjectName, className),
         content: `Câu ${i + 1} (Tự luận - Lớp ${className}): Vận dụng nội dung tài liệu: "${sourceRef.slice(0, 120)}...", hãy trình bày phương pháp giải và phân tích các bước thực hiện chi tiết.`,
         type: 'essay',
         options: [],
@@ -724,7 +725,7 @@ function generateFallbackExamQuestions(params: {
     } else {
       fallbackQuestions.push({
         id: `ai-src-fb-${Date.now()}-${i + 1}`,
-        subjectId: `sub-custom-${Date.now()}`,
+        subjectId: buildSlugSubjectId(subjectName, className),
         content: `Câu ${i + 1} (Trắc nghiệm 4 phương án - Lớp ${className}): Xét nội dung kiến thức trong tài liệu: "${sourceRef.slice(0, 120)}...". Khẳng định nào sau đây là chính xác nhất?`,
         type: 'multiple_choice',
         options: [
