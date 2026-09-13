@@ -13,6 +13,9 @@ import {
   Globe,
 } from 'lucide-react';
 
+import { Subject, Question, EducationalGame } from '../types';
+import { encodeExamPayload, encodeGamePayload } from '../utils/sharePayloadUtils';
+
 interface QRCodeShareModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -20,6 +23,9 @@ interface QRCodeShareModalProps {
   subtitle?: string;
   type: 'exam' | 'game';
   targetId: string; // subjectId or gameId
+  subject?: Subject;
+  questions?: Question[];
+  game?: EducationalGame;
   metaInfo?: {
     className?: string;
     grade?: string;
@@ -35,6 +41,9 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
   subtitle,
   type,
   targetId,
+  subject,
+  questions,
+  game,
   metaInfo,
 }) => {
   const [copiedLink, setCopiedLink] = useState(false);
@@ -79,10 +88,22 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
     return '';
   }, [customBaseUrl]);
 
-  // Construct direct target URL for student (enforcing student mode)
+  // Construct direct target URL for student with full encoded payload integration
   const shareUrl = useMemo(() => {
-    return `${resolvedBaseUrl}?${type}=${encodeURIComponent(targetId)}&role=student`;
-  }, [resolvedBaseUrl, type, targetId]);
+    let url = `${resolvedBaseUrl}?${type}=${encodeURIComponent(targetId)}&role=student`;
+    if (type === 'exam' && subject && questions && questions.length > 0) {
+      const payload = encodeExamPayload(subject, questions);
+      if (payload) {
+        url += `&payload=${payload}`;
+      }
+    } else if (type === 'game' && game) {
+      const payload = encodeGamePayload(game);
+      if (payload) {
+        url += `&payload=${payload}`;
+      }
+    }
+    return url;
+  }, [resolvedBaseUrl, type, targetId, subject, questions, game]);
 
   useEffect(() => {
     if (!isOpen || !targetId) return;
