@@ -26,6 +26,8 @@ import {
   Edit3,
   Pencil,
   Check,
+  Key,
+  Copy,
 } from 'lucide-react';
 import { exportExamToWordDocx } from '../utils/exportUtils';
 
@@ -40,6 +42,7 @@ interface SubjectCardsViewProps {
   onRestoreDefaultSubjects?: () => void;
   onAddSubject?: (newSub: Subject, generatedQuestions?: Question[]) => void;
   onSyncFromDocuments?: () => void;
+  onOpenEnterCodeModal?: () => void;
   hasUnsyncedDocuments?: boolean;
   userRole?: UserRole;
 }
@@ -55,6 +58,7 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
   onRestoreDefaultSubjects,
   onAddSubject,
   onSyncFromDocuments,
+  onOpenEnterCodeModal,
   hasUnsyncedDocuments,
   userRole = 'teacher',
 }) => {
@@ -66,6 +70,7 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
   // Modals state
   const [subjectToDelete, setSubjectToDelete] = useState<Subject | null>(null);
   const [subjectToEdit, setSubjectToEdit] = useState<Subject | null>(null);
+  const [editSubId, setEditSubId] = useState('');
   const [editSubName, setEditSubName] = useState('');
   const [editSubDesc, setEditSubDesc] = useState('');
   const [editSubClassName, setEditSubClassName] = useState('');
@@ -74,6 +79,24 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
   const [isConfirmClearAllOpen, setIsConfirmClearAllOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [syncSuccessToast, setSyncSuccessToast] = useState(false);
+  const [copiedIdMap, setCopiedIdMap] = useState<Record<string, boolean>>({});
+
+  const handleCopySubId = async (id: string) => {
+    try {
+      await navigator.clipboard.writeText(id);
+    } catch {
+      const input = document.createElement('input');
+      input.value = id;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+    }
+    setCopiedIdMap((prev) => ({ ...prev, [id]: true }));
+    setTimeout(() => {
+      setCopiedIdMap((prev) => ({ ...prev, [id]: false }));
+    }, 2500);
+  };
 
   // New subject form state
   const [selectedSubjectType, setSelectedSubjectType] = useState('Toán');
@@ -254,6 +277,39 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
         <div className="p-3 bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 rounded-xl text-xs font-semibold flex items-center space-x-2 animate-fadeIn">
           <CheckCircle2 className="w-4 h-4 text-emerald-600" />
           <span>Đã đồng bộ thành công các bộ đề thi từ phân hiệu Tài liệu AI vào danh sách môn học theo lớp!</span>
+        </div>
+      )}
+
+      {/* Quick ID Input Box for Students */}
+      {onOpenEnterCodeModal && (
+        <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-teal-500/10 to-emerald-500/10 border-2 border-amber-400/80 dark:border-amber-600/80 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-sm">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-500 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-md">
+              <Key className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center space-x-2">
+                <h4 className="text-xs font-extrabold text-slate-800 dark:text-white uppercase tracking-wider">
+                  🔑 Dành cho Học Sinh: Nhập Mã ID Bài Tập
+                </h4>
+                <span className="px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 text-[10px] font-extrabold">
+                  Độc Lập
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">
+                Thầy/cô chỉ gửi duy nhất Mã ID (ví dụ: <code className="font-mono font-bold text-teal-600 dark:text-teal-400">toan-10t2</code>, <code className="font-mono font-bold text-teal-600 dark:text-teal-400">toan-12d1</code>)? Nhấn nút bên để làm bài ngay!
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={onOpenEnterCodeModal}
+            className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-extrabold text-xs shadow-md shadow-amber-500/20 transition-all shrink-0 flex items-center justify-center space-x-1.5 active:scale-95 border border-amber-300/30"
+          >
+            <Key className="w-4 h-4" />
+            <span>Nhập Mã ID Vào Thi Ngay</span>
+          </button>
         </div>
       )}
 
@@ -474,6 +530,7 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
                           onClick={(e) => {
                             e.stopPropagation();
                             setSubjectToEdit(sub);
+                            setEditSubId(sub.id);
                             setEditSubName(sub.name);
                             setEditSubDesc(sub.description || '');
                             setEditSubClassName(sub.className || '');
@@ -516,6 +573,25 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
                     </span>
                   )}
 
+                  {/* Mã ID bài tập badge with 1-click copy */}
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleCopySubId(sub.id);
+                    }}
+                    className="px-2 py-0.5 rounded-md bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/60 border border-teal-200/80 dark:border-teal-800 text-teal-800 dark:text-teal-200 text-[10px] font-mono font-bold flex items-center space-x-1 transition-colors cursor-pointer"
+                    title="Bấm để sao chép duy nhất Mã ID bài tập này để gửi Zalo"
+                  >
+                    <Key className="w-3 h-3 text-teal-600 dark:text-teal-400" />
+                    <span>ID: {sub.id}</span>
+                    {copiedIdMap[sub.id] ? (
+                      <Check className="w-3 h-3 text-emerald-600" />
+                    ) : (
+                      <Copy className="w-3 h-3 text-slate-400" />
+                    )}
+                  </button>
+
                   {isDocSync ? (
                     <span className="px-2 py-0.5 rounded-md bg-purple-50 dark:bg-purple-950/50 border border-purple-200/80 dark:border-purple-800 text-purple-700 dark:text-purple-300 text-[10px] font-semibold flex items-center space-x-1">
                       <Sparkles className="w-3 h-3 text-purple-500" />
@@ -538,6 +614,7 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
                     onClick={(e) => {
                       e.stopPropagation();
                       setSubjectToEdit(sub);
+                      setEditSubId(sub.id);
                       setEditSubName(sub.name);
                       setEditSubDesc(sub.description || '');
                       setEditSubClassName(sub.className || '');
@@ -911,6 +988,24 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
                 </div>
               </div>
 
+              {/* Mã ID bài tập ngắn */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5 flex items-center justify-between">
+                  <span className="flex items-center space-x-1">
+                    <Key className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+                    <span>Mã ID Bài Tập (Gửi Zalo cho học sinh)</span>
+                  </span>
+                  <span className="text-[10px] text-slate-400 font-normal">(Có thể đổi mã ngắn)</span>
+                </label>
+                <input
+                  type="text"
+                  value={editSubId}
+                  onChange={(e) => setEditSubId(e.target.value)}
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-teal-800 dark:text-teal-200 font-mono text-xs font-bold focus:ring-2 focus:ring-teal-500 uppercase tracking-wider"
+                  placeholder="Ví dụ: TOAN10T2"
+                />
+              </div>
+
               {/* Mô Tả */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
@@ -944,6 +1039,7 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
                   }
                   const updated: Subject = {
                     ...subjectToEdit,
+                    id: editSubId.trim() || subjectToEdit.id,
                     name: editSubName.trim(),
                     description: editSubDesc.trim(),
                     className: editSubClassName.trim() || undefined,
