@@ -511,7 +511,7 @@ export function encodeExamPayload(subject: Subject, questions: Question[]): stri
 
     const minified = {
       i: subject.id,
-      n: (subject.name || '').slice(0, 50),
+      n: (subject.name || '').slice(0, 60),
       c: className,
       g: grade,
       st: subjectType,
@@ -523,8 +523,8 @@ export function encodeExamPayload(subject: Subject, questions: Question[]): stri
           .replace(/\s+/g, ' ')
           .trim();
         return {
-          c: (cleanContent || rawContent).slice(0, 140),
-          o: q.options ? q.options.map((opt) => String(opt).slice(0, 70)) : [],
+          c: (cleanContent || rawContent).slice(0, 120),
+          o: q.options ? q.options.map((opt) => String(opt).slice(0, 60)) : [],
           a: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
         };
       }),
