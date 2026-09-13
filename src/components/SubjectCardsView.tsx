@@ -30,6 +30,7 @@ import {
   Copy,
 } from 'lucide-react';
 import { exportExamToWordDocx } from '../utils/exportUtils';
+import { generateFallbackQuestionsBySubject } from '../utils/sharePayloadUtils';
 
 interface SubjectCardsViewProps {
   subjects: Subject[];
@@ -698,6 +699,14 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
                       if (docMatch && docMatch.generatedQuestions && docMatch.generatedQuestions.length > 0) {
                         matched = docMatch.generatedQuestions;
                       }
+                    }
+
+                    if (matched.length === 0 && (sub as any).generatedQuestions && (sub as any).generatedQuestions.length > 0) {
+                      matched = (sub as any).generatedQuestions;
+                    }
+
+                    if (matched.length === 0) {
+                      matched = generateFallbackQuestionsBySubject(sub);
                     }
 
                     setQrQuestions(matched);
