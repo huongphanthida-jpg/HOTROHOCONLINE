@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   AppData, 
   Subject, 
@@ -141,6 +141,7 @@ export default function App() {
   const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
   const [targetGameIdFromUrl, setTargetGameIdFromUrl] = useState<string | null>(null);
   const [urlParamsProcessed, setUrlParamsProcessed] = useState(false);
+  const lastProcessedSearchRef = useRef<string>('');
 
   // Track if accessed via direct QR / Share link for single-task student isolation
   const [isDirectSingleTaskMode, setIsDirectSingleTaskMode] = useState<boolean>(() => {
@@ -339,17 +340,25 @@ export default function App() {
     setIsStudentModalOpen(true);
   };
 
-  // Check URL parameters on mount / app load for direct QR code links (?exam=id or ?game=id or ?role=student)
+  // Check URL parameters on mount / app load or when URL query parameters change (?exam=id or ?game=id or ?role=student)
   useEffect(() => {
-    if (typeof window === 'undefined' || urlParamsProcessed) return;
+    if (typeof window === 'undefined') return;
+    const currentSearch = window.location.search;
+    if (!currentSearch) return;
+
+    if (lastProcessedSearchRef.current === currentSearch && urlParamsProcessed) return;
 
     try {
-      const params = new URLSearchParams(window.location.search);
+      const params = new URLSearchParams(currentSearch);
       const codeParam = params.get('code') || params.get('id');
       const examParam = params.get('exam') || codeParam;
       const gameParam = params.get('game');
       const roleParam = params.get('role');
       const payloadParam = params.get('payload');
+
+      if (!examParam && !gameParam && roleParam !== 'student') return;
+
+      lastProcessedSearchRef.current = currentSearch;
 
       // Automatically establish Student Role when accessing via QR Code or Direct Link
       if (examParam || gameParam || roleParam === 'student') {
@@ -365,7 +374,10 @@ export default function App() {
         setIsDirectSingleTaskMode(true);
       }
 
-      if (examParam && !urlParamsProcessed) {
+      if (examParam) {
+        // Clear active exam & modal to allow loading new scanned QR code test
+        setActiveExam(null);
+
         // 1. Priority 1: Decode embedded full exam payload directly from QR code URL
         if (payloadParam) {
           const decoded = decodeExamPayload(payloadParam);
@@ -437,8 +449,6 @@ export default function App() {
           return;
         }
 
-
-
         // Check matching questions in appData.questions
         const matchingQuestions = appData.questions.filter(
           (q) => q.subjectId && q.subjectId.toLowerCase() === examParam.toLowerCase()
@@ -475,7 +485,7 @@ export default function App() {
         });
         setIsStudentModalOpen(true);
         setUrlParamsProcessed(true);
-      } else if (gameParam && !urlParamsProcessed) {
+      } else if (gameParam) {
         setUrlParamsProcessed(true);
         if (payloadParam) {
           const decodedGame = decodeGamePayload(payloadParam);
