@@ -11,6 +11,7 @@ export interface Subject {
   source?: 'sgk' | 'document_ai' | 'teacher_custom';
   sourceDocId?: string;
   sourceDocTitle?: string;
+  code?: string; // Mã bài tập riêng (VD: "BT-10T2", "EXAM-8492")
   questionFormat?: 'multiple_choice' | 'true_false' | 'essay' | 'short_answer' | 'mixed';
   createdAt?: string;
 }
