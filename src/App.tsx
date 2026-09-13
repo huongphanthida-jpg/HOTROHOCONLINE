@@ -459,39 +459,91 @@ export default function App() {
           return;
         }
 
-        // 3. Fallback: Create guaranteed subject for examParam so student is NEVER asked for ID!
-        const cleanTitle = `Đề Thi Khảo Thí ${examParam.replace(/_/g, ' ').replace(/-/g, ' ')}`;
-        const fallbackQs = [
+        // 3. Fallback: Generate 5 realistic grade-matched SGK questions so student always gets a complete 5-question exam
+        const isGrade10 = examParam.toLowerCase().includes('10');
+        const isGrade11 = examParam.toLowerCase().includes('11');
+        const gradeLabel = isGrade10 ? '10T2' : isGrade11 ? '11A2' : '12D1';
+        const cleanTitle = `Toán học lớp ${gradeLabel} - Đề thi khảo thí`;
+
+        const fallbackQs: Question[] = [
           {
             id: `q-${examParam}-1`,
             subjectId: examParam,
-            content: `Câu 1: Bài kiểm tra trắc nghiệm mã đề [${examParam}]. Hãy chọn phương án chính xác nhất:`,
-            type: 'multiple_choice' as const,
+            content: `Câu 1 (Toán lớp ${gradeLabel}): Cho hai véctơ u và v cùng phương. Phát biểu nào sau đây là chính xác nhất?`,
+            type: 'multiple_choice',
             options: [
-              'Phương án A: Đáp án chính xác theo chuẩn nội dung bài học',
-              'Phương án B: Nhận định cần cân nhắc kỹ dữ kiện',
-              'Phương án C: Giả thiết bổ sung cho tình huống',
-              'Phương án D: Yếu tố mở rộng tham khảo',
+              'Hai véctơ có giá song song hoặc trùng nhau',
+              'Hai véctơ có cùng độ dài và cùng hướng',
+              'Hai véctơ luôn có điểm đầu trùng nhau',
+              'Hai véctơ vuông góc với nhau tại gốc O',
             ],
             correctAnswer: 0,
-            explanation: `Dữ liệu bài làm chuẩn đề thi mã [${examParam}].`,
-            difficulty: 'easy' as const,
+            explanation: 'Theo chuẩn SGK, hai véctơ cùng phương nếu giá của chúng song song hoặc trùng nhau.',
+            difficulty: 'easy',
             topic: cleanTitle,
           },
           {
             id: `q-${examParam}-2`,
             subjectId: examParam,
-            content: `Câu 2: Vận dụng kiến thức bài học để giải quyết vấn đề dưới đây:`,
-            type: 'multiple_choice' as const,
+            content: `Câu 2 (Toán lớp ${gradeLabel}): Quy tắc 3 điểm đối với tổng hai véctơ AB và BC được phát biểu như thế nào?`,
+            type: 'multiple_choice',
             options: [
-              'Phân tích yêu cầu bài toán và chọn hướng giải tối ưu',
-              'Chỉ thực hiện thao tác thử nghiệm không kiểm chứng',
-              'Bỏ qua các bước tính toán trung gian',
-              'Không rà soát lại kết quả cuối cùng',
+              'AB + BC = AC',
+              'AB + BC = BA',
+              'AB - BC = AC',
+              'AB + AC = BC',
             ],
             correctAnswer: 0,
-            explanation: 'Luôn rà soát và lựa chọn phương án tối ưu.',
-            difficulty: 'medium' as const,
+            explanation: 'Quy tắc 3 điểm: Với 3 điểm A, B, C bất kỳ luôn có AB + BC = AC.',
+            difficulty: 'easy',
+            topic: cleanTitle,
+          },
+          {
+            id: `q-${examParam}-3`,
+            subjectId: examParam,
+            content: `Câu 3 (Toán lớp ${gradeLabel}): Điều kiện cần và đủ để hai véctơ u và v khác 0 vuông góc với nhau là:`,
+            type: 'multiple_choice',
+            options: [
+              'Tích vô hướng u . v = 0',
+              'Tổng độ dài |u| + |v| = 0',
+              'Hiệu hai véctơ u - v = 0',
+              'Tích độ dài |u| . |v| = 1',
+            ],
+            correctAnswer: 0,
+            explanation: 'Hai véctơ vuông góc khi và chỉ khi tích vô hướng của chúng bằng 0.',
+            difficulty: 'medium',
+            topic: cleanTitle,
+          },
+          {
+            id: `q-${examParam}-4`,
+            subjectId: examParam,
+            content: `Câu 4 (Toán lớp ${gradeLabel}): Cho hình bình hành ABCD. Tổng hai véctơ AB + AD bằng véctơ đường chéo nào?`,
+            type: 'multiple_choice',
+            options: [
+              'Véctơ AC',
+              'Véctơ BD',
+              'Véctơ CA',
+              'Véctơ DB',
+            ],
+            correctAnswer: 0,
+            explanation: 'Theo quy tắc hình bình hành: AB + AD = AC (với AC là đường chéo xuất phát từ đỉnh A).',
+            difficulty: 'medium',
+            topic: cleanTitle,
+          },
+          {
+            id: `q-${examParam}-5`,
+            subjectId: examParam,
+            content: `Câu 5 (Toán lớp ${gradeLabel}): Phương pháp rà soát và kiểm tra lại kết quả bài thi mang lại hiệu quả cao nhất là:`,
+            type: 'multiple_choice',
+            options: [
+              'Đọc kỹ lại đề bài, đối chiếu giả thiết và kiểm tra lại từng bước tính toán',
+              'Chỉ chọn lại đáp án ngẫu nhiên trước khi nộp bài',
+              'Không đọc lại bài làm để tiết kiệm thời gian',
+              'Sửa đáp án theo cảm tính cá nhân',
+            ],
+            correctAnswer: 0,
+            explanation: 'Đọc kỹ đề bài và rà soát từng bước giải là phương pháp tốt nhất để tránh sai sót.',
+            difficulty: 'easy',
             topic: cleanTitle,
           },
         ];
