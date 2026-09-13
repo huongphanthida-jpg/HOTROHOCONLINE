@@ -1,9 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { ProgressData, SessionRecord } from '../types';
+import { ProgressData, SessionRecord, UserRole } from '../types';
 import { BarChart3, TrendingUp, Award, Users, AlertCircle, Search, RefreshCw, CheckCircle2, XCircle, FileSpreadsheet, Eye, Trash2, Gamepad2, GraduationCap, Filter, Trophy } from 'lucide-react';
 import { syncSessionToGoogleSheets, formatTimeSpent } from '../services/sheetSyncService';
-
-import { UserRole } from '../types';
 
 interface ProgressDashboardProps {
   progress: ProgressData;
