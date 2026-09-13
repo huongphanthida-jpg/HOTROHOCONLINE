@@ -26,6 +26,7 @@ import { ProgressDashboard } from './components/ProgressDashboard';
 import { AITutorModal } from './components/AITutorModal';
 import { SettingsModal } from './components/SettingsModal';
 import { EnterTaskCodeModal } from './components/EnterTaskCodeModal';
+import { StudentSingleTaskView } from './components/StudentSingleTaskView';
 import { decodeExamPayload, decodeGamePayload } from './utils/sharePayloadUtils';
 import { soundEffects } from './utils/soundEffects';
 import { GameSessionResult, syncSessionToGoogleSheets } from './services/sheetSyncService';
@@ -1255,30 +1256,15 @@ export default function App() {
                 <AITutorModal initialContext={tutorContext} />
               )}
 
-              {isDirectSingleTaskMode && !targetGameIdFromUrl && pendingSubject && (
-                <div className="bg-white dark:bg-slate-800 p-8 sm:p-12 rounded-3xl text-center space-y-5 shadow-xl border border-slate-200 dark:border-slate-700 max-w-lg mx-auto my-6">
-                  <div className="w-20 h-20 rounded-3xl bg-teal-100 dark:bg-teal-950/60 text-teal-600 mx-auto flex items-center justify-center text-3xl font-extrabold shadow-inner">
-                    📝
-                  </div>
-                  <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-teal-600 dark:text-teal-400 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/40">
-                      Bài Tập / Đề Thi Được Giao Trực Tiếp
-                    </span>
-                    <h2 className="text-xl font-extrabold text-slate-800 dark:text-white mt-2">
-                      {pendingSubject.name}
-                    </h2>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                      Bài làm độc lập gồm {pendingSubject.questions.length} câu hỏi chuẩn SGK.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setIsStudentModalOpen(true)}
-                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white font-bold text-sm shadow-md transition-all active:scale-95 flex items-center justify-center space-x-2"
-                  >
-                    <span>Bắt Đầu Nhập Thông Tin & Làm Bài</span>
-                  </button>
-                </div>
+              {isDirectSingleTaskMode && !targetGameIdFromUrl && (
+                <StudentSingleTaskView
+                  pendingSubject={pendingSubject}
+                  examIdFromUrl={typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('exam') || new URLSearchParams(window.location.search).get('id') : null}
+                  onStartExam={() => setIsStudentModalOpen(true)}
+                  onOpenEnterCodeModal={() => setIsEnterCodeModalOpen(true)}
+                  availableSubjects={appData.subjects}
+                  onSelectSubjectToExam={handleSelectSubjectToExam}
+                />
               )}
             </div>
           )}
