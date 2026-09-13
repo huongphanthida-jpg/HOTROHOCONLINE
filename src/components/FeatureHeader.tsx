@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Sparkles, Settings, Sun, Moon, Bell, GraduationCap, ChevronRight, User, ShieldCheck } from 'lucide-react';
+import { Menu, Sparkles, Settings, Sun, Moon, Bell, GraduationCap, ChevronRight, User, ShieldCheck, Key } from 'lucide-react';
 import { NavigationTab } from './Sidebar';
 import { UserRole } from '../types';
 
@@ -7,6 +7,7 @@ interface FeatureHeaderProps {
   currentTab: NavigationTab;
   onOpenMobileSidebar: () => void;
   onOpenSettings: () => void;
+  onOpenEnterCodeModal?: () => void;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
   examInProgress: boolean;
@@ -19,6 +20,7 @@ export const FeatureHeader: React.FC<FeatureHeaderProps> = ({
   currentTab,
   onOpenMobileSidebar,
   onOpenSettings,
+  onOpenEnterCodeModal,
   theme,
   onToggleTheme,
   examInProgress,
@@ -154,6 +156,20 @@ export const FeatureHeader: React.FC<FeatureHeaderProps> = ({
                 <span className="hidden xs:inline">👨‍🏫 Giáo Viên</span>
               </>
             )}
+          </button>
+        )}
+
+        {/* Nhập Mã ID Bài Tập button */}
+        {onOpenEnterCodeModal && (
+          <button
+            type="button"
+            onClick={onOpenEnterCodeModal}
+            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white text-xs font-extrabold flex items-center space-x-1.5 shadow-2xs transition-all active:scale-95 border border-amber-300/40"
+            title="Nhập Mã ID Bài tập do giáo viên gửi để vào làm bài ngay"
+            id="btn-header-enter-code"
+          >
+            <Key className="w-3.5 h-3.5" />
+            <span className="hidden xs:inline">🔑 Nhập Mã ID</span>
           </button>
         )}
 
