@@ -431,12 +431,19 @@ export function encodeExamPayload(subject: Subject, questions: Question[]): stri
       c: className,
       g: grade,
       st: subjectType,
-      q: listToEncode.slice(0, 15).map((q) => ({
-        c: q.content,
-        o: q.options ? q.options.map((opt) => String(opt).slice(0, 90)) : [],
-        a: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
-        e: (q.explanation || '').slice(0, 60),
-      })),
+      q: listToEncode.slice(0, 10).map((q) => {
+        const cleanContent = (q.content || '')
+          .replace(/=== DANH MỤC \d+ TRANG HÌNH ÁNH SÁCH GIÁO KHOA \/ TÀI LIỆU ĐƯỢC TẢI LÊN ===/gi, '')
+          .replace(/===.*?===/g, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        return {
+          c: cleanContent.slice(0, 120),
+          o: q.options ? q.options.map((opt) => String(opt).slice(0, 70)) : [],
+          a: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
+          e: (q.explanation || '').slice(0, 40),
+        };
+      }),
     };
     return toBase64Url(JSON.stringify(minified));
   } catch (e) {
