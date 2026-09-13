@@ -16,7 +16,9 @@ import {
   RotateCcw,
   AlertCircle,
   Check,
-  QrCode
+  QrCode,
+  Key,
+  Copy
 } from 'lucide-react';
 import { EducationalGame, GameType, DocumentLearning, StudentInfo } from '../types';
 import { GameSessionResult } from '../services/sheetSyncService';
@@ -505,9 +507,34 @@ export const EducationalGamesView: React.FC<EducationalGamesViewProps> = ({
                       <span>{badgeInfo.label}</span>
                     </span>
 
-                    <span className="text-[11px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-700/60 px-2 py-0.5 rounded-lg">
-                      {game.subject}
-                    </span>
+                    <div className="flex items-center space-x-1">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          try {
+                            navigator.clipboard.writeText(game.id);
+                          } catch {
+                            const input = document.createElement('input');
+                            input.value = game.id;
+                            document.body.appendChild(input);
+                            input.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(input);
+                          }
+                          showToast(`Đã chép Mã ID trò chơi: "${game.id}"`);
+                        }}
+                        className="px-2 py-0.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-800 dark:text-indigo-200 text-[10px] font-mono font-bold flex items-center space-x-1 transition-colors cursor-pointer"
+                        title="Bấm để sao chép duy nhất Mã ID trò chơi này"
+                      >
+                        <Key className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                        <span>ID: {game.id}</span>
+                      </button>
+
+                      <span className="text-[11px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-700/60 px-2 py-0.5 rounded-lg">
+                        {game.subject}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Title & Description */}
