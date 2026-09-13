@@ -29,7 +29,7 @@ import { EnterTaskCodeModal } from './components/EnterTaskCodeModal';
 import { StudentSingleTaskView } from './components/StudentSingleTaskView';
 import { decodeExamPayload, decodeGamePayload } from './utils/sharePayloadUtils';
 import { soundEffects } from './utils/soundEffects';
-import { GameSessionResult, syncSessionToGoogleSheets } from './services/sheetSyncService';
+import { GameSessionResult, syncSessionToGoogleSheets, pushFullAppDataToGoogleSheets } from './services/sheetSyncService';
 import { Lock, AlertCircle, X, ShieldCheck, User } from 'lucide-react';
 
 export default function App() {
@@ -1006,17 +1006,34 @@ export default function App() {
             },
           ];
 
-    setAppData((prev) => ({
-      ...prev,
-      subjects: [
+    setAppData((prev) => {
+      const newSubjs = [
         { ...newSubject, questionsCount: finalQuestions.length },
         ...prev.subjects.filter((s) => s.id !== newSubject.id),
-      ],
-      questions: [
+      ];
+      const newQs = [
         ...prev.questions.filter((q) => q.subjectId !== newSubject.id),
         ...finalQuestions,
-      ],
-    }));
+      ];
+      const nextData = {
+        ...prev,
+        subjects: newSubjs,
+        questions: newQs,
+      };
+
+      try {
+        localStorage.setItem('eduexam_app_data', JSON.stringify(nextData));
+      } catch (e) {
+        console.warn('LocalStorage save failed:', e);
+      }
+
+      const scriptUrl = prev.settings?.googleAppsScriptUrl || localStorage.getItem('google_apps_script_url');
+      if (scriptUrl && scriptUrl.trim().startsWith('http')) {
+        pushFullAppDataToGoogleSheets(nextData, scriptUrl.trim()).catch((e) => console.warn('Auto cloud sync failed:', e));
+      }
+
+      return nextData;
+    });
   };
 
   // Synchronize all AI documents with quizzes into Subject & Exam list
