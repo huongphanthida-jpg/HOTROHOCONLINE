@@ -245,13 +245,33 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
           )}
         </div>
 
+        {/* Unique Access Code Box */}
+        <div className="mb-3 p-3 rounded-2xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/80 flex items-center justify-between">
+          <div>
+            <span className="text-[10px] font-extrabold uppercase text-teal-700 dark:text-teal-300 tracking-wider block">
+              🔑 Mã ID Bài Tập Riêng:
+            </span>
+            <span className="text-sm font-mono font-extrabold text-teal-900 dark:text-teal-100 tracking-wider">
+              {targetId}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleCopyLink}
+            className="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold shadow-xs active:scale-95 transition-all flex items-center space-x-1"
+          >
+            <Copy className="w-3.5 h-3.5" />
+            <span>Sao Chép Link Zalo</span>
+          </button>
+        </div>
+
         {/* QR Code Presentation Box */}
-        <div className="bg-slate-50 dark:bg-slate-900/60 p-5 rounded-2xl border border-slate-100 dark:border-slate-700/80 flex flex-col items-center justify-center space-y-3">
-          <div className="p-3 bg-white rounded-2xl shadow-sm border border-slate-200/80 dark:border-slate-600">
-            <canvas ref={canvasRef} className="max-w-[200px] max-h-[200px] w-full h-auto block" />
+        <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/80 flex flex-col items-center justify-center space-y-2">
+          <div className="p-2.5 bg-white rounded-2xl shadow-sm border border-slate-200/80 dark:border-slate-600">
+            <canvas ref={canvasRef} className="max-w-[180px] max-h-[180px] w-full h-auto block" />
           </div>
           <p className="text-[11px] text-center text-slate-500 dark:text-slate-400 max-w-xs">
-            Quét mã để truy cập làm bài ngay lập tức không cần đăng nhập hoặc tìm kiếm.
+            Quét mã QR hoặc nhập Mã ID <strong className="text-teal-600 font-mono">{targetId}</strong> để làm bài độc lập.
           </p>
         </div>
 
