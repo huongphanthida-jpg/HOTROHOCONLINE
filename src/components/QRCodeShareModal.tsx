@@ -45,28 +45,20 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
 
   // Persistent custom base URL (for sharing to students)
   const [customBaseUrl, setCustomBaseUrl] = useState<string>(() => {
-    return (
-      localStorage.getItem('edu_app_public_url') ||
-      'https://ais-pre-4dplhma3fe7kfdd6l55o6p-284389971722.asia-southeast1.run.app'
-    );
+    return localStorage.getItem('edu_app_public_url') || '';
   });
 
-  // Calculate actual base origin to use:
-  // If current host contains "ais-dev-", mobile students won't have developer access.
-  // We prioritize the public shared URL (ais-pre) or user-configured custom URL.
+  // Calculate actual base origin to use (defaults to live domain window.location.origin)
   const resolvedBaseUrl = useMemo(() => {
     if (customBaseUrl.trim()) {
       return customBaseUrl.trim().replace(/\/+$/, '');
     }
     if (typeof window !== 'undefined') {
       const origin = window.location.origin;
-      // If we are on dev domain, fallback to known pre-shared domain
-      if (origin.includes('ais-dev-')) {
-        return origin.replace('ais-dev-', 'ais-pre-');
-      }
-      return `${origin}${window.location.pathname}`.replace(/\/+$/, '');
+      const pathname = window.location.pathname;
+      return `${origin}${pathname}`.replace(/\/+$/, '');
     }
-    return 'https://ais-pre-4dplhma3fe7kfdd6l55o6p-284389971722.asia-southeast1.run.app';
+    return '';
   }, [customBaseUrl]);
 
   // Construct direct target URL for student (enforcing student mode)
