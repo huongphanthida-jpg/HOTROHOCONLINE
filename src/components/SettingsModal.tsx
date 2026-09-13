@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
 import { AppSettings, AppData, SessionRecord } from '../types';
-import { X, Key, Eye, EyeOff, Sparkles, Database, FileSpreadsheet, Copy, Check, Volume2, VolumeX, Download, Upload, RotateCcw, AlertCircle, Info } from 'lucide-react';
+import { X, Key, Eye, EyeOff, Sparkles, Database, FileSpreadsheet, Copy, Check, Volume2, VolumeX, Download, Upload, RotateCcw, AlertCircle, Info, CloudUpload, CloudDownload, RefreshCw } from 'lucide-react';
 import { AVAILABLE_MODELS } from '../services/aiService';
-import { APPS_SCRIPT_SAMPLE_CODE, syncSessionToGoogleSheets, validateAppsScriptUrl } from '../services/sheetSyncService';
+import * as sheetSyncService from '../services/sheetSyncService';
+import { 
+  APPS_SCRIPT_SAMPLE_CODE, 
+  syncSessionToGoogleSheets, 
+  validateAppsScriptUrl
+} from '../services/sheetSyncService';
 import { soundEffects } from '../utils/soundEffects';
 
 interface SettingsModalProps {
@@ -44,8 +49,58 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [copiedCode, setCopiedCode] = useState(false);
   const [testSyncStatus, setTestSyncStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
   const [testSyncMsg, setTestSyncMsg] = useState('');
+  const [cloudSyncStatus, setCloudSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
+  const [cloudSyncMsg, setCloudSyncMsg] = useState('');
 
   if (!isOpen) return null;
+
+  const handlePushAppDataCloud = async () => {
+    setCloudSyncStatus('syncing');
+    setCloudSyncMsg('Đang tải toàn bộ môn học, đề thi, tài liệu & trò chơi lên Google Sheets...');
+    const pushFn = (sheetSyncService as any).pushFullAppDataToGoogleSheets;
+    if (typeof pushFn !== 'function') {
+      setCloudSyncStatus('error');
+      setCloudSyncMsg('Chưa bổ sung hàm pushFullAppDataToGoogleSheets trong sheetSyncService.');
+      return;
+    }
+    const res = await pushFn(appData, scriptUrl.trim());
+    if (res.success) {
+      setCloudSyncStatus('success');
+      setCloudSyncMsg(res.message);
+    } else {
+      setCloudSyncStatus('error');
+      setCloudSyncMsg(res.message);
+    }
+  };
+
+  const handlePullAppDataCloud = async () => {
+    setCloudSyncStatus('syncing');
+    setCloudSyncMsg('Đang tải bản sao lưu dữ liệu mới nhất từ Google Sheets...');
+    const pullFn = (sheetSyncService as any).pullFullAppDataFromGoogleSheets;
+    if (typeof pullFn !== 'function') {
+      setCloudSyncStatus('error');
+      setCloudSyncMsg('Chưa bổ sung hàm pullFullAppDataFromGoogleSheets trong sheetSyncService.');
+      return;
+    }
+    const res = await pullFn(scriptUrl.trim());
+    if (res.success && res.data) {
+      const merged: AppData = {
+        ...appData,
+        ...res.data,
+        subjects: res.data.subjects || appData.subjects,
+        questions: res.data.questions || appData.questions,
+        documents: res.data.documents || appData.documents,
+        games: res.data.games || appData.games,
+        onlineClasses: res.data.onlineClasses || appData.onlineClasses,
+      };
+      onImportData(merged);
+      setCloudSyncStatus('success');
+      setCloudSyncMsg('Đã khôi phục và đồng bộ dữ liệu mới nhất từ Google Sheets thành công!');
+    } else {
+      setCloudSyncStatus('error');
+      setCloudSyncMsg(res.message);
+    }
+  };
 
   const handleSave = () => {
     const updated: AppSettings = {
@@ -373,6 +428,60 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </button>
             </div>
 
+            {/* Cloud Data Sync Block */}
+            <div className="p-3 bg-teal-50/60 dark:bg-teal-950/30 rounded-xl border border-teal-200/80 dark:border-teal-800/80 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-teal-800 dark:text-teal-200 flex items-center space-x-1.5">
+                  <CloudUpload className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+                  <span>Đồng Bộ Dữ Liệu Ứng Dụng Với Google Sheets</span>
+                </span>
+                <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-teal-100 dark:bg-teal-900/60 text-teal-700 dark:text-teal-300">
+                  Cloud Live Sync
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed">
+                Tải toàn bộ môn học, đề thi, tài liệu & trò chơi bạn vừa tạo lên Google Sheets để các thiết bị khác hoặc học sinh luôn có dữ liệu mới nhất.
+              </p>
+              
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={handlePushAppDataCloud}
+                  disabled={cloudSyncStatus === 'syncing'}
+                  className="px-3 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white text-xs font-bold flex items-center space-x-1.5 shadow-2xs transition-all active:scale-95"
+                  title="Tải toàn bộ môn học, đề thi, tài liệu mới tạo lên Google Sheets"
+                >
+                  <CloudUpload className="w-4 h-4" />
+                  <span>{cloudSyncStatus === 'syncing' ? 'Đang đồng bộ Cloud...' : 'Đẩy Dữ Liệu Mới Lên Cloud'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handlePullAppDataCloud}
+                  disabled={cloudSyncStatus === 'syncing'}
+                  className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white text-xs font-bold flex items-center space-x-1.5 shadow-2xs transition-all active:scale-95"
+                  title="Tải dữ liệu mới nhất được cập nhật từ Google Sheets về ứng dụng"
+                >
+                  <CloudDownload className="w-4 h-4" />
+                  <span>{cloudSyncStatus === 'syncing' ? 'Đang tải...' : 'Tải Dữ Liệu Mới Từ Cloud'}</span>
+                </button>
+              </div>
+
+              {cloudSyncMsg && (
+                <div
+                  className={`p-2 rounded-lg text-xs font-medium ${
+                    cloudSyncStatus === 'success'
+                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                      : cloudSyncStatus === 'error'
+                      ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                      : 'bg-teal-100 text-teal-800 dark:bg-teal-950/60 dark:text-teal-300 animate-pulse'
+                  }`}
+                >
+                  {cloudSyncMsg}
+                </div>
+              )}
+            </div>
+
             <div className="pt-2 flex flex-wrap items-center justify-between gap-2">
               <button
                 type="button"
@@ -380,7 +489,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-700 hover:bg-slate-50 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center space-x-1.5 transition-colors"
               >
                 <Download className="w-3.5 h-3.5 text-teal-600" />
-                <span>Sao Lưu Dữ Liệu (JSON)</span>
+                <span>Sao Lưu File (JSON)</span>
               </button>
 
               <label className="px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-700 hover:bg-slate-50 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center space-x-1.5 cursor-pointer transition-colors">
