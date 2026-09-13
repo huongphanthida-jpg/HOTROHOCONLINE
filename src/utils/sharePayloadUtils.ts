@@ -5,18 +5,15 @@ export function encodeExamPayload(subject: Subject, questions: Question[]): stri
     const minified = {
       i: subject.id,
       n: subject.name,
-      d: subject.description || '',
+      d: (subject.description || '').slice(0, 120),
       c: subject.className || '',
       g: subject.grade || '12',
       st: subject.subjectType || 'Toán học',
-      q: questions.map((q) => ({
-        id: q.id,
+      q: questions.slice(0, 15).map((q) => ({
         c: q.content,
-        t: q.type || 'multiple_choice',
         o: q.options,
         a: q.correctAnswer,
-        e: q.explanation || '',
-        df: q.difficulty || 'medium',
+        e: (q.explanation || '').slice(0, 120),
       })),
     };
     return encodeURIComponent(JSON.stringify(minified));
@@ -42,7 +39,7 @@ export function decodeExamPayload(payloadStr: string): { subject: Subject; quest
       options: q.o || ['Phương án A', 'Phương án B', 'Phương án C', 'Phương án D'],
       correctAnswer: typeof q.a === 'number' ? q.a : 0,
       explanation: q.e || 'Giải thích chuẩn sách giáo khoa.',
-      difficulty: q.df || 'medium',
+      difficulty: 'medium' as const,
       topic: subjectName,
     }));
 
