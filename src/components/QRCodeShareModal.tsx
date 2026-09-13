@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import QRCode from 'qrcode';
 import {
   QrCode,
@@ -68,7 +68,6 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
       setTimeout(() => setCopiedIdCode(false), 2500);
     }
   };
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   // Persistent custom base URL (for sharing to students)
   const [customBaseUrl, setCustomBaseUrl] = useState<string>(() => {
@@ -113,36 +112,35 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
   useEffect(() => {
     if (!isOpen || !targetId) return;
 
-    if (canvasRef.current) {
-      const renderQR = (textToRender: string) => {
-        if (!canvasRef.current) return;
-        QRCode.toCanvas(
-          canvasRef.current,
-          textToRender,
-          {
-            width: 240,
-            margin: 2,
-            errorCorrectionLevel: 'L',
-            color: {
-              dark: type === 'exam' ? '#0f766e' : '#4338ca',
-              light: '#ffffff',
-            },
-          },
-          (error) => {
-            if (error) {
-              console.warn('QR code generation warning, falling back to short URL:', error);
-              if (textToRender !== shortShareUrl && canvasRef.current) {
-                renderQR(shortShareUrl);
-              }
-            } else if (canvasRef.current) {
-              setQrDataUrl(canvasRef.current.toDataURL('image/png'));
-            }
-          }
-        );
-      };
+    let isMounted = true;
 
-      renderQR(shareUrl);
-    }
+    const generateQR = async (textToRender: string) => {
+      try {
+        const url = await QRCode.toDataURL(textToRender, {
+          width: 300,
+          margin: 2,
+          errorCorrectionLevel: 'L',
+          color: {
+            dark: type === 'exam' ? '#0f766e' : '#4338ca',
+            light: '#ffffff',
+          },
+        });
+        if (isMounted) {
+          setQrDataUrl(url);
+        }
+      } catch (err) {
+        console.warn('QR code generation warning, falling back to short URL:', err);
+        if (textToRender !== shortShareUrl) {
+          generateQR(shortShareUrl);
+        }
+      }
+    };
+
+    generateQR(shareUrl);
+
+    return () => {
+      isMounted = false;
+    };
   }, [isOpen, targetId, shareUrl, shortShareUrl, type]);
 
   if (!isOpen) return null;
@@ -166,23 +164,24 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
   };
 
   const handleCopyQRImage = async () => {
-    if (!canvasRef.current) return;
+    if (!qrDataUrl) return;
     try {
-      canvasRef.current.toBlob(async (blob) => {
-        if (!blob) return;
-        try {
-          // Clipboard Item for image copying
-          const item = new ClipboardItem({ 'image/png': blob });
-          await navigator.clipboard.write([item]);
-          setCopiedImage(true);
-          setTimeout(() => setCopiedImage(false), 2500);
-        } catch (e) {
-          console.warn('Clipboard image copy not supported directly, falling back to link copy', e);
-          handleCopyLink();
-        }
-      });
-    } catch {
-      handleCopyLink();
+      const res = await fetch(qrDataUrl);
+      const blob = await res.blob();
+      try {
+        const item = new ClipboardItem({ 'image/png': blob });
+        await navigator.clipboard.write([item]);
+        setCopiedImage(true);
+        setTimeout(() => setCopiedImage(false), 2500);
+      } catch (e) {
+        console.warn('Direct image clipboard copy failed, triggering automatic download', e);
+        handleDownloadQR();
+        setCopiedImage(true);
+        setTimeout(() => setCopiedImage(false), 2500);
+      }
+    } catch (err) {
+      console.warn('Blob conversion failed', err);
+      handleDownloadQR();
     }
   };
 
@@ -321,16 +320,27 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
 
         {/* QR Code Presentation Box */}
         <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/80 flex flex-col items-center justify-center space-y-2">
-          <div className="p-2 bg-white rounded-2xl shadow-sm border border-slate-200/80 dark:border-slate-600 flex items-center justify-center">
+          <div 
+            onClick={handleCopyQRImage}
+            className="p-2 bg-white rounded-2xl shadow-sm border border-slate-200/80 dark:border-slate-600 flex items-center justify-center cursor-pointer hover:border-teal-500 dark:hover:border-teal-400 transition-all hover:scale-102 relative group"
+            title="Bấm trực tiếp vào khung ảnh để sao chép ảnh Mã QR ngay"
+          >
             {qrDataUrl ? (
               <img src={qrDataUrl} alt="Mã QR Bài Tập" className="w-[180px] h-[180px] object-contain block rounded-xl" />
             ) : (
-              <canvas ref={canvasRef} width={180} height={180} className="w-[180px] h-[180px] block" />
+              <div className="w-[180px] h-[180px] flex items-center justify-center text-xs text-slate-400 font-bold">
+                Đang tạo mã QR...
+              </div>
             )}
-            <canvas ref={canvasRef} width={180} height={180} className="hidden" />
+            {copiedImage && (
+              <div className="absolute inset-0 bg-teal-900/85 backdrop-blur-xs rounded-2xl flex flex-col items-center justify-center text-white text-xs font-extrabold space-y-1 animate-fadeIn">
+                <Check className="w-8 h-8 text-emerald-400" />
+                <span>Đã chép ảnh QR!</span>
+              </div>
+            )}
           </div>
           <p className="text-[11px] text-center text-slate-500 dark:text-slate-400 max-w-xs">
-            Quét mã QR hoặc nhập Mã ID <strong className="text-teal-600 font-mono">{targetId}</strong> để làm bài độc lập.
+            👉 Bấm vào hình QR để <strong>chép ảnh ngay</strong> hoặc nhập Mã ID <strong className="text-teal-600 font-mono">{targetId}</strong>.
           </p>
         </div>
 
