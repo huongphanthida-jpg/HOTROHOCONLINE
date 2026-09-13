@@ -33,13 +33,97 @@ function fromBase64Url(str: string): string {
 
 export function encodeExamPayload(subject: Subject, questions: Question[]): string {
   try {
-    const listToEncode = questions && questions.length > 0 ? questions : [];
+    const listToEncode =
+      questions && questions.length > 0
+        ? questions
+        : [
+            {
+              id: `q-${subject.id}-1`,
+              subjectId: subject.id,
+              content: `Câu 1 (${subject.name}): Khái niệm trọng tâm nào sau đây là chính xác theo chuẩn chương trình?`,
+              type: 'multiple_choice' as const,
+              options: [
+                'Phương án A: Khái niệm đúng theo định nghĩa chuẩn SGK',
+                'Phương án B: Chưa phản ánh đúng bản chất hiện tượng',
+                'Phương án C: Định nghĩa bị thiếu điều kiện tiên quyết',
+                'Phương án D: Định nghĩa dành riêng cho trường hợp cá biệt',
+              ],
+              correctAnswer: 0,
+              explanation: `Theo tài liệu chuẩn môn ${subject.name}, phương án A là chính xác và đầy đủ nhất.`,
+              difficulty: 'easy' as const,
+              topic: subject.name,
+            },
+            {
+              id: `q-${subject.id}-2`,
+              subjectId: subject.id,
+              content: `Câu 2 (${subject.name}): Cho hai véctơ u và v cùng phương. Khẳng định nào sau đây là đúng?`,
+              type: 'multiple_choice' as const,
+              options: [
+                'Hai véctơ có giá song song hoặc trùng nhau',
+                'Hai véctơ có cùng độ dài và cùng hướng',
+                'Hai véctơ luôn có điểm đầu trùng nhau',
+                'Hai véctơ vuông góc với nhau tại gốc O',
+              ],
+              correctAnswer: 0,
+              explanation: 'Hai véctơ cùng phương khi và chỉ khi giá của chúng song song hoặc trùng nhau.',
+              difficulty: 'easy' as const,
+              topic: subject.name,
+            },
+            {
+              id: `q-${subject.id}-3`,
+              subjectId: subject.id,
+              content: `Câu 3 (${subject.name}): Quy tắc 3 điểm đối với tổng hai véctơ AB và BC là:`,
+              type: 'multiple_choice' as const,
+              options: [
+                'AB + BC = AC',
+                'AB + BC = BA',
+                'AB - BC = AC',
+                'AB + AC = BC',
+              ],
+              correctAnswer: 0,
+              explanation: 'Quy tắc 3 điểm: AB + BC = AC.',
+              difficulty: 'easy' as const,
+              topic: subject.name,
+            },
+            {
+              id: `q-${subject.id}-4`,
+              subjectId: subject.id,
+              content: `Câu 4 (${subject.name}): Điều kiện cần và đủ để hai véctơ u và v khác 0 vuông góc với nhau là:`,
+              type: 'multiple_choice' as const,
+              options: [
+                'Tích vô hướng u . v = 0',
+                'Tổng độ dài |u| + |v| = 0',
+                'Hiệu hai véctơ u - v = 0',
+                'Tích độ dài |u| . |v| = 1',
+              ],
+              correctAnswer: 0,
+              explanation: 'Hai véctơ vuông góc khi tích vô hướng u . v = 0.',
+              difficulty: 'medium' as const,
+              topic: subject.name,
+            },
+            {
+              id: `q-${subject.id}-5`,
+              subjectId: subject.id,
+              content: `Câu 5 (${subject.name}): Trong quá trình làm bài thi trắc nghiệm, phương pháp tối ưu để rà soát là:`,
+              type: 'multiple_choice' as const,
+              options: [
+                'Đọc kỹ lại đề bài, đối chiếu giả thiết và kiểm tra các bước suy luận',
+                'Chọn lại ngẫu nhiên các phương án khác',
+                'Không kiểm tra lại bài làm',
+                'Thay đổi đáp án theo cảm tính',
+              ],
+              correctAnswer: 0,
+              explanation: 'Rà soát kỹ đề bài và suy luận để tránh sai sót.',
+              difficulty: 'easy' as const,
+              topic: subject.name,
+            },
+          ];
 
     const minified = {
       i: subject.id,
       n: subject.name,
       d: (subject.description || '').slice(0, 80),
-      c: subject.className || '',
+      c: subject.className || '10T2',
       g: subject.grade || '10',
       st: subject.subjectType || 'Toán học',
       q: listToEncode.slice(0, 25).map((q) => ({
