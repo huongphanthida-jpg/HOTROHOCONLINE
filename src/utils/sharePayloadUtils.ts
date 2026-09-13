@@ -509,13 +509,13 @@ export function encodeExamPayload(subject: Subject, questions: Question[], maxQu
     const grade = extractGrade(subject);
     const subjectType = detectSubjectType(subject);
 
-    const minified = {
+    const buildMinified = (limit: number, maxCLen: number, maxOLen: number) => ({
       i: subject.id,
-      n: (subject.name || '').slice(0, 90),
+      n: (subject.name || '').slice(0, 80),
       c: className,
       g: grade,
       st: subjectType,
-      q: listToEncode.slice(0, maxQuestions).map((q) => {
+      q: listToEncode.slice(0, limit).map((q) => {
         const rawContent = q.content || '';
         const cleanContent = rawContent
           .replace(/===\s*DANH MỤC[\s\S]*?===/gi, '')
@@ -523,14 +523,36 @@ export function encodeExamPayload(subject: Subject, questions: Question[], maxQu
           .replace(/\s+/g, ' ')
           .trim();
         return {
-          c: (cleanContent || rawContent).slice(0, 250),
-          o: q.options ? q.options.map((opt) => String(opt).slice(0, 120)) : [],
+          c: (cleanContent || rawContent).slice(0, maxCLen),
+          o: q.options ? q.options.map((opt) => String(opt).slice(0, maxOLen)) : [],
           a: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
-          e: q.explanation ? String(q.explanation).slice(0, 150) : undefined,
         };
       }),
-    };
-    return toBase64Url(JSON.stringify(minified));
+    });
+
+    // Strategy 1: Try requested question count with generous char limits (180 content, 70 option)
+    let minified = buildMinified(maxQuestions, 180, 70);
+    let jsonStr = JSON.stringify(minified);
+
+    // Strategy 2: If JSON exceeds 1400 chars (~1860 Base64), cap to 5 questions
+    if (jsonStr.length > 1400 && maxQuestions > 5) {
+      minified = buildMinified(5, 160, 60);
+      jsonStr = JSON.stringify(minified);
+    }
+
+    // Strategy 3: If still > 1400 chars, reduce question text slice to 120 chars
+    if (jsonStr.length > 1400) {
+      minified = buildMinified(5, 120, 50);
+      jsonStr = JSON.stringify(minified);
+    }
+
+    // Strategy 4: Ultimate safety fallback for super long text (3 questions, 100 content, 40 option)
+    if (jsonStr.length > 1400) {
+      minified = buildMinified(3, 100, 40);
+      jsonStr = JSON.stringify(minified);
+    }
+
+    return toBase64Url(jsonStr);
   } catch (e) {
     console.warn('Error encoding exam payload:', e);
     return '';
