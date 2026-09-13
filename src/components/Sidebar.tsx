@@ -14,7 +14,6 @@ import {
   ChevronLeft, 
   ChevronRight, 
   GraduationCap,
-  CloudCheck,
   CloudOff,
   UserCheck,
   Tv,
