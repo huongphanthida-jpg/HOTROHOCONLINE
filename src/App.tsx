@@ -26,7 +26,7 @@ import { ProgressDashboard } from './components/ProgressDashboard';
 import { AITutorModal } from './components/AITutorModal';
 import { SettingsModal } from './components/SettingsModal';
 import { soundEffects } from './utils/soundEffects';
-import { GameSessionResult, syncSessionToGoogleSheets, pullFullAppDataFromGoogleSheets } from './services/sheetSyncService';
+import { GameSessionResult, syncSessionToGoogleSheets } from './services/sheetSyncService';
 import { Lock, AlertCircle, X, ShieldCheck, User } from 'lucide-react';
 
 export default function App() {
@@ -189,19 +189,28 @@ export default function App() {
   useEffect(() => {
     const scriptUrl = appData.settings?.googleAppsScriptUrl || localStorage.getItem('google_apps_script_url');
     if (scriptUrl && scriptUrl.trim().startsWith('http')) {
-      pullFullAppDataFromGoogleSheets(scriptUrl.trim()).then((res) => {
-        if (res.success && res.data) {
-          setAppData((prev) => ({
-            ...prev,
-            ...res.data,
-            subjects: res.data?.subjects || prev.subjects,
-            questions: res.data?.questions || prev.questions,
-            documents: res.data?.documents || prev.documents,
-            games: res.data?.games || prev.games,
-            onlineClasses: res.data?.onlineClasses || prev.onlineClasses,
-          }));
+      const fetchCloudData = async () => {
+        try {
+          const res = await fetch(`${scriptUrl.trim()}?action=getFullAppData&t=${Date.now()}`);
+          if (res.ok) {
+            const json = await res.json();
+            if (json.status === 'success' && json.appData) {
+              setAppData((prev) => ({
+                ...prev,
+                ...json.appData,
+                subjects: json.appData?.subjects || prev.subjects,
+                questions: json.appData?.questions || prev.questions,
+                documents: json.appData?.documents || prev.documents,
+                games: json.appData?.games || prev.games,
+                onlineClasses: json.appData?.onlineClasses || prev.onlineClasses,
+              }));
+            }
+          }
+        } catch (err) {
+          console.warn('Auto cloud sync failed:', err);
         }
-      });
+      };
+      fetchCloudData();
     }
   }, []);
 
