@@ -33,6 +33,7 @@ import { exportExamToWordDocx } from '../utils/exportUtils';
 
 interface SubjectCardsViewProps {
   subjects: Subject[];
+  questions?: Question[];
   progress: ProgressData;
   documents?: DocumentLearning[];
   onSelectSubjectToExam: (subject: Subject) => void;
@@ -49,6 +50,7 @@ interface SubjectCardsViewProps {
 
 export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
   subjects,
+  questions = [],
   progress,
   documents = [],
   onSelectSubjectToExam,
@@ -907,6 +909,8 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
           subtitle={qrSubject.description}
           type="exam"
           targetId={qrSubject.id}
+          subject={qrSubject}
+          questions={questions.filter((q) => q.subjectId === qrSubject.id)}
           metaInfo={{
             className: qrSubject.className,
             grade: qrSubject.grade,
