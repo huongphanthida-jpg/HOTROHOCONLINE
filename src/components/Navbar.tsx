@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, BookOpen, FileText, BarChart3, Bot, Sparkles, Moon, Sun, CloudCheck, CloudOff, Tv } from 'lucide-react';
+import { Settings, BookOpen, FileText, BarChart3, Bot, Sparkles, Moon, Sun, CloudOff, Tv } from 'lucide-react';
 import { NavigationTab } from './Sidebar';
 
 interface NavbarProps {
