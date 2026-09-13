@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { Subject, Question, DocumentLearning, UploadedSourceItem } from '../types';
 import { generateExamFromSource } from '../services/aiService';
+import { buildSlugSubjectId } from '../utils/sharePayloadUtils';
 
 interface CreateExamFromSourceModalProps {
   isOpen: boolean;
@@ -474,7 +475,7 @@ export const CreateExamFromSourceModal: React.FC<CreateExamFromSourceModalProps>
       return;
     }
 
-    const subjectId = `sub-custom-${Date.now()}`;
+    const subjectId = buildSlugSubjectId(selectedSubjectType, currentClass);
     const mappedQuestions = generatedQuestions.map((q, idx) => ({
       ...q,
       id: `q-${subjectId}-${idx + 1}`,
