@@ -141,7 +141,36 @@ export default function App() {
   const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
   const [targetGameIdFromUrl, setTargetGameIdFromUrl] = useState<string | null>(null);
   const [urlParamsProcessed, setUrlParamsProcessed] = useState(false);
+  const [currentUrlSearch, setCurrentUrlSearch] = useState<string>(() => {
+    return typeof window !== 'undefined' ? window.location.search : '';
+  });
   const lastProcessedSearchRef = useRef<string>('');
+
+  // Active listener & polling for URL search changes (especially in mobile WebViews like Zalo)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleUrlChange = () => {
+      const search = window.location.search;
+      setCurrentUrlSearch(search);
+    };
+
+    window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener('hashchange', handleUrlChange);
+
+    // Poll every 300ms to instantly react when scanning a new QR code in Zalo in the same session
+    const timer = setInterval(() => {
+      if (window.location.search !== currentUrlSearch) {
+        handleUrlChange();
+      }
+    }, 300);
+
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('hashchange', handleUrlChange);
+      clearInterval(timer);
+    };
+  }, [currentUrlSearch]);
 
   // Track if accessed via direct QR / Share link for single-task student isolation
   const [isDirectSingleTaskMode, setIsDirectSingleTaskMode] = useState<boolean>(() => {
@@ -372,12 +401,12 @@ export default function App() {
 
       if (examParam || gameParam) {
         setIsDirectSingleTaskMode(true);
+        // Reset previous active exam and results to force opening the newly scanned QR task
+        setActiveExam(null);
+        setActiveResult(null);
       }
 
       if (examParam) {
-        // Clear active exam & modal to allow loading new scanned QR code test
-        setActiveExam(null);
-
         // 1. Priority 1: Decode embedded full exam payload directly from QR code URL
         if (payloadParam) {
           const decoded = decodeExamPayload(payloadParam);
@@ -502,7 +531,7 @@ export default function App() {
     } catch (e) {
       console.warn('Error parsing URL query parameters for QR code direct link:', e);
     }
-  }, [appData.subjects, appData.documents, appData.games, appData.questions, urlParamsProcessed]);
+  }, [currentUrlSearch, appData.subjects, appData.documents, appData.games, appData.questions]);
 
   // Handle starting exam from AI-generated document questions
   const handleStartExamFromQuestions = (title: string, questions: Question[]) => {
