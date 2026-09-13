@@ -683,7 +683,23 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
                   onClick={(e) => {
                     e.stopPropagation();
                     setQrSubject(sub);
-                    const matched = questions.filter((q) => q.subjectId === sub.id);
+
+                    let matched = questions.filter(
+                      (q) => q.subjectId === sub.id || (q.subjectId && q.subjectId.toLowerCase() === sub.id.toLowerCase())
+                    );
+
+                    if (matched.length === 0 && documents && documents.length > 0) {
+                      const docMatch = documents.find(
+                        (d) =>
+                          d.id === sub.id ||
+                          (d.title && sub.sourceDocTitle && d.title.toLowerCase() === sub.sourceDocTitle.toLowerCase()) ||
+                          (d.title && sub.name && d.title.toLowerCase() === sub.name.toLowerCase())
+                      );
+                      if (docMatch && docMatch.generatedQuestions && docMatch.generatedQuestions.length > 0) {
+                        matched = docMatch.generatedQuestions;
+                      }
+                    }
+
                     setQrQuestions(matched);
                   }}
                   className="p-2.5 rounded-xl border border-teal-200 dark:border-teal-800 bg-teal-50/70 dark:bg-teal-950/40 hover:bg-teal-100 dark:hover:bg-teal-900/60 text-teal-700 dark:text-teal-300 transition-all active:scale-95 shrink-0 flex items-center justify-center"
