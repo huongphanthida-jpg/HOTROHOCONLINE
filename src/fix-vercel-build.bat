@@ -9,7 +9,7 @@ echo Executing git commands to fix bun.lock and update code...
 git rm --cached bun.lock 2>nul
 git rm --cached bun.lockb 2>nul
 git add -A
-git commit -m "Fix: Export pullFullAppDataFromGoogleSheets, fix duplicate key initialData.ts, va remove bun.lock khoi git"
+git commit -m "Fix: Sua loi cu phap initialData.ts va cap nhat code mượt ma"
 git push origin main
 
 echo.
