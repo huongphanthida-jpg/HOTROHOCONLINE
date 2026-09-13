@@ -1241,18 +1241,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Settings Modal */}
-      {isSettingsOpen && (
-        <SettingsModal
-          isOpen={isSettingsOpen}
-          settings={appData.settings}
-          appData={appData}
-          onClose={() => setIsSettingsOpen(false)}
-          onSaveSettings={handleSaveSettings}
-          onImportData={handleImportData}
-          onResetData={handleResetData}
-        />
-      )}
     </div>
   );
 }
