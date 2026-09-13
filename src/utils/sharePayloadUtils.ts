@@ -511,11 +511,11 @@ export function encodeExamPayload(subject: Subject, questions: Question[]): stri
 
     const minified = {
       i: subject.id,
-      n: (subject.name || '').slice(0, 80),
+      n: (subject.name || '').slice(0, 50),
       c: className,
       g: grade,
       st: subjectType,
-      q: listToEncode.slice(0, 10).map((q) => {
+      q: listToEncode.slice(0, 5).map((q) => {
         const rawContent = q.content || '';
         const cleanContent = rawContent
           .replace(/===\s*DANH MỤC[\s\S]*?===/gi, '')
@@ -523,8 +523,8 @@ export function encodeExamPayload(subject: Subject, questions: Question[]): stri
           .replace(/\s+/g, ' ')
           .trim();
         return {
-          c: (cleanContent || rawContent).slice(0, 350),
-          o: q.options ? q.options.map((opt) => String(opt).slice(0, 150)) : [],
+          c: (cleanContent || rawContent).slice(0, 140),
+          o: q.options ? q.options.map((opt) => String(opt).slice(0, 70)) : [],
           a: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
         };
       }),
