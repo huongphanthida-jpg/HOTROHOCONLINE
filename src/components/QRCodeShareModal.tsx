@@ -91,12 +91,31 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
     return '';
   }, [customBaseUrl]);
 
-  // Construct direct Zalo & web clean URL (guaranteed < 100 chars, triggers native 1-tap "Mở liên kết" in Zalo)
-  const shareUrl = useMemo(() => {
+  const [useCompactZaloUrl, setUseCompactZaloUrl] = useState<boolean>(false);
+
+  // Full URL embedding entire question set from AI
+  const fullPayloadUrl = useMemo(() => {
+    let url = `${resolvedBaseUrl}?${type}=${encodeURIComponent(targetId)}&role=student`;
+    if (type === 'exam' && subject) {
+      const payload = encodeExamPayload(subject, questions || []);
+      if (payload) {
+        url += `&payload=${payload}`;
+      }
+    } else if (type === 'game' && game) {
+      const payload = encodeGamePayload(game);
+      if (payload) {
+        url += `&payload=${payload}`;
+      }
+    }
+    return url;
+  }, [resolvedBaseUrl, type, targetId, subject, questions, game]);
+
+  // Clean short URL for Zalo direct 1-tap browser opening
+  const shortShareUrl = useMemo(() => {
     return `${resolvedBaseUrl}?${type}=${encodeURIComponent(targetId)}&role=student`;
   }, [resolvedBaseUrl, type, targetId]);
 
-  const shortShareUrl = shareUrl;
+  const shareUrl = useCompactZaloUrl ? shortShareUrl : fullPayloadUrl;
 
   useEffect(() => {
     if (!isOpen || !targetId) return;
@@ -305,6 +324,34 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
               <span>{copiedIdCode ? 'Đã Chép Mã ID!' : 'Chép Mỗi Mã ID'}</span>
             </button>
           </div>
+        </div>
+
+        {/* QR Mode Toggle */}
+        <div className="mb-3 flex items-center justify-between p-1 bg-slate-100 dark:bg-slate-900 rounded-xl text-[11px] font-bold">
+          <button
+            type="button"
+            onClick={() => setUseCompactZaloUrl(false)}
+            className={`flex-1 py-1.5 px-2 rounded-lg transition-all text-center ${
+              !useCompactZaloUrl
+                ? 'bg-teal-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+            }`}
+            title="Mã QR nhúng đầy đủ câu hỏi AI (Khuyên dùng - Khớp 100% nội dung)"
+          >
+            📦 Đóng Gói Đề AI (Khớp 100%)
+          </button>
+          <button
+            type="button"
+            onClick={() => setUseCompactZaloUrl(true)}
+            className={`flex-1 py-1.5 px-2 rounded-lg transition-all text-center ${
+              useCompactZaloUrl
+                ? 'bg-teal-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+            }`}
+            title="Mã QR link ngắn Zalo (Mở 1 chạm trên ứng dụng Zalo)"
+          >
+            ⚡ Link Rút Gọn Zalo
+          </button>
         </div>
 
         {/* QR Code Presentation Box */}
