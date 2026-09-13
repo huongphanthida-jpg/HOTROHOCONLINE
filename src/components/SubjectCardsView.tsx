@@ -78,6 +78,7 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
   const [editSubClassName, setEditSubClassName] = useState('');
   const [editSubGrade, setEditSubGrade] = useState('');
   const [qrSubject, setQrSubject] = useState<Subject | null>(null);
+  const [qrQuestions, setQrQuestions] = useState<Question[]>([]);
   const [isConfirmClearAllOpen, setIsConfirmClearAllOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [syncSuccessToast, setSyncSuccessToast] = useState(false);
@@ -682,6 +683,8 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
                   onClick={(e) => {
                     e.stopPropagation();
                     setQrSubject(sub);
+                    const matched = questions.filter((q) => q.subjectId === sub.id);
+                    setQrQuestions(matched);
                   }}
                   className="p-2.5 rounded-xl border border-teal-200 dark:border-teal-800 bg-teal-50/70 dark:bg-teal-950/40 hover:bg-teal-100 dark:hover:bg-teal-900/60 text-teal-700 dark:text-teal-300 transition-all active:scale-95 shrink-0 flex items-center justify-center"
                   title={`Tạo mã QR & copy link chia sẻ đề thi "${sub.name}" cho Zalo`}
@@ -889,14 +892,15 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
         onClose={() => setIsAddModalOpen(false)}
         availableClasses={availableClasses}
         existingDocuments={documents}
-        onCreateExam={(newSub, questions) => {
+        onCreateExam={(newSub, generatedQuestions) => {
           if (onAddSubject) {
-            onAddSubject(newSub, questions);
+            onAddSubject(newSub, generatedQuestions);
           }
           setSyncSuccessToast(true);
           setTimeout(() => setSyncSuccessToast(false), 4000);
           // Automatically open QR share modal for teacher to share to Zalo right away!
           setQrSubject(newSub);
+          setQrQuestions(generatedQuestions || []);
         }}
       />
 
@@ -910,7 +914,7 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
           type="exam"
           targetId={qrSubject.id}
           subject={qrSubject}
-          questions={questions.filter((q) => q.subjectId === qrSubject.id)}
+          questions={qrQuestions.length > 0 ? qrQuestions : questions.filter((q) => q.subjectId === qrSubject.id)}
           metaInfo={{
             className: qrSubject.className,
             grade: qrSubject.grade,
