@@ -29,7 +29,7 @@ export const StudentSingleTaskView: React.FC<StudentSingleTaskViewProps> = ({
         <div className="space-y-2">
           <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full bg-teal-50 dark:bg-teal-950/60 border border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300 text-xs font-extrabold uppercase tracking-wider">
             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            <span>Đã Chọn Đề Thi Khảo Thí</span>
+            <span>Đã Chọn Đề Kiểm Tra Định Kỳ</span>
           </span>
           <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white leading-snug">
             {pendingSubject.name}
@@ -81,7 +81,7 @@ export const StudentSingleTaskView: React.FC<StudentSingleTaskViewProps> = ({
 
       <div className="space-y-2">
         <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white">
-          Chưa Chọn Bài Tập Khảo Thí
+          Chưa Chọn Bài Kiểm Tra
         </h2>
         <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
           {examIdFromUrl ? (
