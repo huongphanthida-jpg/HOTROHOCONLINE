@@ -498,7 +498,7 @@ export function generateFallbackQuestionsBySubject(subject: Partial<Subject>): Q
   ];
 }
 
-export function encodeExamPayload(subject: Subject, questions: Question[]): string {
+export function encodeExamPayload(subject: Subject, questions: Question[], maxQuestions = 10): string {
   try {
     const listToEncode =
       questions && questions.length > 0
@@ -511,11 +511,11 @@ export function encodeExamPayload(subject: Subject, questions: Question[]): stri
 
     const minified = {
       i: subject.id,
-      n: (subject.name || '').slice(0, 55),
+      n: (subject.name || '').slice(0, 90),
       c: className,
       g: grade,
       st: subjectType,
-      q: listToEncode.slice(0, 5).map((q) => {
+      q: listToEncode.slice(0, maxQuestions).map((q) => {
         const rawContent = q.content || '';
         const cleanContent = rawContent
           .replace(/===\s*DANH MỤC[\s\S]*?===/gi, '')
@@ -523,9 +523,10 @@ export function encodeExamPayload(subject: Subject, questions: Question[]): stri
           .replace(/\s+/g, ' ')
           .trim();
         return {
-          c: (cleanContent || rawContent).slice(0, 85),
-          o: q.options ? q.options.map((opt) => String(opt).slice(0, 40)) : [],
+          c: (cleanContent || rawContent).slice(0, 250),
+          o: q.options ? q.options.map((opt) => String(opt).slice(0, 120)) : [],
           a: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
+          e: q.explanation ? String(q.explanation).slice(0, 150) : undefined,
         };
       }),
     };
@@ -578,7 +579,7 @@ export function decodeExamPayload(payloadStr: string): { subject: Subject; quest
       type: q.t || 'multiple_choice',
       options: q.o && q.o.length > 0 ? q.o : ['Phương án A', 'Phương án B', 'Phương án C', 'Phương án D'],
       correctAnswer: typeof q.a === 'number' ? q.a : 0,
-      explanation: q.e || 'Giải thích chuẩn sách giáo khoa.',
+      explanation: q.e || 'Giải thích chi tiết bám sát nội dung bài học.',
       difficulty: 'medium' as const,
       topic: subjectName,
     }));
