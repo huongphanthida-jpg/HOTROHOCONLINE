@@ -528,8 +528,18 @@ export function decodeExamPayload(payloadStr: string): { subject: Subject; quest
 
 export function encodeGamePayload(game: EducationalGame): string {
   try {
-    const jsonStr = JSON.stringify(game);
-    return encodeURIComponent(jsonStr);
+    const compactGame = {
+      i: game.id,
+      t: game.title,
+      d: game.description,
+      s: game.subject,
+      tp: game.type,
+      q: game.quizData,
+      dd: game.dragDropData,
+      m: game.matchingData,
+      st: game.sourceDocTitle,
+    };
+    return toBase64Url(JSON.stringify(compactGame));
   } catch (e) {
     console.warn('Error encoding game payload:', e);
     return '';
@@ -538,10 +548,37 @@ export function encodeGamePayload(game: EducationalGame): string {
 
 export function decodeGamePayload(payloadStr: string): EducationalGame | null {
   try {
-    const jsonStr = decodeURIComponent(payloadStr);
-    const game = JSON.parse(jsonStr);
-    if (!game || !game.id || !game.title) return null;
-    return game as EducationalGame;
+    let jsonStr = '';
+    try {
+      jsonStr = fromBase64Url(payloadStr);
+    } catch {
+      jsonStr = decodeURIComponent(payloadStr);
+    }
+    const parsed = JSON.parse(jsonStr);
+    if (!parsed) return null;
+
+    if (parsed.id && parsed.title) {
+      return parsed as EducationalGame;
+    }
+
+    if (parsed.i && parsed.t) {
+      const game: EducationalGame = {
+        id: parsed.i,
+        title: parsed.t,
+        description: parsed.d || '',
+        subject: parsed.s || 'Tổng hợp',
+        type: parsed.tp || 'quiz',
+        quizData: parsed.q,
+        dragDropData: parsed.dd,
+        matchingData: parsed.m,
+        sourceDocTitle: parsed.st,
+        playCount: 0,
+        createdAt: new Date().toISOString(),
+      };
+      return game;
+    }
+
+    return null;
   } catch (e) {
     console.warn('Error decoding game payload:', e);
     return null;
