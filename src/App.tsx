@@ -306,65 +306,29 @@ export default function App() {
     }
   }, []);
 
-  // Handle choosing a subject to take exam
   const handleSelectSubjectToExam = (subject: Subject) => {
-    let subjectQuestions = appData.questions.filter((q) => q.subjectId === subject.id);
-    if (subjectQuestions.length === 0) {
-      if (appData.questions.length > 0) {
-        subjectQuestions = appData.questions.slice(0, 5);
-      } else {
-        // Fallback default questions if all questions were deleted, ensuring exam never crashes
-        subjectQuestions = [
-          {
-            id: `q-${subject.id}-1`,
-            subjectId: subject.id,
-            content: `Câu 1: Kiến thức nền tảng chuẩn chương trình môn ${subject.name}. Đâu là phát biểu đúng nhất?`,
-            type: 'multiple_choice',
-            options: [
-              'Phương án A: Khái niệm chính xác theo chuẩn SGK',
-              'Phương án B: Nhận định chưa đầy đủ điều kiện',
-              'Phương án C: Phát biểu còn mâu thuẫn lý thuyết',
-              'Phương án D: Định nghĩa dành riêng cho ngoại lệ',
-            ],
-            correctAnswer: 0,
-            explanation: `Theo lý thuyết căn bản của môn ${subject.name}, phát biểu tại phương án A là chính xác nhất.`,
-            difficulty: 'easy',
-            topic: subject.name,
-          },
-          {
-            id: `q-${subject.id}-2`,
-            subjectId: subject.id,
-            content: `Câu 2: Vận dụng phương pháp giải quyết tình huống môn ${subject.name}, bước nào dưới đây là quan trọng nhất?`,
-            type: 'multiple_choice',
-            options: [
-              'Phân tích kỹ lưỡng dữ kiện ban đầu và yêu cầu cốt lõi',
-              'Chọn ngẫu nhiên công thức gần giống nhất',
-              'Bỏ qua các bước kiểm tra lại kết quả',
-              'Chỉ tập trung vào suy đoán cảm tính',
-            ],
-            correctAnswer: 0,
-            explanation: 'Phân tích giả thiết và câu hỏi đề bài là bước tiên quyết để tìm ra hướng giải đúng.',
-            difficulty: 'medium',
-            topic: subject.name,
-          },
-          {
-            id: `q-${subject.id}-3`,
-            subjectId: subject.id,
-            content: `Câu 3: Để củng cố kỹ năng môn ${subject.name}, phương pháp học tập nào mang lại hiệu quả cao nhất?`,
-            type: 'multiple_choice',
-            options: [
-              'Chỉ đọc lướt qua lý thuyết trước ngày thi',
-              'Hệ thống hóa kiến thức định kỳ và luyện đề thực chiến',
-              'Học thuộc lòng mà không làm bài tập rèn luyện',
-              'Không đối chiếu lại đáp án sau khi làm bài',
-            ],
-            correctAnswer: 1,
-            explanation: 'Luyện tập thường xuyên và hệ thống hóa kiến thức giúp nắm vững bản chất môn học.',
-            difficulty: 'easy',
-            topic: subject.name,
-          },
-        ];
+    let subjectQuestions = appData.questions.filter(
+      (q) => q.subjectId === subject.id || (q.subjectId && q.subjectId.toLowerCase() === subject.id.toLowerCase())
+    );
+
+    if (subjectQuestions.length === 0 && appData.documents && appData.documents.length > 0) {
+      const docMatch = appData.documents.find(
+        (d) =>
+          d.id === subject.id ||
+          (d.title && subject.sourceDocTitle && d.title.toLowerCase() === subject.sourceDocTitle.toLowerCase()) ||
+          (d.title && subject.name && d.title.toLowerCase() === subject.name.toLowerCase())
+      );
+      if (docMatch && docMatch.generatedQuestions && docMatch.generatedQuestions.length > 0) {
+        subjectQuestions = docMatch.generatedQuestions;
       }
+    }
+
+    if (subjectQuestions.length === 0 && (subject as any).generatedQuestions && (subject as any).generatedQuestions.length > 0) {
+      subjectQuestions = (subject as any).generatedQuestions;
+    }
+
+    if (subjectQuestions.length === 0) {
+      subjectQuestions = generateFallbackQuestionsBySubject(subject);
     }
 
     setPendingSubject({
