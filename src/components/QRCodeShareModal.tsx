@@ -71,18 +71,22 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
 
   // Persistent custom base URL (for sharing to students)
   const [customBaseUrl, setCustomBaseUrl] = useState<string>(() => {
-    return localStorage.getItem('edu_app_public_url') || '';
+    const saved = localStorage.getItem('edu_app_public_url') || '';
+    if (saved.includes('ais-pre-')) {
+      localStorage.removeItem('edu_app_public_url');
+      return '';
+    }
+    return saved;
   });
 
   // Calculate actual base origin to use (defaults to live domain window.location.origin)
   const resolvedBaseUrl = useMemo(() => {
-    if (customBaseUrl.trim()) {
-      return customBaseUrl.trim().replace(/\/+$/, '');
-    }
     if (typeof window !== 'undefined') {
-      const origin = window.location.origin;
-      const pathname = window.location.pathname;
-      return `${origin}${pathname}`.replace(/\/+$/, '');
+      const liveUrl = `${window.location.origin}${window.location.pathname}`.replace(/\/+$/, '');
+      if (customBaseUrl && customBaseUrl.trim() && !customBaseUrl.includes('ais-pre-')) {
+        return customBaseUrl.trim().replace(/\/+$/, '');
+      }
+      return liveUrl;
     }
     return '';
   }, [customBaseUrl]);
@@ -382,13 +386,13 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    const defaultPre = 'https://ais-pre-4dplhma3fe7kfdd6l55o6p-284389971722.asia-southeast1.run.app';
-                    setCustomBaseUrl(defaultPre);
-                    localStorage.setItem('edu_app_public_url', defaultPre);
+                    setCustomBaseUrl('');
+                    localStorage.removeItem('edu_app_public_url');
                   }}
-                  className="px-2 py-1 text-[10px] bg-slate-200 dark:bg-slate-700 rounded-lg hover:bg-slate-300 font-semibold text-slate-700 dark:text-slate-200"
+                  className="px-2.5 py-1 text-[10px] bg-teal-100 dark:bg-teal-900/60 hover:bg-teal-200 text-teal-800 dark:text-teal-200 font-bold rounded-lg transition-colors cursor-pointer"
+                  title="Dùng lại tên miền trực tiếp hiện tại của ứng dụng"
                 >
-                  Mặc định
+                  Dùng tên miền hiện tại
                 </button>
               </div>
             </div>
