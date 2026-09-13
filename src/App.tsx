@@ -29,7 +29,7 @@ import { EnterTaskCodeModal } from './components/EnterTaskCodeModal';
 import { StudentSingleTaskView } from './components/StudentSingleTaskView';
 import { decodeExamPayload, decodeGamePayload } from './utils/sharePayloadUtils';
 import { soundEffects } from './utils/soundEffects';
-import { GameSessionResult, syncSessionToGoogleSheets, pushFullAppDataToGoogleSheets } from './services/sheetSyncService';
+import { GameSessionResult, syncSessionToGoogleSheets } from './services/sheetSyncService';
 import { Lock, AlertCircle, X, ShieldCheck, User } from 'lucide-react';
 
 export default function App() {
@@ -948,6 +948,43 @@ export default function App() {
       subjects: INITIAL_DATA.subjects,
       questions: INITIAL_DATA.questions,
     }));
+  };
+
+  // Helper to push full AppData to Google Sheets cloud
+  const pushFullAppDataToGoogleSheets = async (data: AppData, scriptUrl?: string) => {
+    const url = (scriptUrl || localStorage.getItem('google_apps_script_url') || '').trim();
+    if (!url || !url.startsWith('http')) return;
+
+    const payload = {
+      action: 'syncFullAppData',
+      timestamp: new Date().toISOString(),
+      appData: {
+        subjects: data.subjects || [],
+        questions: data.questions || [],
+        documents: data.documents || [],
+        games: data.games || [],
+        onlineClasses: data.onlineClasses || [],
+      },
+    };
+
+    try {
+      await fetch('/api/sync-google-sheets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scriptUrl: url, payload }),
+      });
+    } catch {
+      try {
+        await fetch(url, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload),
+        });
+      } catch (e) {
+        console.warn('Auto cloud push failed:', e);
+      }
+    }
   };
 
   // Add custom subject with AI generated questions or fallback questions
