@@ -445,7 +445,9 @@ export default function App() {
           try {
             const cachedQs = JSON.parse(cachedQsStr);
             if (Array.isArray(cachedQs) && cachedQs.length > 0) {
-              const displayTitle = `Đề Thi Khảo Thí (${examParam})`;
+              const detectedStype = detectSubjectType({ id: examParam, name: examParam });
+              const detectedClass = extractClassName({ id: examParam, name: examParam });
+              const displayTitle = `${detectedStype} lớp ${detectedClass} - Đề kiểm tra định kỳ`;
               setPendingSubject({
                 name: displayTitle,
                 id: examParam,
@@ -483,7 +485,9 @@ export default function App() {
           (q) => q.subjectId && q.subjectId.toLowerCase() === examParam.toLowerCase()
         );
         if (matchingQuestions.length > 0) {
-          const displayTitle = `Đề Thi Khảo Thí (${examParam})`;
+          const detectedStype = detectSubjectType({ id: examParam, name: examParam });
+          const detectedClass = extractClassName({ id: examParam, name: examParam });
+          const displayTitle = `${detectedStype} lớp ${detectedClass} - Đề kiểm tra định kỳ`;
           setPendingSubject({
             name: displayTitle,
             id: examParam,
@@ -501,7 +505,7 @@ export default function App() {
         };
         const detectedStype = detectSubjectType(fallbackSub);
         const detectedClass = extractClassName(fallbackSub);
-        const cleanTitle = `${detectedStype} lớp ${detectedClass} - Đề thi khảo thí`;
+        const cleanTitle = `${detectedStype} lớp ${detectedClass} - Đề kiểm tra định kỳ`;
         const fallbackQs = generateFallbackQuestionsBySubject({
           ...fallbackSub,
           name: cleanTitle,
