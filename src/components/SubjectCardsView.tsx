@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Subject, ProgressData, Question, DocumentLearning } from '../types';
+import { Subject, ProgressData, Question, DocumentLearning, UserRole } from '../types';
 import { CreateExamFromSourceModal } from './CreateExamFromSourceModal';
 import { QRCodeShareModal } from './QRCodeShareModal';
 import {
@@ -28,8 +28,6 @@ import {
   Check,
 } from 'lucide-react';
 import { exportExamToWordDocx } from '../utils/exportUtils';
-
-import { UserRole } from '../types';
 
 interface SubjectCardsViewProps {
   subjects: Subject[];
