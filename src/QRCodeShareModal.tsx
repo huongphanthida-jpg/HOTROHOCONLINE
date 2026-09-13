@@ -308,6 +308,12 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
               {metaInfo.questionsCount} câu hỏi
             </span>
           )}
+          {type === 'exam' && (
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200 font-bold flex items-center space-x-1">
+              <Check className="w-3 h-3 text-emerald-600" />
+              <span>Đã đóng gói 100% câu hỏi AI</span>
+            </span>
+          )}
           {metaInfo?.gameTypeLabel && (
             <span className="px-2.5 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 font-bold">
               {metaInfo.gameTypeLabel}
