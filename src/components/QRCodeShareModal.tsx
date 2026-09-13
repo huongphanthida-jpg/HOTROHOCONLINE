@@ -110,12 +110,12 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
     return url;
   }, [resolvedBaseUrl, type, targetId, subject, questions, game]);
 
-  // Clean short URL for Zalo direct 1-tap browser opening (always includes payload for 100% exact questions)
+  // Clean short URL for Zalo direct 1-tap browser opening
   const shortShareUrl = useMemo(() => {
-    return fullPayloadUrl;
-  }, [fullPayloadUrl]);
+    return `${resolvedBaseUrl}?${type}=${encodeURIComponent(targetId)}&role=student`;
+  }, [resolvedBaseUrl, type, targetId]);
 
-  const shareUrl = fullPayloadUrl;
+  const shareUrl = useCompactZaloUrl ? shortShareUrl : fullPayloadUrl;
 
   useEffect(() => {
     if (!isOpen || !targetId) return;
@@ -137,9 +137,22 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
           setQrDataUrl(url);
         }
       } catch (err) {
-        console.warn('QR code generation warning, falling back to short URL:', err);
-        if (textToRender !== shortShareUrl) {
-          generateQR(shortShareUrl);
+        console.warn('QR code payload too large, rendering clean short URL QR:', err);
+        try {
+          const fallbackUrl = await QRCode.toDataURL(shortShareUrl, {
+            width: 360,
+            margin: 1,
+            errorCorrectionLevel: 'L',
+            color: {
+              dark: type === 'exam' ? '#0f766e' : '#4338ca',
+              light: '#ffffff',
+            },
+          });
+          if (isMounted) {
+            setQrDataUrl(fallbackUrl);
+          }
+        } catch (e2) {
+          console.warn('Fallback QR rendering failed:', e2);
         }
       }
     };
