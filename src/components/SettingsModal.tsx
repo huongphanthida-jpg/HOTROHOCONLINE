@@ -199,7 +199,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col border border-slate-200 dark:border-slate-700 overflow-hidden"
         id="settings-modal"
       >
-        {/* Header */}
         <div className="bg-gradient-to-r from-teal-700 via-teal-600 to-emerald-600 p-6 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
@@ -218,9 +217,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
         </div>
 
-        {/* Modal Body */}
         <div className="p-6 overflow-y-auto space-y-6 text-xs sm:text-sm">
-          {/* Section 1: Gemini AI API Key */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <label className="font-bold text-slate-800 dark:text-white flex items-center space-x-2">
@@ -263,7 +260,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </div>
 
-          {/* Section 2: AI Model Selection */}
           <div className="space-y-2">
             <label className="font-bold text-slate-800 dark:text-white flex items-center space-x-2">
               <i className="fa-solid fa-microchip text-teal-600"></i>
@@ -282,7 +278,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </select>
           </div>
 
-          {/* Section 3: Google Sheets Apps Script Sync & Class Database */}
           <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-700">
             <div className="flex items-center justify-between">
               <label className="font-bold text-slate-800 dark:text-white flex items-center space-x-2">
@@ -359,7 +354,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               )}
             </div>
 
-            {/* Expandable Apps Script Guide */}
             <details className="group mt-2">
               <summary className="text-xs font-semibold text-slate-500 hover:text-teal-600 cursor-pointer list-none flex items-center space-x-1.5">
                 <span>📖 Xem hướng dẫn cài đặt Google Sheets trong 1 phút</span>
@@ -376,7 +370,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </details>
           </div>
 
-          {/* Section 4: Security PIN Code for Role Switching */}
           <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-slate-700">
             <label className="font-bold text-slate-800 dark:text-white flex items-center space-x-2">
               <i className="fa-solid fa-lock text-amber-500"></i>
@@ -395,7 +388,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             />
           </div>
 
-          {/* Section 5: Preferences & Data Backup */}
           <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-slate-700">
             <div className="flex items-center justify-between">
               <span className="font-bold text-slate-800 dark:text-white flex items-center space-x-2">
@@ -417,7 +409,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </button>
             </div>
 
-            {/* Cloud Data Sync Block */}
             <div className="p-3 bg-teal-50/60 dark:bg-teal-950/30 rounded-xl border border-teal-200/80 dark:border-teal-800/80 space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-teal-800 dark:text-teal-200 flex items-center space-x-1.5">
@@ -509,7 +500,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </div>
         </div>
 
-        {/* Footer */}
         <div className="p-4 bg-slate-50 dark:bg-slate-700/40 border-t border-slate-200 dark:border-slate-700 flex items-center justify-end space-x-3 shrink-0">
           <button
             type="button"
