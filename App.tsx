@@ -20,7 +20,6 @@ import { ExamView } from './components/ExamView';
 import { ExamResultView } from './components/ExamResultView';
 import { DocumentLearningView } from './components/DocumentLearningView';
 import { EducationalGamesView } from './components/EducationalGamesView';
-import { OnlineClassesView } from './components/OnlineClassesView';
 import { InteractiveSimulationsView } from './components/InteractiveSimulationsView';
 import { ProgressDashboard } from './components/ProgressDashboard';
 import { AITutorModal } from './components/AITutorModal';
@@ -29,7 +28,7 @@ import { EnterTaskCodeModal } from './components/EnterTaskCodeModal';
 import { StudentSingleTaskView } from './components/StudentSingleTaskView';
 import { decodeExamPayload, decodeGamePayload, generateFallbackQuestionsBySubject, detectSubjectType, extractClassName, extractGrade } from './utils/sharePayloadUtils';
 import { soundEffects } from './utils/soundEffects';
-import { GameSessionResult, syncSessionToGoogleSheets } from './services/sheetSyncService';
+import { GameSessionResult, syncSessionToGoogleSheets, syncGameResultToGoogleSheets } from './services/sheetSyncService';
 import { Lock, AlertCircle, X, ShieldCheck, User } from 'lucide-react';
 
 export default function App() {
@@ -790,6 +789,28 @@ export default function App() {
         },
       };
     });
+
+    // Auto sync game result asynchronously to Google Sheets if Web App URL is configured
+    const scriptUrl =
+      appData.settings?.googleAppsScriptUrl || localStorage.getItem('google_apps_script_url');
+    if (scriptUrl && scriptUrl.trim().startsWith('http')) {
+      syncGameResultToGoogleSheets(gameResult, scriptUrl.trim()).then((res) => {
+        if (res.success) {
+          setAppData((prev) => ({
+            ...prev,
+            sessions: prev.sessions.map((s) =>
+              s.id === newSession.id
+                ? {
+                    ...s,
+                    syncedToGoogleSheets: true,
+                    syncTimestamp: new Date().toLocaleTimeString('vi-VN'),
+                  }
+                : s
+            ),
+          }));
+        }
+      });
+    }
   };
 
   // Retake current exam
@@ -1432,15 +1453,7 @@ export default function App() {
                 />
               )}
 
-              {currentTab === 'online_classes' && !isDirectSingleTaskMode && (
-                <OnlineClassesView
-                  onlineClasses={appData.onlineClasses || []}
-                  settings={appData.settings}
-                  onUpdateClasses={handleUpdateOnlineClasses}
-                  onOpenSettings={() => setIsSettingsOpen(true)}
-                  userRole={userRole}
-                />
-              )}
+
 
               {currentTab === 'documents' && !isDirectSingleTaskMode && (
                 <DocumentLearningView
