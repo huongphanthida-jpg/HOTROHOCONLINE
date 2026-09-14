@@ -101,7 +101,8 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
 
   // Full URL embedding entire question set from AI
   const fullPayloadUrl = useMemo(() => {
-    let url = `${resolvedBaseUrl}?${type}=${encodeURIComponent(targetId)}&role=student`;
+    const ts = Date.now();
+    let url = `${resolvedBaseUrl}/quiz?id=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`;
     if (type === 'exam' && subject) {
       const payload = encodeExamPayload(subject, questions || []);
       if (payload) {
@@ -118,7 +119,8 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
 
   // Clean short URL for Zalo direct 1-tap browser opening
   const shortShareUrl = useMemo(() => {
-    return `${resolvedBaseUrl}?${type}=${encodeURIComponent(targetId)}&role=student`;
+    const ts = Date.now();
+    return `${resolvedBaseUrl}/quiz?id=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`;
   }, [resolvedBaseUrl, type, targetId]);
 
   const shareUrl = useCompactZaloUrl ? shortShareUrl : fullPayloadUrl;
