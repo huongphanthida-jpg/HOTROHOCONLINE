@@ -9,7 +9,8 @@ import {
   AppSettings, 
   OnlineClass, 
   EducationalGame, 
-  UserRole 
+  UserRole,
+  AISimulationItem
 } from './types';
 import { INITIAL_DATA } from './data/initialData';
 import { Sidebar, NavigationTab } from './components/Sidebar';
@@ -20,16 +21,15 @@ import { ExamView } from './components/ExamView';
 import { ExamResultView } from './components/ExamResultView';
 import { DocumentLearningView } from './components/DocumentLearningView';
 import { EducationalGamesView } from './components/EducationalGamesView';
-import { OnlineClassesView } from './components/OnlineClassesView';
 import { InteractiveSimulationsView } from './components/InteractiveSimulationsView';
 import { ProgressDashboard } from './components/ProgressDashboard';
 import { AITutorModal } from './components/AITutorModal';
 import { SettingsModal } from './components/SettingsModal';
 import { EnterTaskCodeModal } from './components/EnterTaskCodeModal';
 import { StudentSingleTaskView } from './components/StudentSingleTaskView';
-import { decodeExamPayload, decodeGamePayload, generateFallbackQuestionsBySubject, detectSubjectType, extractClassName, extractGrade } from './utils/sharePayloadUtils';
+import { decodeExamPayload, decodeGamePayload, decodeSimulationPayload, generateFallbackQuestionsBySubject, detectSubjectType, extractClassName, extractGrade } from './utils/sharePayloadUtils';
 import { soundEffects } from './utils/soundEffects';
-import { GameSessionResult, syncSessionToGoogleSheets } from './services/sheetSyncService';
+import { GameSessionResult, syncSessionToGoogleSheets, syncGameResultToGoogleSheets } from './services/sheetSyncService';
 import { Lock, AlertCircle, X, ShieldCheck, User } from 'lucide-react';
 
 export default function App() {
@@ -183,12 +183,17 @@ export default function App() {
         params.get('gameId') ||
         params.get('play') ||
         params.get('gameData') ||
+        params.get('simData') ||
+        params.get('simId') ||
+        params.get('sim') ||
         path.startsWith('/play') ||
-        path.startsWith('/game')
+        path.startsWith('/game') ||
+        path.startsWith('/sim')
       );
     }
     return false;
   });
+  const [activeSimulationFromUrl, setActiveSimulationFromUrl] = useState<AISimulationItem | null>(null);
   const [activeExam, setActiveExam] = useState<{
     subjectName: string;
     subjectId: string;
@@ -393,7 +398,7 @@ export default function App() {
       const isPlayRoute = currentPath.startsWith('/play') || currentPath.startsWith('/game');
 
       const directGameId = params.get('gameId') || params.get('game') || params.get('play');
-      const gameDataParam = params.get('gameData');
+      const gameDataParam = params.get('gameData') || params.get('d') || params.get('payload') || params.get('data');
 
       let gameParam: string | null = directGameId;
       let codeParam = params.get('code') || params.get('id') || params.get('quiz') || params.get('assignment');
@@ -435,7 +440,22 @@ export default function App() {
 
       const examParam = isPlayRoute ? null : (params.get('exam') || codeParam);
       const roleParam = params.get('role');
-      const payloadParam = params.get('payload') || params.get('data') || params.get('quizData');
+      const simDataParam = params.get('simData') || params.get('sim');
+      if (simDataParam) {
+        const decodedSim = decodeSimulationPayload(simDataParam);
+        if (decodedSim) {
+          setActiveSimulationFromUrl(decodedSim);
+          setIsDirectSingleTaskMode(true);
+          setUserRole('student');
+          localStorage.setItem('user_role', 'student');
+          setAppData((prev) => ({
+            ...prev,
+            settings: { ...prev.settings, currentRole: 'student' },
+          }));
+          setUrlParamsProcessed(true);
+          return;
+        }
+      }
 
       if (!examParam && !gameParam && !isPlayRoute && roleParam !== 'student') return;
 
@@ -790,6 +810,28 @@ export default function App() {
         },
       };
     });
+
+    // Auto sync game result asynchronously to Google Sheets if Web App URL is configured
+    const scriptUrl =
+      appData.settings?.googleAppsScriptUrl || localStorage.getItem('google_apps_script_url');
+    if (scriptUrl && scriptUrl.trim().startsWith('http')) {
+      syncGameResultToGoogleSheets(gameResult, scriptUrl.trim()).then((res) => {
+        if (res.success) {
+          setAppData((prev) => ({
+            ...prev,
+            sessions: prev.sessions.map((s) =>
+              s.id === newSession.id
+                ? {
+                    ...s,
+                    syncedToGoogleSheets: true,
+                    syncTimestamp: new Date().toLocaleTimeString('vi-VN'),
+                  }
+                : s
+            ),
+          }));
+        }
+      });
+    }
   };
 
   // Retake current exam
@@ -1432,15 +1474,7 @@ export default function App() {
                 />
               )}
 
-              {currentTab === 'online_classes' && !isDirectSingleTaskMode && (
-                <OnlineClassesView
-                  onlineClasses={appData.onlineClasses || []}
-                  settings={appData.settings}
-                  onUpdateClasses={handleUpdateOnlineClasses}
-                  onOpenSettings={() => setIsSettingsOpen(true)}
-                  userRole={userRole}
-                />
-              )}
+
 
               {currentTab === 'documents' && !isDirectSingleTaskMode && (
                 <DocumentLearningView
@@ -1490,7 +1524,38 @@ export default function App() {
                 <AITutorModal initialContext={tutorContext} />
               )}
 
-              {isDirectSingleTaskMode && !targetGameIdFromUrl && (
+              {isDirectSingleTaskMode && activeSimulationFromUrl && (
+                <div className="max-w-4xl mx-auto p-4 space-y-4 animate-fadeIn">
+                  <div className="p-4 rounded-3xl bg-slate-900 border border-slate-800 text-white flex items-center justify-between shadow-xl">
+                    <div className="space-y-1">
+                      <span className="px-2.5 py-0.5 rounded-full bg-teal-500 text-teal-950 font-black text-[10px] uppercase tracking-wider">
+                        Thí nghiệm ảo ({activeSimulationFromUrl.subject})
+                      </span>
+                      <h2 className="text-base font-extrabold text-white">{activeSimulationFromUrl.title}</h2>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsDirectSingleTaskMode(false);
+                        setActiveSimulationFromUrl(null);
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-colors"
+                    >
+                      Thoát chế độ xem
+                    </button>
+                  </div>
+                  <div className="rounded-3xl overflow-hidden border border-slate-800 bg-slate-950 shadow-2xl">
+                    <iframe
+                      title={activeSimulationFromUrl.title}
+                      srcDoc={activeSimulationFromUrl.code}
+                      sandbox="allow-scripts allow-same-origin allow-modals"
+                      className="w-full h-[620px] border-0 bg-slate-950"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {isDirectSingleTaskMode && !targetGameIdFromUrl && !activeSimulationFromUrl && (
                 <StudentSingleTaskView
                   pendingSubject={pendingSubject}
                   examIdFromUrl={typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('exam') || new URLSearchParams(window.location.search).get('id') : null}

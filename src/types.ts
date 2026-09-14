@@ -193,6 +193,16 @@ export interface UploadedSourceItem {
   pageIndex?: number; // e.g. 1, 2, 3
 }
 
+export interface AISimulationItem {
+  id: string;
+  title: string;
+  subject: string; // 'Vật Lý' | 'Toán Học' | 'Hóa Học'
+  description?: string;
+  code: string; // Clean interactive HTML5 / p5.js / Canvas code
+  createdAt: string;
+  sourceDocTitle?: string;
+}
+
 export interface AppData {
   subjects: Subject[];
   questions: Question[];
@@ -202,4 +212,5 @@ export interface AppData {
   documents?: DocumentLearning[];
   games?: EducationalGame[];
   onlineClasses?: OnlineClass[];
+  simulations?: AISimulationItem[];
 }
