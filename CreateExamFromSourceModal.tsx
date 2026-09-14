@@ -212,6 +212,14 @@ export const CreateExamFromSourceModal: React.FC<CreateExamFromSourceModalProps>
   const [generatedQuestions, setGeneratedQuestions] = useState<Question[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
   const [previewTab, setPreviewTab] = useState<'edit' | 'render'>('edit');
+  const [editingQuestionIds, setEditingQuestionIds] = useState<Record<string, boolean>>({});
+
+  const handleToggleEditQuestion = (id: string) => {
+    setEditingQuestionIds((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
 
   // Inline question editing handlers
   const handleUpdateQuestionContent = (id: string, content: string) => {
@@ -1709,272 +1717,295 @@ export const CreateExamFromSourceModal: React.FC<CreateExamFromSourceModalProps>
 
               {/* Questions List */}
               <div className="space-y-3.5 max-h-96 overflow-y-auto pr-1">
-                {generatedQuestions.map((q, idx) => (
-                  <div
-                    key={q.id}
-                    className={`p-4 rounded-2xl border transition-all space-y-3 relative group ${
-                      previewTab === 'edit'
-                        ? 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-2xs hover:border-teal-300 dark:hover:border-teal-700'
-                        : 'bg-gradient-to-br from-white to-purple-50/30 dark:from-slate-800 dark:to-purple-950/20 border-purple-200/80 dark:border-purple-800/60 shadow-2xs'
-                    }`}
-                  >
-                    {/* Question Header & Controls */}
-                    <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-700/60 pb-2.5">
-                      <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                        <span className="w-6 h-6 rounded-lg bg-teal-600 text-white font-bold flex items-center justify-center text-xs shrink-0">
-                          {idx + 1}
-                        </span>
-                        <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold">
-                          {q.type === 'multiple_choice'
-                            ? 'Trắc nghiệm ABCD'
-                            : q.type === 'short_answer'
-                            ? 'Trả lời ngắn'
-                            : q.type === 'true_false'
-                            ? 'Đúng / Sai'
-                            : 'Tự luận'}
-                        </span>
+                {generatedQuestions.map((q, idx) => {
+                  const isCardEditing = previewTab === 'edit' || !!editingQuestionIds[q.id];
 
-                        {/* Editable Points */}
-                        {previewTab === 'edit' ? (
-                          <div className="flex items-center space-x-1 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">
-                            <span className="text-[10px] font-bold text-amber-800 dark:text-amber-300">+</span>
-                            <input
-                              type="number"
-                              step="0.25"
-                              min="0.25"
-                              max="10"
-                              value={q.points || (10 / generatedQuestions.length).toFixed(2)}
-                              onChange={(e) => handleUpdatePoints(q.id, parseFloat(e.target.value) || 0)}
-                              className="w-12 text-center bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 rounded text-[11px] font-bold text-amber-900 dark:text-amber-200 p-0.5 focus:outline-hidden"
-                            />
-                            <span className="text-[10px] font-bold text-amber-800 dark:text-amber-300">đ</span>
-                          </div>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-[10px] font-bold border border-amber-200 dark:border-amber-800">
-                            +{q.points || (10 / generatedQuestions.length).toFixed(2)} điểm
+                  return (
+                    <div
+                      key={q.id}
+                      className={`p-4 rounded-2xl border transition-all space-y-3 relative group ${
+                        isCardEditing
+                          ? 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 shadow-2xs hover:border-teal-300 dark:hover:border-teal-700'
+                          : 'bg-gradient-to-br from-white to-purple-50/30 dark:from-slate-800 dark:to-purple-950/20 border-purple-200/80 dark:border-purple-800/60 shadow-2xs'
+                      }`}
+                    >
+                      {/* Question Header & Controls */}
+                      <div className="flex items-center justify-between gap-2 border-b border-slate-100 dark:border-slate-700/60 pb-2.5">
+                        <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                          <span className="w-6 h-6 rounded-lg bg-teal-600 text-white font-bold flex items-center justify-center text-xs shrink-0">
+                            {idx + 1}
                           </span>
-                        )}
+                          <span className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 text-[10px] font-bold">
+                            {q.type === 'multiple_choice'
+                              ? 'Trắc nghiệm ABCD'
+                              : q.type === 'short_answer'
+                              ? 'Trả lời ngắn'
+                              : q.type === 'true_false'
+                              ? 'Đúng / Sai'
+                              : 'Tự luận'}
+                          </span>
 
-                        {/* Editable Difficulty */}
-                        {previewTab === 'edit' ? (
-                          <select
-                            value={q.difficulty || 'medium'}
-                            onChange={(e) => handleUpdateDifficulty(q.id, e.target.value as any)}
-                            className="bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-md text-[10px] font-bold text-slate-700 dark:text-slate-300 p-0.5 focus:outline-hidden"
+                          {/* Editable Points */}
+                          {isCardEditing ? (
+                            <div className="flex items-center space-x-1 bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-md border border-amber-200 dark:border-amber-800">
+                              <span className="text-[10px] font-bold text-amber-800 dark:text-amber-300">+</span>
+                              <input
+                                type="number"
+                                step="0.25"
+                                min="0.25"
+                                max="10"
+                                value={q.points || (10 / generatedQuestions.length).toFixed(2)}
+                                onChange={(e) => handleUpdatePoints(q.id, parseFloat(e.target.value) || 0)}
+                                className="w-12 text-center bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-700 rounded text-[11px] font-bold text-amber-900 dark:text-amber-200 p-0.5 focus:outline-hidden"
+                              />
+                              <span className="text-[10px] font-bold text-amber-800 dark:text-amber-300">đ</span>
+                            </div>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 text-[10px] font-bold border border-amber-200 dark:border-amber-800">
+                              +{q.points || (10 / generatedQuestions.length).toFixed(2)} điểm
+                            </span>
+                          )}
+
+                          {/* Editable Difficulty */}
+                          {isCardEditing ? (
+                            <select
+                              value={q.difficulty || 'medium'}
+                              onChange={(e) => handleUpdateDifficulty(q.id, e.target.value as any)}
+                              className="bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-md text-[10px] font-bold text-slate-700 dark:text-slate-300 p-0.5 focus:outline-hidden"
+                            >
+                              <option value="easy">Độ khó: Dễ</option>
+                              <option value="medium">Độ khó: Vừa</option>
+                              <option value="hard">Độ khó: Khó</option>
+                            </select>
+                          ) : (
+                            <span className="text-slate-400 text-[11px]">
+                              Độ khó: {q.difficulty === 'easy' ? 'Dễ' : q.difficulty === 'hard' ? 'Khó' : 'Trung bình'}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Per-Card Actions: Pencil Edit ✏️ & Trash Can 🗑️ */}
+                        <div className="flex items-center space-x-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleEditQuestion(q.id)}
+                            className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all flex items-center space-x-1 border ${
+                              isCardEditing
+                                ? 'bg-amber-500 text-white border-amber-600 shadow-2xs'
+                                : 'bg-slate-100 dark:bg-slate-700/70 text-slate-600 dark:text-slate-300 hover:bg-teal-50 hover:text-teal-600 dark:hover:bg-teal-950/40 border-slate-200 dark:border-slate-600'
+                            }`}
+                            title={isCardEditing ? 'Đang chỉnh sửa (Bấm lại để xem trước)' : 'Bấm biểu tượng cây bút để sửa câu hỏi, 4 đáp án & lời giải'}
                           >
-                            <option value="easy">Độ khó: Dễ</option>
-                            <option value="medium">Độ khó: Vừa</option>
-                            <option value="hard">Độ khó: Khó</option>
-                          </select>
-                        ) : (
-                          <span className="text-slate-400 text-[11px]">
-                            Độ khó: {q.difficulty === 'easy' ? 'Dễ' : q.difficulty === 'hard' ? 'Khó' : 'Trung bình'}
-                          </span>
-                        )}
+                            <Edit3 className="w-3.5 h-3.5" />
+                            <span className="text-[11px] font-bold">{isCardEditing ? 'Đang sửa' : 'Chỉnh sửa'}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteQuestion(q.id)}
+                            className="text-slate-400 hover:text-rose-600 transition-colors p-1.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-transparent"
+                            title="Xóa câu này (tự động điều chỉnh điểm số câu còn lại đủ 10đ)"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={() => handleDeleteQuestion(q.id)}
-                        className="text-slate-400 hover:text-rose-600 transition-colors p-1"
-                        title="Xóa câu này (tự động điều chỉnh điểm số câu còn lại đủ 10đ)"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
+                      {/* Question Content */}
+                      {isCardEditing ? (
+                        <div className="space-y-1">
+                          <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                            Nội dung câu hỏi:
+                          </label>
+                          <textarea
+                            rows={2}
+                            value={q.content}
+                            onChange={(e) => handleUpdateQuestionContent(q.id, e.target.value)}
+                            placeholder="Nhập nội dung câu hỏi (hỗ trợ <sub>, <sup> và công thức Toán/Hóa)..."
+                            className="w-full px-3 py-2 text-xs font-semibold bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-hidden text-slate-800 dark:text-slate-100"
+                          />
+                        </div>
+                      ) : (
+                        <div className="font-semibold text-slate-800 dark:text-slate-100 text-xs leading-relaxed">
+                          <FormattedMathText text={q.content} />
+                        </div>
+                      )}
 
-                    {/* Question Content */}
-                    {previewTab === 'edit' ? (
-                      <div className="space-y-1">
-                        <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400">
-                          Nội dung câu hỏi:
-                        </label>
-                        <textarea
-                          rows={2}
-                          value={q.content}
-                          onChange={(e) => handleUpdateQuestionContent(q.id, e.target.value)}
-                          placeholder="Nhập nội dung câu hỏi (hỗ trợ công thức Toán/Hóa)..."
-                          className="w-full px-3 py-2 text-xs font-semibold bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-hidden text-slate-800 dark:text-slate-100"
-                        />
-                      </div>
-                    ) : (
-                      <div className="font-semibold text-slate-800 dark:text-slate-100 text-xs leading-relaxed">
-                        <FormattedMathText text={q.content} />
-                      </div>
-                    )}
+                      {/* Format Options & Answers */}
+                      {q.type === 'multiple_choice' && (
+                        <div className="space-y-2 pt-1">
+                          {isCardEditing && (
+                            <span className="block text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                              Chỉnh sửa 4 đáp án (Tích chọn ô tròn để đánh dấu đáp án ĐÚNG):
+                            </span>
+                          )}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {q.options.map((opt, oIdx) => {
+                              const isCorrect = oIdx === q.correctAnswer;
+                              const optionText = opt.replace(/^[A-D]\.\s*/, '');
+                              const labelChar = String.fromCharCode(65 + oIdx);
 
-                    {/* Format Options & Answers */}
-                    {q.type === 'multiple_choice' && (
-                      <div className="space-y-2 pt-1">
-                        {previewTab === 'edit' && (
-                          <span className="block text-[11px] font-bold text-slate-600 dark:text-slate-400">
-                            Chỉnh sửa 4 đáp án (Tích chọn ô tròn để đánh dấu đáp án ĐÚNG):
-                          </span>
-                        )}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {q.options.map((opt, oIdx) => {
-                            const isCorrect = oIdx === q.correctAnswer;
-                            const optionText = opt.replace(/^[A-D]\.\s*/, '');
-                            const labelChar = String.fromCharCode(65 + oIdx);
-
-                            if (previewTab === 'edit') {
-                              return (
-                                <div
-                                  key={oIdx}
-                                  className={`p-1.5 rounded-xl border text-xs flex items-center space-x-2 transition-all ${
-                                    isCorrect
-                                      ? 'border-teal-500 bg-teal-50/70 dark:bg-teal-950/50 text-teal-900 dark:text-teal-200 font-semibold'
-                                      : 'border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40'
-                                  }`}
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={() => handleSelectCorrectAnswer(q.id, oIdx)}
-                                    className={`w-6 h-6 rounded-lg font-extrabold text-xs flex items-center justify-center shrink-0 transition-all ${
+                              if (isCardEditing) {
+                                return (
+                                  <div
+                                    key={oIdx}
+                                    className={`p-1.5 rounded-xl border text-xs flex items-center space-x-2 transition-all ${
                                       isCorrect
-                                        ? 'bg-teal-600 text-white shadow-xs'
-                                        : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-teal-500 hover:text-white'
+                                        ? 'border-teal-500 bg-teal-50/70 dark:bg-teal-950/50 text-teal-900 dark:text-teal-200 font-semibold'
+                                        : 'border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/40'
+                                    }`}
+                                  >
+                                    <button
+                                      type="button"
+                                      onClick={() => handleSelectCorrectAnswer(q.id, oIdx)}
+                                      className={`w-6 h-6 rounded-lg font-extrabold text-xs flex items-center justify-center shrink-0 transition-all ${
+                                        isCorrect
+                                          ? 'bg-teal-600 text-white shadow-xs'
+                                          : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-teal-500 hover:text-white'
+                                      }`}
+                                      title="Click để chọn đáp án này là ĐÚNG"
+                                    >
+                                      {labelChar}
+                                    </button>
+                                    <input
+                                      type="text"
+                                      value={optionText}
+                                      onChange={(e) => handleUpdateQuestionOption(q.id, oIdx, e.target.value)}
+                                      placeholder={`Nhập phương án ${labelChar}...`}
+                                      className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden text-slate-800 dark:text-slate-200"
+                                    />
+                                    {isCorrect && <Check className="w-4 h-4 text-teal-600 shrink-0" />}
+                                  </div>
+                                );
+                              } else {
+                                return (
+                                  <div
+                                    key={oIdx}
+                                    onClick={() => handleSelectCorrectAnswer(q.id, oIdx)}
+                                    className={`px-3 py-2 rounded-xl border text-xs flex items-start space-x-2 cursor-pointer transition-all ${
+                                      isCorrect
+                                        ? 'border-teal-500 bg-teal-50/80 dark:bg-teal-950/60 text-teal-900 dark:text-teal-200 font-semibold shadow-2xs'
+                                        : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800/80 hover:border-teal-300'
                                     }`}
                                     title="Click để chọn đáp án này là ĐÚNG"
                                   >
-                                    {labelChar}
-                                  </button>
-                                  <input
-                                    type="text"
-                                    value={optionText}
-                                    onChange={(e) => handleUpdateQuestionOption(q.id, oIdx, e.target.value)}
-                                    placeholder={`Nhập phương án ${labelChar}...`}
-                                    className="flex-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden text-slate-800 dark:text-slate-200"
-                                  />
-                                  {isCorrect && <Check className="w-4 h-4 text-teal-600 shrink-0" />}
-                                </div>
-                              );
-                            } else {
-                              return (
-                                <div
-                                  key={oIdx}
-                                  className={`px-3 py-2 rounded-xl border text-xs flex items-start space-x-2 ${
-                                    isCorrect
-                                      ? 'border-teal-500 bg-teal-50/80 dark:bg-teal-950/60 text-teal-900 dark:text-teal-200 font-semibold shadow-2xs'
-                                      : 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800/80'
-                                  }`}
-                                >
-                                  <span className={`font-extrabold px-1.5 py-0.5 rounded text-[10px] ${isCorrect ? 'bg-teal-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
-                                    {labelChar}
-                                  </span>
-                                  <div className="flex-1 pt-0.5">
-                                    <FormattedMathText text={optionText} />
+                                    <span className={`font-extrabold px-1.5 py-0.5 rounded text-[10px] ${isCorrect ? 'bg-teal-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'}`}>
+                                      {labelChar}
+                                    </span>
+                                    <div className="flex-1 pt-0.5">
+                                      <FormattedMathText text={optionText} />
+                                    </div>
                                   </div>
-                                </div>
-                              );
-                            }
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {q.type === 'short_answer' && (
-                      <div className="p-3 rounded-xl bg-sky-50/70 dark:bg-sky-950/40 text-xs border border-sky-200 dark:border-sky-800 space-y-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sky-800 dark:text-sky-300 font-semibold">
-                            Đáp số / Từ khóa chuẩn:
-                          </span>
-                        </div>
-                        {previewTab === 'edit' ? (
-                          <input
-                            type="text"
-                            value={q.expectedShortAnswer || q.sampleAnswer || ''}
-                            onChange={(e) => handleUpdateExpectedAnswer(q.id, e.target.value)}
-                            placeholder="Nhập đáp số chính xác (ví dụ: 12.5, H2SO4, 5 m/s)..."
-                            className="w-full px-3 py-1.5 text-xs font-mono font-bold bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 rounded-lg text-sky-800 dark:text-sky-200 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
-                          />
-                        ) : (
-                          <span className="inline-block px-3 py-1 rounded-lg bg-white dark:bg-slate-900 text-sky-700 dark:text-sky-300 font-mono font-bold text-xs border border-sky-300 dark:border-sky-700">
-                            <FormattedMathText text={q.expectedShortAnswer || q.sampleAnswer || 'Chính xác'} />
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    {q.type === 'true_false' && (
-                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 text-xs border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                        <span className="font-semibold text-slate-700 dark:text-slate-300">
-                          Đáp án đúng/sai chuẩn:
-                        </span>
-                        {previewTab === 'edit' ? (
-                          <div className="flex items-center space-x-2">
-                            <button
-                              type="button"
-                              onClick={() => handleSelectCorrectAnswer(q.id, 0)}
-                              className={`px-3 py-1 rounded-lg font-bold transition-all ${
-                                q.correctAnswer === 0
-                                  ? 'bg-emerald-600 text-white shadow-xs'
-                                  : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                              }`}
-                            >
-                              ĐÚNG
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleSelectCorrectAnswer(q.id, 1)}
-                              className={`px-3 py-1 rounded-lg font-bold transition-all ${
-                                q.correctAnswer === 1
-                                  ? 'bg-rose-600 text-white shadow-xs'
-                                  : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                              }`}
-                            >
-                              SAI
-                            </button>
+                                );
+                              }
+                            })}
                           </div>
-                        ) : (
-                          <span className={`px-2.5 py-1 rounded-md font-bold ${q.correctAnswer === 0 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'}`}>
-                            {q.correctAnswer === 0 ? 'ĐÚNG' : 'SAI'}
-                          </span>
-                        )}
-                      </div>
-                    )}
+                        </div>
+                      )}
 
-                    {q.type === 'essay' && (
-                      <div className="p-3 rounded-xl bg-purple-50/70 dark:bg-purple-950/40 text-xs space-y-1.5 text-purple-900 dark:text-purple-200 border border-purple-200/80">
-                        <div className="font-bold text-[11px]">Barem &amp; Lời giải mẫu ({q.points || (10 / generatedQuestions.length).toFixed(2)}đ):</div>
-                        {previewTab === 'edit' ? (
+                      {q.type === 'short_answer' && (
+                        <div className="p-3 rounded-xl bg-sky-50/70 dark:bg-sky-950/40 text-xs border border-sky-200 dark:border-sky-800 space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sky-800 dark:text-sky-300 font-semibold">
+                              Đáp số / Từ khóa chuẩn:
+                            </span>
+                          </div>
+                          {isCardEditing ? (
+                            <input
+                              type="text"
+                              value={q.expectedShortAnswer || q.sampleAnswer || ''}
+                              onChange={(e) => handleUpdateExpectedAnswer(q.id, e.target.value)}
+                              placeholder="Nhập đáp số chính xác (ví dụ: 12.5, H2SO4, 5 m/s)..."
+                              className="w-full px-3 py-1.5 text-xs font-mono font-bold bg-white dark:bg-slate-900 border border-sky-300 dark:border-sky-700 rounded-lg text-sky-800 dark:text-sky-200 focus:ring-2 focus:ring-sky-500 focus:outline-hidden"
+                            />
+                          ) : (
+                            <span className="inline-block px-3 py-1 rounded-lg bg-white dark:bg-slate-900 text-sky-700 dark:text-sky-300 font-mono font-bold text-xs border border-sky-300 dark:border-sky-700">
+                              <FormattedMathText text={q.expectedShortAnswer || q.sampleAnswer || 'Chính xác'} />
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {q.type === 'true_false' && (
+                        <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/40 text-xs border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                          <span className="font-semibold text-slate-700 dark:text-slate-300">
+                            Đáp án đúng/sai chuẩn:
+                          </span>
+                          {isCardEditing ? (
+                            <div className="flex items-center space-x-2">
+                              <button
+                                type="button"
+                                onClick={() => handleSelectCorrectAnswer(q.id, 0)}
+                                className={`px-3 py-1 rounded-lg font-bold transition-all ${
+                                  q.correctAnswer === 0
+                                    ? 'bg-emerald-600 text-white shadow-xs'
+                                    : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                                }`}
+                              >
+                                ĐÚNG
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleSelectCorrectAnswer(q.id, 1)}
+                                className={`px-3 py-1 rounded-lg font-bold transition-all ${
+                                  q.correctAnswer === 1
+                                    ? 'bg-rose-600 text-white shadow-xs'
+                                    : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                                }`}
+                              >
+                                SAI
+                              </button>
+                            </div>
+                          ) : (
+                            <span className={`px-2.5 py-1 rounded-md font-bold ${q.correctAnswer === 0 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' : 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300'}`}>
+                              {q.correctAnswer === 0 ? 'ĐÚNG' : 'SAI'}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
+                      {q.type === 'essay' && (
+                        <div className="p-3 rounded-xl bg-purple-50/70 dark:bg-purple-950/40 text-xs space-y-1.5 text-purple-900 dark:text-purple-200 border border-purple-200/80">
+                          <div className="font-bold text-[11px]">Barem &amp; Lời giải mẫu ({q.points || (10 / generatedQuestions.length).toFixed(2)}đ):</div>
+                          {isCardEditing ? (
+                            <textarea
+                              rows={3}
+                              value={q.sampleAnswer || ''}
+                              onChange={(e) => handleUpdateExpectedAnswer(q.id, e.target.value)}
+                              placeholder="Nhập barem chấm điểm và bài giải mẫu..."
+                              className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-700 rounded-lg text-purple-900 dark:text-purple-200 focus:ring-2 focus:ring-purple-500 focus:outline-hidden"
+                            />
+                          ) : (
+                            <div className="whitespace-pre-line text-xs">
+                              <FormattedMathText text={q.sampleAnswer || ''} />
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Explanation */}
+                      {isCardEditing ? (
+                        <div className="space-y-1 pt-1">
+                          <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                            Lời giải / Giải thích chi tiết:
+                          </label>
                           <textarea
-                            rows={3}
-                            value={q.sampleAnswer || ''}
-                            onChange={(e) => handleUpdateExpectedAnswer(q.id, e.target.value)}
-                            placeholder="Nhập barem chấm điểm và bài giải mẫu..."
-                            className="w-full px-3 py-1.5 text-xs bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-700 rounded-lg text-purple-900 dark:text-purple-200 focus:ring-2 focus:ring-purple-500 focus:outline-hidden"
+                            rows={2}
+                            value={q.explanation || ''}
+                            onChange={(e) => handleUpdateExplanation(q.id, e.target.value)}
+                            placeholder="Nhập hướng dẫn giải chi tiết cho câu hỏi này..."
+                            className="w-full px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-hidden text-slate-700 dark:text-slate-300"
                           />
-                        ) : (
-                          <div className="whitespace-pre-line text-xs">
-                            <FormattedMathText text={q.sampleAnswer || ''} />
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Explanation */}
-                    {previewTab === 'edit' ? (
-                      <div className="space-y-1 pt-1">
-                        <label className="block text-[11px] font-bold text-slate-500 dark:text-slate-400">
-                          Lời giải / Giải thích chi tiết:
-                        </label>
-                        <textarea
-                          rows={2}
-                          value={q.explanation || ''}
-                          onChange={(e) => handleUpdateExplanation(q.id, e.target.value)}
-                          placeholder="Nhập hướng dẫn giải chi tiết cho câu hỏi này..."
-                          className="w-full px-3 py-1.5 text-xs bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700 rounded-xl focus:ring-2 focus:ring-teal-500 focus:outline-hidden text-slate-700 dark:text-slate-300"
-                        />
-                      </div>
-                    ) : (
-                      <div className="text-[11px] text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
-                        <strong>Lời giải bám sát tài liệu: </strong>
-                        <FormattedMathText text={q.explanation || ''} />
-                      </div>
-                    )}
-                  </div>
-                ))}
+                        </div>
+                      ) : (
+                        <div className="text-[11px] text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-800">
+                          <strong>Lời giải bám sát tài liệu: </strong>
+                          <FormattedMathText text={q.explanation || ''} />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
