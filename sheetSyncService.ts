@@ -223,6 +223,87 @@ export function validateAppsScriptUrl(url?: string): { isValid: boolean; message
   return { isValid: true };
 }
 
+export async function pushFullAppDataToGoogleSheets(
+  appData: AppData,
+  customScriptUrl?: string
+): Promise<{ success: boolean; message: string }> {
+  const scriptUrl = customScriptUrl || localStorage.getItem('google_apps_script_url');
+  const validation = validateAppsScriptUrl(scriptUrl || '');
+  if (!validation.isValid) {
+    return { success: false, message: validation.message || 'URL Google Apps Script không hợp lệ.' };
+  }
+
+  const payload = {
+    action: 'syncFullAppData',
+    timestamp: new Date().toISOString(),
+    appData: {
+      subjects: appData.subjects || [],
+      questions: appData.questions || [],
+      documents: appData.documents || [],
+      games: appData.games || [],
+      onlineClasses: appData.onlineClasses || [],
+    },
+  };
+
+  const targetUrl = (scriptUrl || '').trim();
+
+  try {
+    const proxyRes = await fetch('/api/sync-google-sheets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scriptUrl: targetUrl, payload }),
+    });
+    if (proxyRes.ok) {
+      const data = await proxyRes.json();
+      return { success: true, message: data.result?.message || 'Đã tải toàn bộ dữ liệu ứng dụng lên Google Sheets thành công!' };
+    }
+  } catch (e) {
+    console.warn('Proxy sync failed, falling back to direct fetch', e);
+  }
+
+  try {
+    await fetch(targetUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+    });
+    return { success: true, message: 'Đã phát tín hiệu đồng bộ toàn bộ dữ liệu ứng dụng tới Google Sheets thành công!' };
+  } catch (err: any) {
+    return { success: false, message: `Lỗi kết nối: ${err?.message || err}` };
+  }
+}
+
+export async function pullFullAppDataFromGoogleSheets(
+  customScriptUrl?: string
+): Promise<{ success: boolean; data?: Partial<AppData>; message: string }> {
+  const scriptUrl = customScriptUrl || localStorage.getItem('google_apps_script_url');
+  const validation = validateAppsScriptUrl(scriptUrl || '');
+  if (!validation.isValid) {
+    return { success: false, message: validation.message || 'URL Google Apps Script không hợp lệ.' };
+  }
+
+  const targetUrl = `${(scriptUrl || '').trim()}?action=getFullAppData&t=${Date.now()}`;
+
+  try {
+    const response = await fetch(targetUrl);
+    if (!response.ok) {
+      return { success: false, message: `Lỗi HTTP ${response.status} từ Google Apps Script` };
+    }
+    const json = await response.json();
+    if (json.status === 'success' && json.appData) {
+      return {
+        success: true,
+        data: json.appData,
+        message: 'Đã tải toàn bộ dữ liệu mới nhất từ Google Sheets thành công!',
+      };
+    }
+    return { success: false, message: json.message || 'Chưa tìm thấy bản sao lưu dữ liệu trên Google Sheets.' };
+  } catch (err: any) {
+    return { success: false, message: `Không thể kết nối đến Google Apps Script: ${err?.message || err}` };
+  }
+}
+
 export async function syncSessionToGoogleSheets(
   session: SessionRecord,
   customScriptUrl?: string
@@ -534,87 +615,4 @@ function parseCsvToClasses(csvText: string): OnlineClass[] {
 
   return classes;
 }
-
-export async function pushFullAppDataToGoogleSheets(
-  appData: AppData,
-  customScriptUrl?: string
-): Promise<{ success: boolean; message: string }> {
-  const scriptUrl = customScriptUrl || localStorage.getItem('google_apps_script_url');
-  const validation = validateAppsScriptUrl(scriptUrl || '');
-  if (!validation.isValid) {
-    return { success: false, message: validation.message || 'URL Google Apps Script không hợp lệ.' };
-  }
-
-  const payload = {
-    action: 'syncFullAppData',
-    timestamp: new Date().toISOString(),
-    appData: {
-      subjects: appData.subjects || [],
-      questions: appData.questions || [],
-      documents: appData.documents || [],
-      games: appData.games || [],
-      onlineClasses: appData.onlineClasses || [],
-    },
-  };
-
-  const targetUrl = (scriptUrl || '').trim();
-
-  try {
-    const proxyRes = await fetch('/api/sync-google-sheets', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scriptUrl: targetUrl, payload }),
-    });
-    if (proxyRes.ok) {
-      const data = await proxyRes.json();
-      return { success: true, message: data.result?.message || 'Đã tải toàn bộ dữ liệu ứng dụng lên Google Sheets thành công!' };
-    }
-  } catch (e) {
-    console.warn('Proxy sync failed, falling back to direct fetch', e);
-  }
-
-  try {
-    await fetch(targetUrl, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify(payload),
-    });
-    return { success: true, message: 'Đã phát tín hiệu đồng bộ toàn bộ dữ liệu ứng dụng tới Google Sheets thành công!' };
-  } catch (err: any) {
-    return { success: false, message: `Lỗi kết nối: ${err?.message || err}` };
-  }
-}
-
-export async function pullFullAppDataFromGoogleSheets(
-  customScriptUrl?: string
-): Promise<{ success: boolean; data?: Partial<AppData>; message: string }> {
-  const scriptUrl = customScriptUrl || localStorage.getItem('google_apps_script_url');
-  const validation = validateAppsScriptUrl(scriptUrl || '');
-  if (!validation.isValid) {
-    return { success: false, message: validation.message || 'URL Google Apps Script không hợp lệ.' };
-  }
-
-  const targetUrl = `${(scriptUrl || '').trim()}?action=getFullAppData&t=${Date.now()}`;
-
-  try {
-    const response = await fetch(targetUrl);
-    if (!response.ok) {
-      return { success: false, message: `Lỗi HTTP ${response.status} từ Google Apps Script` };
-    }
-    const json = await response.json();
-    if (json.status === 'success' && json.appData) {
-      return {
-        success: true,
-        data: json.appData,
-        message: 'Đã tải toàn bộ dữ liệu mới nhất từ Google Sheets thành công!',
-      };
-    }
-    return { success: false, message: json.message || 'Chưa tìm thấy bản sao lưu dữ liệu trên Google Sheets.' };
-  } catch (err: any) {
-    return { success: false, message: `Không thể kết nối đến Google Apps Script: ${err?.message || err}` };
-  }
-}
-
-
 
