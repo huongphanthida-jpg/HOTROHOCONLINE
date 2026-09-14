@@ -1,4 +1,4 @@
-import { Subject, Question, EducationalGame } from '../types';
+import { Subject, Question, EducationalGame, AISimulationItem } from '../types';
 
 function toBase64Url(str: string): string {
   try {
@@ -80,6 +80,81 @@ export function buildSlugSubjectId(stype: string, cname: string): string {
   const normCname = (cname || '11A2').replace(/[^a-zA-Z0-9]/g, '');
   const rand = Math.random().toString(36).substring(2, 7);
   return `sub-custom-${normStype}_${normCname}-${Date.now()}-${rand}`;
+}
+
+export function encodeSimulationPayload(sim: AISimulationItem): string {
+  try {
+    const compactSim = {
+      i: sim.id,
+      t: sim.title,
+      s: sim.subject,
+      d: sim.description || '',
+      c: sim.code,
+    };
+    const jsonStr = JSON.stringify(compactSim);
+    if (typeof window !== 'undefined' && (window as any).LZString) {
+      return `lz_sim_${(window as any).LZString.compressToEncodedURIComponent(jsonStr)}`;
+    }
+    return `lz_sim_${btoa(unescape(encodeURIComponent(jsonStr)))}`;
+  } catch (e) {
+    console.warn('Error encoding simulation payload:', e);
+    return '';
+  }
+}
+
+export function decodeSimulationPayload(payloadStr: string): AISimulationItem | null {
+  try {
+    if (!payloadStr) return null;
+    let jsonStr = '';
+    if (payloadStr.startsWith('lz_sim_')) {
+      const rawLz = payloadStr.slice(7);
+      if (typeof window !== 'undefined' && (window as any).LZString) {
+        jsonStr = (window as any).LZString.decompressFromEncodedURIComponent(rawLz);
+      }
+      if (!jsonStr) {
+        try { jsonStr = decodeURIComponent(escape(atob(rawLz))); } catch {}
+      }
+    } else if (payloadStr.startsWith('lz_')) {
+      const rawLz = payloadStr.slice(3);
+      if (typeof window !== 'undefined' && (window as any).LZString) {
+        jsonStr = (window as any).LZString.decompressFromEncodedURIComponent(rawLz);
+      }
+      if (!jsonStr) {
+        try { jsonStr = decodeURIComponent(escape(atob(rawLz))); } catch {}
+      }
+    } else {
+      try {
+        if (typeof window !== 'undefined' && (window as any).LZString) {
+          jsonStr = (window as any).LZString.decompressFromEncodedURIComponent(payloadStr);
+        }
+        if (!jsonStr) jsonStr = decodeURIComponent(escape(atob(payloadStr)));
+      } catch {
+        jsonStr = payloadStr;
+      }
+    }
+
+    if (!jsonStr) return null;
+    const parsed = JSON.parse(jsonStr);
+
+    if (parsed.id && parsed.code) {
+      return parsed as AISimulationItem;
+    }
+
+    if (parsed.i && parsed.c) {
+      return {
+        id: parsed.i,
+        title: parsed.t || 'Mô phỏng thí nghiệm AI',
+        subject: parsed.s || 'Vật Lý',
+        description: parsed.d || '',
+        code: parsed.c,
+        createdAt: new Date().toISOString(),
+      };
+    }
+    return null;
+  } catch (e) {
+    console.warn('Error decoding simulation payload:', e);
+    return null;
+  }
 }
 
 export function generateFallbackQuestionsBySubject(subject: Partial<Subject>): Question[] {
@@ -732,8 +807,7 @@ export function encodeExamPayload(subject: Subject, questions: Question[]): stri
     const grade = extractGrade(subject);
     const subjectType = detectSubjectType(subject);
 
-    const minified = {
-      lz: 1,
+    const minified: any = {
       i: subject.id,
       n: subject.name || '',
       c: className,
@@ -746,14 +820,23 @@ export function encodeExamPayload(subject: Subject, questions: Question[]): stri
           .replace(/===[\s\S]*?===/g, '')
           .replace(/\s+/g, ' ')
           .trim();
-        return {
+
+        const item: any = {
           c: cleanContent || rawContent,
           o: q.options ? q.options.map((opt) => String(opt).trim()) : [],
           a: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
-          e: q.explanation ? String(q.explanation).trim() : undefined,
-          t: q.type || 'multiple_choice',
-          p: q.points,
         };
+
+        if (q.explanation && q.explanation.trim()) {
+          item.e = q.explanation.trim();
+        }
+        if (q.type && q.type !== 'multiple_choice') {
+          item.t = q.type;
+        }
+        if (typeof q.points === 'number') {
+          item.p = q.points;
+        }
+        return item;
       }),
     };
 
@@ -851,18 +934,42 @@ export function decodeExamPayload(payloadStr: string): { subject: Subject; quest
 
 export function encodeGamePayload(game: EducationalGame): string {
   try {
-    const compactGame = {
+    const compactGame: any = {
       i: game.id,
       t: game.title,
-      d: game.description,
       s: game.subject,
       tp: game.type,
-      q: game.quizData,
-      dd: game.dragDropData,
-      m: game.matchingData,
-      st: game.sourceDocTitle,
     };
-    return toBase64Url(JSON.stringify(compactGame));
+    if (game.description && game.description.trim()) {
+      compactGame.d = game.description.trim();
+    }
+    if (game.quizData && game.quizData.questions && game.quizData.questions.length > 0) {
+      compactGame.q = {
+        questions: game.quizData.questions.map((q) => {
+          const item: any = {
+            id: q.id,
+            content: (q.content || '').replace(/\s+/g, ' ').trim(),
+            options: q.options ? q.options.map((o) => String(o).trim()) : [],
+            correctAnswer: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
+          };
+          if (q.explanation && q.explanation.trim()) item.explanation = q.explanation.trim();
+          return item;
+        }),
+      };
+    }
+    if (game.dragDropData) {
+      compactGame.dd = game.dragDropData;
+    }
+    if (game.matchingData) {
+      compactGame.m = game.matchingData;
+    }
+    if (game.sourceDocTitle) {
+      compactGame.st = game.sourceDocTitle;
+    }
+
+    const jsonStr = JSON.stringify(compactGame);
+    const compressed = LZString.compressToEncodedURIComponent(jsonStr);
+    return `lz_${compressed}`;
   } catch (e) {
     console.warn('Error encoding game payload:', e);
     return '';
@@ -872,12 +979,33 @@ export function encodeGamePayload(game: EducationalGame): string {
 export function decodeGamePayload(payloadStr: string): EducationalGame | null {
   try {
     let jsonStr = '';
-    try {
-      jsonStr = fromBase64Url(payloadStr);
-    } catch {
-      jsonStr = decodeURIComponent(payloadStr);
+
+    if (payloadStr.startsWith('lz_')) {
+      const rawLz = payloadStr.slice(3);
+      jsonStr = LZString.decompressFromEncodedURIComponent(rawLz);
+    } else {
+      try {
+        jsonStr = fromBase64Url(payloadStr);
+      } catch {
+        jsonStr = decodeURIComponent(payloadStr);
+      }
     }
-    const parsed = JSON.parse(jsonStr);
+
+    let parsed: any = null;
+    try {
+      parsed = JSON.parse(jsonStr);
+    } catch {
+      try {
+        const directDecoded = decodeURIComponent(payloadStr);
+        parsed = JSON.parse(directDecoded);
+      } catch {
+        try {
+          const lzRaw = LZString.decompressFromEncodedURIComponent(payloadStr);
+          if (lzRaw) parsed = JSON.parse(lzRaw);
+        } catch {}
+      }
+    }
+
     if (!parsed) return null;
 
     if (parsed.id && parsed.title) {
@@ -904,6 +1032,61 @@ export function decodeGamePayload(payloadStr: string): EducationalGame | null {
     return null;
   } catch (e) {
     console.warn('Error decoding game payload:', e);
+    return null;
+  }
+}
+
+export function encodeSimulationPayload(sim: AISimulationItem): string {
+  try {
+    const compactSim = {
+      i: sim.id,
+      t: sim.title,
+      s: sim.subject,
+      d: sim.description || '',
+      c: sim.code,
+    };
+    const jsonStr = JSON.stringify(compactSim);
+    const compressed = LZString.compressToEncodedURIComponent(jsonStr);
+    return `lz_sim_${compressed}`;
+  } catch (e) {
+    console.warn('Error encoding simulation payload:', e);
+    return '';
+  }
+}
+
+export function decodeSimulationPayload(payloadStr: string): AISimulationItem | null {
+  try {
+    let jsonStr = '';
+    if (payloadStr.startsWith('lz_sim_')) {
+      const rawLz = payloadStr.slice(7);
+      jsonStr = LZString.decompressFromEncodedURIComponent(rawLz);
+    } else if (payloadStr.startsWith('lz_')) {
+      const rawLz = payloadStr.slice(3);
+      jsonStr = LZString.decompressFromEncodedURIComponent(rawLz);
+    } else {
+      jsonStr = LZString.decompressFromEncodedURIComponent(payloadStr) || payloadStr;
+    }
+
+    if (!jsonStr) return null;
+    const parsed = JSON.parse(jsonStr);
+
+    if (parsed.id && parsed.code) {
+      return parsed as AISimulationItem;
+    }
+
+    if (parsed.i && parsed.c) {
+      return {
+        id: parsed.i,
+        title: parsed.t || 'Mô phỏng thí nghiệm AI',
+        subject: parsed.s || 'Vật Lý',
+        description: parsed.d || '',
+        code: parsed.c,
+        createdAt: new Date().toISOString(),
+      };
+    }
+    return null;
+  } catch (e) {
+    console.warn('Error decoding simulation payload:', e);
     return null;
   }
 }
