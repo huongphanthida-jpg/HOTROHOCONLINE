@@ -1,4 +1,4 @@
-import { Subject, Question, EducationalGame } from '../types';
+import { Subject, Question, EducationalGame, AISimulationItem } from '../types';
 
 function toBase64Url(str: string): string {
   try {
@@ -957,6 +957,61 @@ export function decodeGamePayload(payloadStr: string): EducationalGame | null {
     return null;
   } catch (e) {
     console.warn('Error decoding game payload:', e);
+    return null;
+  }
+}
+
+export function encodeSimulationPayload(sim: AISimulationItem): string {
+  try {
+    const compactSim = {
+      i: sim.id,
+      t: sim.title,
+      s: sim.subject,
+      d: sim.description || '',
+      c: sim.code,
+    };
+    const jsonStr = JSON.stringify(compactSim);
+    const compressed = LZString.compressToEncodedURIComponent(jsonStr);
+    return `lz_sim_${compressed}`;
+  } catch (e) {
+    console.warn('Error encoding simulation payload:', e);
+    return '';
+  }
+}
+
+export function decodeSimulationPayload(payloadStr: string): AISimulationItem | null {
+  try {
+    let jsonStr = '';
+    if (payloadStr.startsWith('lz_sim_')) {
+      const rawLz = payloadStr.slice(7);
+      jsonStr = LZString.decompressFromEncodedURIComponent(rawLz);
+    } else if (payloadStr.startsWith('lz_')) {
+      const rawLz = payloadStr.slice(3);
+      jsonStr = LZString.decompressFromEncodedURIComponent(rawLz);
+    } else {
+      jsonStr = LZString.decompressFromEncodedURIComponent(payloadStr) || payloadStr;
+    }
+
+    if (!jsonStr) return null;
+    const parsed = JSON.parse(jsonStr);
+
+    if (parsed.id && parsed.code) {
+      return parsed as AISimulationItem;
+    }
+
+    if (parsed.i && parsed.c) {
+      return {
+        id: parsed.i,
+        title: parsed.t || 'Mô phỏng thí nghiệm AI',
+        subject: parsed.s || 'Vật Lý',
+        description: parsed.d || '',
+        code: parsed.c,
+        createdAt: new Date().toISOString(),
+      };
+    }
+    return null;
+  } catch (e) {
+    console.warn('Error decoding simulation payload:', e);
     return null;
   }
 }

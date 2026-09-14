@@ -9,7 +9,8 @@ import {
   AppSettings, 
   OnlineClass, 
   EducationalGame, 
-  UserRole 
+  UserRole,
+  AISimulationItem
 } from './types';
 import { INITIAL_DATA } from './data/initialData';
 import { Sidebar, NavigationTab } from './components/Sidebar';
@@ -26,7 +27,7 @@ import { AITutorModal } from './components/AITutorModal';
 import { SettingsModal } from './components/SettingsModal';
 import { EnterTaskCodeModal } from './components/EnterTaskCodeModal';
 import { StudentSingleTaskView } from './components/StudentSingleTaskView';
-import { decodeExamPayload, decodeGamePayload, generateFallbackQuestionsBySubject, detectSubjectType, extractClassName, extractGrade } from './utils/sharePayloadUtils';
+import { decodeExamPayload, decodeGamePayload, decodeSimulationPayload, generateFallbackQuestionsBySubject, detectSubjectType, extractClassName, extractGrade } from './utils/sharePayloadUtils';
 import { soundEffects } from './utils/soundEffects';
 import { GameSessionResult, syncSessionToGoogleSheets, syncGameResultToGoogleSheets } from './services/sheetSyncService';
 import { Lock, AlertCircle, X, ShieldCheck, User } from 'lucide-react';
@@ -182,12 +183,17 @@ export default function App() {
         params.get('gameId') ||
         params.get('play') ||
         params.get('gameData') ||
+        params.get('simData') ||
+        params.get('simId') ||
+        params.get('sim') ||
         path.startsWith('/play') ||
-        path.startsWith('/game')
+        path.startsWith('/game') ||
+        path.startsWith('/sim')
       );
     }
     return false;
   });
+  const [activeSimulationFromUrl, setActiveSimulationFromUrl] = useState<AISimulationItem | null>(null);
   const [activeExam, setActiveExam] = useState<{
     subjectName: string;
     subjectId: string;
@@ -434,7 +440,22 @@ export default function App() {
 
       const examParam = isPlayRoute ? null : (params.get('exam') || codeParam);
       const roleParam = params.get('role');
-      const payloadParam = params.get('payload') || params.get('d') || params.get('data') || params.get('quizData');
+      const simDataParam = params.get('simData') || params.get('sim');
+      if (simDataParam) {
+        const decodedSim = decodeSimulationPayload(simDataParam);
+        if (decodedSim) {
+          setActiveSimulationFromUrl(decodedSim);
+          setIsDirectSingleTaskMode(true);
+          setUserRole('student');
+          localStorage.setItem('user_role', 'student');
+          setAppData((prev) => ({
+            ...prev,
+            settings: { ...prev.settings, currentRole: 'student' },
+          }));
+          setUrlParamsProcessed(true);
+          return;
+        }
+      }
 
       if (!examParam && !gameParam && !isPlayRoute && roleParam !== 'student') return;
 
@@ -1503,7 +1524,38 @@ export default function App() {
                 <AITutorModal initialContext={tutorContext} />
               )}
 
-              {isDirectSingleTaskMode && !targetGameIdFromUrl && (
+              {isDirectSingleTaskMode && activeSimulationFromUrl && (
+                <div className="max-w-4xl mx-auto p-4 space-y-4 animate-fadeIn">
+                  <div className="p-4 rounded-3xl bg-slate-900 border border-slate-800 text-white flex items-center justify-between shadow-xl">
+                    <div className="space-y-1">
+                      <span className="px-2.5 py-0.5 rounded-full bg-teal-500 text-teal-950 font-black text-[10px] uppercase tracking-wider">
+                        Thí nghiệm ảo ({activeSimulationFromUrl.subject})
+                      </span>
+                      <h2 className="text-base font-extrabold text-white">{activeSimulationFromUrl.title}</h2>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsDirectSingleTaskMode(false);
+                        setActiveSimulationFromUrl(null);
+                      }}
+                      className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition-colors"
+                    >
+                      Thoát chế độ xem
+                    </button>
+                  </div>
+                  <div className="rounded-3xl overflow-hidden border border-slate-800 bg-slate-950 shadow-2xl">
+                    <iframe
+                      title={activeSimulationFromUrl.title}
+                      srcDoc={activeSimulationFromUrl.code}
+                      sandbox="allow-scripts allow-same-origin allow-modals"
+                      className="w-full h-[620px] border-0 bg-slate-950"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {isDirectSingleTaskMode && !targetGameIdFromUrl && !activeSimulationFromUrl && (
                 <StudentSingleTaskView
                   pendingSubject={pendingSubject}
                   examIdFromUrl={typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('exam') || new URLSearchParams(window.location.search).get('id') : null}
