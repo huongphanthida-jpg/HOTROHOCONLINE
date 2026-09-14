@@ -211,7 +211,7 @@ export const CreateExamFromSourceModal: React.FC<CreateExamFromSourceModalProps>
   const [generationStepText, setGenerationStepText] = useState('');
   const [generatedQuestions, setGeneratedQuestions] = useState<Question[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
-  const [previewTab, setPreviewTab] = useState<'edit' | 'render'>('edit');
+  const [previewTab, setPreviewTab] = useState<'edit' | 'render'>('render');
   const [editingQuestionIds, setEditingQuestionIds] = useState<Record<string, boolean>>({});
 
   const handleToggleEditQuestion = (id: string) => {
