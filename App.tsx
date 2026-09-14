@@ -176,7 +176,16 @@ export default function App() {
   const [isDirectSingleTaskMode, setIsDirectSingleTaskMode] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      return Boolean(params.get('exam') || params.get('game'));
+      const path = window.location.pathname;
+      return Boolean(
+        params.get('exam') ||
+        params.get('game') ||
+        params.get('gameId') ||
+        params.get('play') ||
+        params.get('gameData') ||
+        path.startsWith('/play') ||
+        path.startsWith('/game')
+      );
     }
     return false;
   });
@@ -369,7 +378,7 @@ export default function App() {
     setIsStudentModalOpen(true);
   };
 
-  // Check URL parameters on mount / app load or when URL query parameters change (?exam=id or ?game=id or ?role=student)
+  // Check URL parameters on mount / app load or when URL query parameters change (?exam=id or ?gameId=id or ?play=id or ?role=student)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const currentSearch = window.location.search;
@@ -381,10 +390,34 @@ export default function App() {
 
     try {
       const params = new URLSearchParams(currentSearch);
+      const isPlayRoute = currentPath.startsWith('/play') || currentPath.startsWith('/game');
+
+      const directGameId = params.get('gameId') || params.get('game') || params.get('play');
+      const gameDataParam = params.get('gameData') || params.get('d') || params.get('payload') || params.get('data');
+
+      let gameParam: string | null = directGameId;
       let codeParam = params.get('code') || params.get('id') || params.get('quiz') || params.get('assignment');
 
+      if (isPlayRoute && !gameParam) {
+        gameParam = codeParam;
+        if (!gameParam && currentPath && currentPath !== '/') {
+          const pathSegments = currentPath.split('/').filter(Boolean);
+          if (pathSegments.length > 0) {
+            const lastSegment = pathSegments[pathSegments.length - 1];
+            if (lastSegment && lastSegment !== 'play' && lastSegment !== 'game' && lastSegment !== 'index.html') {
+              gameParam = decodeURIComponent(lastSegment);
+            }
+          }
+        }
+      }
+
+      if (codeParam && codeParam.startsWith('game-') && !gameParam) {
+        gameParam = codeParam;
+        codeParam = null;
+      }
+
       // Support path-based IDs like /quiz/sub-custom-123 or /assignment/sub-custom-123
-      if (!codeParam && currentPath && currentPath !== '/') {
+      if (!codeParam && !isPlayRoute && currentPath && currentPath !== '/') {
         const pathSegments = currentPath.split('/').filter(Boolean);
         if (pathSegments.length > 0) {
           const lastSegment = pathSegments[pathSegments.length - 1];
@@ -400,17 +433,16 @@ export default function App() {
         }
       }
 
-      const examParam = params.get('exam') || codeParam;
-      const gameParam = params.get('game');
+      const examParam = isPlayRoute ? null : (params.get('exam') || codeParam);
       const roleParam = params.get('role');
-      const payloadParam = params.get('payload') || params.get('data') || params.get('quizData');
+      const payloadParam = params.get('payload') || params.get('d') || params.get('data') || params.get('quizData');
 
-      if (!examParam && !gameParam && roleParam !== 'student') return;
+      if (!examParam && !gameParam && !isPlayRoute && roleParam !== 'student') return;
 
       lastProcessedSearchRef.current = combinedUrlKey;
 
       // Automatically establish Student Role when accessing via QR Code or Direct Link
-      if (examParam || gameParam || roleParam === 'student') {
+      if (examParam || gameParam || isPlayRoute || roleParam === 'student') {
         setUserRole('student');
         localStorage.setItem('user_role', 'student');
         setAppData((prev) => ({
@@ -419,7 +451,7 @@ export default function App() {
         }));
       }
 
-      if (examParam || gameParam) {
+      if (examParam || gameParam || isPlayRoute) {
         setIsDirectSingleTaskMode(true);
         // Force purge previous active exam, results, and session cache to open the newly scanned QR task
         setActiveExam(null);
@@ -431,6 +463,45 @@ export default function App() {
         } catch {}
       }
 
+      // GAME ROUTE (/play or ?gameId=... or ?play=...)
+      if (gameParam || isPlayRoute) {
+        const targetGamePayload = gameDataParam || payloadParam;
+        if (targetGamePayload) {
+          const decodedGame = decodeGamePayload(targetGamePayload);
+          if (decodedGame) {
+            setAppData((prev) => ({
+              ...prev,
+              games: [decodedGame, ...(prev.games || []).filter((g) => g.id !== decodedGame.id)],
+            }));
+            try {
+              localStorage.setItem('shared_game_' + decodedGame.id, JSON.stringify(decodedGame));
+            } catch {}
+            if (!gameParam) gameParam = decodedGame.id;
+          }
+        }
+
+        if (gameParam) {
+          const cachedGameStr = localStorage.getItem('shared_game_' + gameParam);
+          if (cachedGameStr) {
+            try {
+              const cachedGame = JSON.parse(cachedGameStr);
+              if (cachedGame && cachedGame.id) {
+                setAppData((prev) => ({
+                  ...prev,
+                  games: [cachedGame, ...(prev.games || []).filter((g) => g.id !== cachedGame.id)],
+                }));
+              }
+            } catch {}
+          }
+          setTargetGameIdFromUrl(gameParam);
+        }
+
+        setCurrentTab('games');
+        setUrlParamsProcessed(true);
+        return;
+      }
+
+      // EXAM ROUTE (/quiz or ?id=... or ?exam=...)
       if (examParam) {
         // 1. Priority 1: Decode embedded full exam payload directly from QR code URL
         if (payloadParam) {
@@ -553,19 +624,6 @@ export default function App() {
         });
         setIsStudentModalOpen(true);
         setUrlParamsProcessed(true);
-      } else if (gameParam) {
-        setUrlParamsProcessed(true);
-        if (payloadParam) {
-          const decodedGame = decodeGamePayload(payloadParam);
-          if (decodedGame) {
-            setAppData((prev) => ({
-              ...prev,
-              games: [decodedGame, ...(prev.games || []).filter((g) => g.id !== decodedGame.id)],
-            }));
-          }
-        }
-        setCurrentTab('games');
-        setTargetGameIdFromUrl(gameParam);
       }
     } catch (e) {
       console.warn('Error parsing URL query parameters for QR code direct link:', e);
@@ -1287,15 +1345,15 @@ export default function App() {
         ) : (
           <header className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 px-4 sm:px-6 py-3 flex items-center justify-between shadow-2xs sticky top-0 z-30">
             <div className="flex items-center space-x-3">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-teal-600 to-emerald-600 text-white flex items-center justify-center font-extrabold shadow-sm">
-                🎓
+              <div className={`w-9 h-9 rounded-xl ${currentTab === 'games' ? 'bg-gradient-to-tr from-amber-500 via-teal-600 to-indigo-600' : 'bg-gradient-to-tr from-teal-600 to-emerald-600'} text-white flex items-center justify-center font-extrabold shadow-sm`}>
+                {currentTab === 'games' ? '🎮' : '🎓'}
               </div>
               <div>
                 <h1 className="text-sm sm:text-base font-extrabold text-slate-800 dark:text-white leading-tight">
-                  GIAO DIỆN KHẢO THÍ HỌC SINH ĐỘC LẬP
+                  {currentTab === 'games' ? 'GIAO DIỆN TRÒ CHƠI HỌC TẬP HỌC SINH ĐỘC LẬP' : 'GIAO DIỆN KHẢO THÍ HỌC SINH ĐỘC LẬP'}
                 </h1>
                 <p className="text-[10px] font-bold text-teal-600 dark:text-teal-400 uppercase tracking-wider">
-                  Làm bài theo Mã QR & Link phân công (Cách ly tuyệt đối)
+                  {currentTab === 'games' ? 'Học qua trò chơi theo Mã QR & Link (Cách ly tuyệt đối)' : 'Làm bài theo Mã QR & Link phân công (Cách ly tuyệt đối)'}
                 </p>
               </div>
             </div>
