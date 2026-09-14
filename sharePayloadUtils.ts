@@ -358,7 +358,6 @@ export function generateFallbackQuestionsBySubject(subject: Partial<Subject>): Q
     ];
   }
 
-  // Default / Generic fallback based on actual subject name
   return [
     {
       id: `q-${subId}-1`,
@@ -411,7 +410,6 @@ export function generateFallbackQuestionsBySubject(subject: Partial<Subject>): Q
   ];
 }
 
-// LZString compression for URL params and QR codes (100% loss-free, high efficiency compression)
 const LZString = {
   keyStrUriSafe: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$",
 
@@ -872,7 +870,6 @@ export function decodeExamPayload(payloadStr: string): { subject: Subject; quest
           const lzRaw = LZString.decompressFromEncodedURIComponent(payloadStr);
           if (lzRaw) data = JSON.parse(lzRaw);
         } catch {
-          // Attempt repair
           const lastObjEnd = jsonStr.lastIndexOf('}');
           if (lastObjEnd > 0) {
             const repairedJson = jsonStr.substring(0, lastObjEnd + 1) + ']}';
@@ -882,9 +879,7 @@ export function decodeExamPayload(payloadStr: string): { subject: Subject; quest
               const repairedArray = jsonStr.substring(0, lastObjEnd + 1) + ']';
               try {
                 data = JSON.parse(repairedArray);
-              } catch {
-                // Repair failed
-              }
+              } catch {}
             }
           }
         }
