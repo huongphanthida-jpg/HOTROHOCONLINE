@@ -212,6 +212,7 @@ export const CreateExamFromSourceModal: React.FC<CreateExamFromSourceModalProps>
   const [generatedQuestions, setGeneratedQuestions] = useState<Question[]>([]);
   const [errorMsg, setErrorMsg] = useState('');
   const [previewTab, setPreviewTab] = useState<'edit' | 'render'>('render');
+  const [isEditingMode, setIsEditingMode] = useState<boolean>(false);
   const [editingQuestionIds, setEditingQuestionIds] = useState<Record<string, boolean>>({});
 
   const handleToggleEditQuestion = (id: string) => {
@@ -1656,6 +1657,20 @@ export const CreateExamFromSourceModal: React.FC<CreateExamFromSourceModalProps>
                 <div className="flex items-center space-x-2 self-end sm:self-auto">
                   <button
                     type="button"
+                    onClick={() => setIsEditingMode((prev) => !prev)}
+                    className={`px-3 py-1.5 rounded-xl border text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+                      isEditingMode
+                        ? 'bg-amber-500 text-white border-amber-600 shadow-2xs font-bold'
+                        : 'bg-white dark:bg-slate-800 border-teal-300 dark:border-teal-700 text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-950/40'
+                    }`}
+                    title="Bật/Tắt chế độ chỉnh sửa trực tiếp tất cả câu hỏi trong đề thi"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    <span>{isEditingMode ? 'Đang sửa (Bật)' : 'Sửa nội dung (Beta)'}</span>
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => setStep('input')}
                     className="px-3 py-1.5 rounded-xl border border-teal-300 dark:border-teal-700 text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900/40 text-xs font-semibold flex items-center space-x-1 transition-colors"
                   >
@@ -1672,7 +1687,7 @@ export const CreateExamFromSourceModal: React.FC<CreateExamFromSourceModalProps>
                     type="button"
                     onClick={() => setPreviewTab('edit')}
                     className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 ${
-                      previewTab === 'edit'
+                      previewTab === 'edit' || isEditingMode
                         ? 'bg-white dark:bg-slate-700 text-teal-700 dark:text-teal-300 shadow-xs border border-slate-200 dark:border-slate-600'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
@@ -1682,9 +1697,12 @@ export const CreateExamFromSourceModal: React.FC<CreateExamFromSourceModalProps>
                   </button>
                   <button
                     type="button"
-                    onClick={() => setPreviewTab('render')}
+                    onClick={() => {
+                      setPreviewTab('render');
+                      setIsEditingMode(false);
+                    }}
                     className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 ${
-                      previewTab === 'render'
+                      previewTab === 'render' && !isEditingMode
                         ? 'bg-white dark:bg-slate-700 text-purple-700 dark:text-purple-300 shadow-xs border border-slate-200 dark:border-slate-600'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
                     }`}
@@ -1701,7 +1719,7 @@ export const CreateExamFromSourceModal: React.FC<CreateExamFromSourceModalProps>
               </div>
 
               {/* Formula Guidance Tip Box */}
-              {previewTab === 'edit' && (
+              {(previewTab === 'edit' || isEditingMode) && (
                 <div className="px-3.5 py-2 rounded-xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200/60 dark:border-purple-800/60 text-[11px] text-purple-900 dark:text-purple-200 flex items-start space-x-2">
                   <Sparkles className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
                   <div>
@@ -1718,7 +1736,7 @@ export const CreateExamFromSourceModal: React.FC<CreateExamFromSourceModalProps>
               {/* Questions List */}
               <div className="space-y-3.5 max-h-96 overflow-y-auto pr-1">
                 {generatedQuestions.map((q, idx) => {
-                  const isCardEditing = previewTab === 'edit' || !!editingQuestionIds[q.id];
+                  const isCardEditing = isEditingMode || previewTab === 'edit' || !!editingQuestionIds[q.id];
 
                   return (
                     <div
