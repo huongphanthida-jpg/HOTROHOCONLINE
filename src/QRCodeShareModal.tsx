@@ -82,16 +82,19 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
     return saved;
   });
 
-  // Calculate actual base origin to use (defaults to live domain window.location.origin)
+  // Calculate actual base origin to use (defaults to live Vercel domain if on localhost)
   const resolvedBaseUrl = useMemo(() => {
     if (typeof window !== 'undefined') {
-      const liveUrl = `${window.location.origin}${window.location.pathname}`.replace(/\/+$/, '');
       if (customBaseUrl && customBaseUrl.trim() && !customBaseUrl.includes('ais-pre-')) {
         return customBaseUrl.trim().replace(/\/+$/, '');
       }
+      const liveUrl = `${window.location.origin}${window.location.pathname}`.replace(/\/+$/, '');
+      if (liveUrl.includes('localhost') || liveUrl.includes('127.0.0.1')) {
+        return 'https://hotrohoconline.vercel.app';
+      }
       return liveUrl;
     }
-    return '';
+    return 'https://hotrohoconline.vercel.app';
   }, [customBaseUrl]);
 
   const [useCompactZaloUrl, setUseCompactZaloUrl] = useState<boolean>(false);
