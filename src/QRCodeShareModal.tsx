@@ -99,27 +99,35 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
 
   const [useCompactZaloUrl, setUseCompactZaloUrl] = useState<boolean>(false);
 
-  // Full URL embedding entire question set from AI
+  // Full URL embedding entire payload from AI
   const fullPayloadUrl = useMemo(() => {
     const ts = Date.now();
-    let url = `${resolvedBaseUrl}/quiz?id=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`;
     if (type === 'exam' && subject) {
       const payload = encodeExamPayload(subject, questions || []);
+      let url = `${resolvedBaseUrl}/quiz?id=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`;
       if (payload) {
         url += `&payload=${payload}`;
       }
+      return url;
     } else if (type === 'game' && game) {
       const payload = encodeGamePayload(game);
+      let url = `${resolvedBaseUrl}/play?gameId=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`;
       if (payload) {
-        url += `&payload=${payload}`;
+        url += `&gameData=${payload}&payload=${payload}`;
       }
+      return url;
     }
-    return url;
+    return type === 'game'
+      ? `${resolvedBaseUrl}/play?gameId=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`
+      : `${resolvedBaseUrl}/quiz?id=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`;
   }, [resolvedBaseUrl, type, targetId, subject, questions, game]);
 
   // Clean short URL for Zalo direct 1-tap browser opening
   const shortShareUrl = useMemo(() => {
     const ts = Date.now();
+    if (type === 'game') {
+      return `${resolvedBaseUrl}/play?gameId=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`;
+    }
     return `${resolvedBaseUrl}/quiz?id=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`;
   }, [resolvedBaseUrl, type, targetId]);
 
