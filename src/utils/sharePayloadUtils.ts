@@ -78,7 +78,8 @@ export function buildSlugSubjectId(stype: string, cname: string): string {
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/[^a-zA-Z0-9]/g, '_');
   const normCname = (cname || '11A2').replace(/[^a-zA-Z0-9]/g, '');
-  return `sub-custom-${normStype}_${normCname}-${Date.now()}`;
+  const rand = Math.random().toString(36).substring(2, 7);
+  return `sub-custom-${normStype}_${normCname}-${Date.now()}-${rand}`;
 }
 
 export function generateFallbackQuestionsBySubject(subject: Partial<Subject>): Question[] {
