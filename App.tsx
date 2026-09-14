@@ -373,21 +373,41 @@ export default function App() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const currentSearch = window.location.search;
-    if (!currentSearch) return;
+    const currentPath = window.location.pathname;
+    const combinedUrlKey = `${currentPath}${currentSearch}`;
 
-    if (lastProcessedSearchRef.current === currentSearch && urlParamsProcessed) return;
+    if (!currentSearch && (currentPath === '/' || currentPath === '')) return;
+    if (lastProcessedSearchRef.current === combinedUrlKey && urlParamsProcessed) return;
 
     try {
       const params = new URLSearchParams(currentSearch);
-      const codeParam = params.get('code') || params.get('id');
+      let codeParam = params.get('code') || params.get('id') || params.get('quiz') || params.get('assignment');
+
+      // Support path-based IDs like /quiz/sub-custom-123 or /assignment/sub-custom-123
+      if (!codeParam && currentPath && currentPath !== '/') {
+        const pathSegments = currentPath.split('/').filter(Boolean);
+        if (pathSegments.length > 0) {
+          const lastSegment = pathSegments[pathSegments.length - 1];
+          if (
+            lastSegment &&
+            lastSegment !== 'index.html' &&
+            lastSegment !== 'quiz' &&
+            lastSegment !== 'assignment' &&
+            lastSegment !== 'exam'
+          ) {
+            codeParam = decodeURIComponent(lastSegment);
+          }
+        }
+      }
+
       const examParam = params.get('exam') || codeParam;
       const gameParam = params.get('game');
       const roleParam = params.get('role');
-      const payloadParam = params.get('payload');
+      const payloadParam = params.get('payload') || params.get('data') || params.get('quizData');
 
       if (!examParam && !gameParam && roleParam !== 'student') return;
 
-      lastProcessedSearchRef.current = currentSearch;
+      lastProcessedSearchRef.current = combinedUrlKey;
 
       // Automatically establish Student Role when accessing via QR Code or Direct Link
       if (examParam || gameParam || roleParam === 'student') {
