@@ -685,9 +685,16 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
                     e.stopPropagation();
                     setQrSubject(sub);
 
-                    let matched = questions.filter(
-                      (q) => q.subjectId === sub.id || (q.subjectId && q.subjectId.toLowerCase() === sub.id.toLowerCase())
-                    );
+                    let matched: Question[] = [];
+                    if (sub.generatedQuestions && sub.generatedQuestions.length > 0) {
+                      matched = sub.generatedQuestions;
+                    } else if ((sub as any).questions && (sub as any).questions.length > 0) {
+                      matched = (sub as any).questions;
+                    } else {
+                      matched = questions.filter(
+                        (q) => q.subjectId === sub.id || (q.subjectId && q.subjectId.toLowerCase() === sub.id.toLowerCase())
+                      );
+                    }
 
                     if (matched.length === 0 && documents && documents.length > 0) {
                       const docMatch = documents.find(
@@ -699,10 +706,6 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
                       if (docMatch && docMatch.generatedQuestions && docMatch.generatedQuestions.length > 0) {
                         matched = docMatch.generatedQuestions;
                       }
-                    }
-
-                    if (matched.length === 0 && (sub as any).generatedQuestions && (sub as any).generatedQuestions.length > 0) {
-                      matched = (sub as any).generatedQuestions;
                     }
 
                     if (matched.length === 0) {

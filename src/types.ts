@@ -199,7 +199,7 @@ export interface AISimulationItem {
   subject: string; // 'Vật Lý' | 'Toán Học' | 'Hóa Học'
   description?: string;
   code: string; // Clean interactive HTML5 / p5.js / Canvas code
-  createdAt: string;
+  createdAt?: string;
   sourceDocTitle?: string;
 }
 
