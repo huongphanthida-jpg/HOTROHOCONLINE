@@ -421,9 +421,14 @@ export default function App() {
 
       if (examParam || gameParam) {
         setIsDirectSingleTaskMode(true);
-        // Reset previous active exam and results to force opening the newly scanned QR task
+        // Force purge previous active exam, results, and session cache to open the newly scanned QR task
         setActiveExam(null);
         setActiveResult(null);
+        setPendingSubject(null);
+        try {
+          sessionStorage.removeItem('eduexam_active_exam');
+          sessionStorage.removeItem('eduexam_active_result');
+        } catch {}
       }
 
       if (examParam) {
