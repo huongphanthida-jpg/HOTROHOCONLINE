@@ -2,11 +2,12 @@ import React, { useState } from 'react';
 import { AppSettings, AppData, SessionRecord } from '../types';
 import { X, Key, Eye, EyeOff, Sparkles, Database, FileSpreadsheet, Copy, Check, Volume2, VolumeX, Download, Upload, RotateCcw, AlertCircle, Info, CloudUpload, CloudDownload, RefreshCw } from 'lucide-react';
 import { AVAILABLE_MODELS } from '../services/aiService';
-import * as sheetSyncService from '../services/sheetSyncService';
 import { 
   APPS_SCRIPT_SAMPLE_CODE, 
   syncSessionToGoogleSheets, 
-  validateAppsScriptUrl
+  validateAppsScriptUrl,
+  pushFullAppDataToGoogleSheets,
+  pullFullAppDataFromGoogleSheets
 } from '../services/sheetSyncService';
 import { soundEffects } from '../utils/soundEffects';
 
@@ -57,48 +58,36 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handlePushAppDataCloud = async () => {
     setCloudSyncStatus('syncing');
     setCloudSyncMsg('Đang tải toàn bộ môn học, đề thi, tài liệu & trò chơi lên Google Sheets...');
-    const pushFn = (sheetSyncService as any).pushFullAppDataToGoogleSheets;
-    if (typeof pushFn !== 'function') {
-      setCloudSyncStatus('error');
-      setCloudSyncMsg('Chưa bổ sung hàm pushFullAppDataToGoogleSheets trong sheetSyncService.');
-      return;
-    }
-    const res = await pushFn(appData, scriptUrl.trim());
-    if (res.success) {
+    const result = await pushFullAppDataToGoogleSheets(appData, scriptUrl.trim());
+    if (result.success) {
       setCloudSyncStatus('success');
-      setCloudSyncMsg(res.message);
+      setCloudSyncMsg(result.message);
     } else {
       setCloudSyncStatus('error');
-      setCloudSyncMsg(res.message);
+      setCloudSyncMsg(result.message);
     }
   };
 
   const handlePullAppDataCloud = async () => {
     setCloudSyncStatus('syncing');
     setCloudSyncMsg('Đang tải bản sao lưu dữ liệu mới nhất từ Google Sheets...');
-    const pullFn = (sheetSyncService as any).pullFullAppDataFromGoogleSheets;
-    if (typeof pullFn !== 'function') {
-      setCloudSyncStatus('error');
-      setCloudSyncMsg('Chưa bổ sung hàm pullFullAppDataFromGoogleSheets trong sheetSyncService.');
-      return;
-    }
-    const res = await pullFn(scriptUrl.trim());
-    if (res.success && res.data) {
+    const result = await pullFullAppDataFromGoogleSheets(scriptUrl.trim());
+    if (result.success && result.data) {
       const merged: AppData = {
         ...appData,
-        ...res.data,
-        subjects: res.data.subjects || appData.subjects,
-        questions: res.data.questions || appData.questions,
-        documents: res.data.documents || appData.documents,
-        games: res.data.games || appData.games,
-        onlineClasses: res.data.onlineClasses || appData.onlineClasses,
+        ...result.data,
+        subjects: result.data.subjects || appData.subjects,
+        questions: result.data.questions || appData.questions,
+        documents: result.data.documents || appData.documents,
+        games: result.data.games || appData.games,
+        onlineClasses: result.data.onlineClasses || appData.onlineClasses,
       };
       onImportData(merged);
       setCloudSyncStatus('success');
-      setCloudSyncMsg('Đã khôi phục và đồng bộ dữ liệu mới nhất từ Google Sheets thành công!');
+      setCloudSyncMsg(result.message || 'Đã khôi phục và đồng bộ dữ liệu mới nhất từ Google Sheets thành công!');
     } else {
       setCloudSyncStatus('error');
-      setCloudSyncMsg(res.message);
+      setCloudSyncMsg(result.message);
     }
   };
 
