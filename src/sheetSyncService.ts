@@ -487,9 +487,6 @@ export async function syncGameResultToGoogleSheets(
   }
 }
 
-/**
- * Tải danh sách Lớp học Trực tuyến từ Google Sheets
- */
 export async function fetchOnlineClassesFromGoogleSheets(
   customUrl?: string
 ): Promise<{ success: boolean; classes?: OnlineClass[]; message: string }> {
@@ -542,7 +539,6 @@ export async function fetchOnlineClassesFromGoogleSheets(
           classes = json;
         }
       } catch {
-        // Parse CSV format if published CSV URL
         classes = parseCsvToClasses(text);
       }
 
@@ -615,4 +611,3 @@ function parseCsvToClasses(csvText: string): OnlineClass[] {
 
   return classes;
 }
-
