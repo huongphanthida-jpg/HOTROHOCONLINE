@@ -314,7 +314,7 @@ export const ExamView: React.FC<ExamViewProps> = ({
             </div>
 
             {/* Question Content */}
-            <div className="text-base sm:text-lg font-medium text-slate-800 dark:text-slate-100 leading-relaxed mb-6">
+            <div className="text-base sm:text-lg font-medium text-slate-800 dark:text-slate-100 leading-relaxed mb-6 whitespace-pre-wrap break-words overflow-wrap-anywhere h-auto min-h-min">
               {currentQ.content}
             </div>
 
@@ -330,28 +330,28 @@ export const ExamView: React.FC<ExamViewProps> = ({
                   <button
                     type="button"
                     onClick={() => handleSelectOption(0)}
-                    className={`p-5 rounded-2xl border-2 font-bold text-base flex flex-col sm:flex-row items-center justify-center space-y-1 sm:space-y-0 sm:space-x-3 transition-all ${
+                    className={`p-5 rounded-2xl border-2 font-bold text-base flex flex-col sm:flex-row items-center justify-center space-y-1 sm:space-y-0 sm:space-x-3 transition-all h-auto min-h-min ${
                       answers[currentQ.id] === 0
                         ? 'bg-emerald-600 text-white border-emerald-600 shadow-md ring-2 ring-emerald-500/20 scale-[1.02]'
                         : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-emerald-400 hover:bg-emerald-50/40 dark:hover:bg-emerald-950/20'
                     }`}
                     id={`opt-${currentIndex}-true`}
                   >
-                    <CheckCircle className="w-6 h-6 text-emerald-400" />
+                    <CheckCircle className="w-6 h-6 text-emerald-400 shrink-0" />
                     <span>Mệnh đề ĐÚNG</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => handleSelectOption(1)}
-                    className={`p-5 rounded-2xl border-2 font-bold text-base flex flex-col sm:flex-row items-center justify-center space-y-1 sm:space-y-0 sm:space-x-3 transition-all ${
+                    className={`p-5 rounded-2xl border-2 font-bold text-base flex flex-col sm:flex-row items-center justify-center space-y-1 sm:space-y-0 sm:space-x-3 transition-all h-auto min-h-min ${
                       answers[currentQ.id] === 1
                         ? 'bg-rose-600 text-white border-rose-600 shadow-md ring-2 ring-rose-500/20 scale-[1.02]'
                         : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:border-rose-400 hover:bg-rose-50/40 dark:hover:bg-rose-950/20'
                     }`}
                     id={`opt-${currentIndex}-false`}
                   >
-                    <AlertTriangle className="w-6 h-6 text-rose-400" />
+                    <AlertTriangle className="w-6 h-6 text-rose-400 shrink-0" />
                     <span>Mệnh đề SAI</span>
                   </button>
                 </div>
@@ -364,7 +364,7 @@ export const ExamView: React.FC<ExamViewProps> = ({
                     <span>Dạng câu hỏi: Trả lời ngắn (Chuẩn Bộ GD&ĐT 2025-2026)</span>
                   </span>
                   <span className="text-[11px] font-normal text-slate-500 dark:text-slate-400">
-                    Thí sinh tự tính toán & điền đáp số
+                    Thí sinh tự tính toán &amp; điền đáp số
                   </span>
                 </div>
 
@@ -417,7 +417,7 @@ export const ExamView: React.FC<ExamViewProps> = ({
                 <div className="flex items-center justify-between text-xs font-semibold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 p-2.5 rounded-xl border border-purple-200 dark:border-purple-800">
                   <span className="flex items-center space-x-1.5">
                     <FileText className="w-4 h-4" />
-                    <span>Dạng câu hỏi: Tự luận & Barem điểm</span>
+                    <span>Dạng câu hỏi: Tự luận &amp; Barem điểm</span>
                   </span>
                   <span className="text-[11px] font-normal text-slate-500 dark:text-slate-400">
                     Hệ thống sẽ đối chiếu với barem mẫu sau khi nộp
@@ -453,7 +453,7 @@ export const ExamView: React.FC<ExamViewProps> = ({
                     <button
                       key={optIdx}
                       onClick={() => handleSelectOption(optIdx)}
-                      className={`w-full text-left p-4 rounded-xl border transition-all flex items-center space-x-3.5 group ${
+                      className={`w-full text-left p-4 rounded-xl border transition-all flex items-start space-x-3.5 group h-auto min-h-min ${
                         isSelected
                           ? 'bg-teal-50/80 dark:bg-teal-950/40 border-teal-500 text-teal-900 dark:text-teal-200 ring-2 ring-teal-500/20 shadow-xs'
                           : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-teal-300 dark:hover:border-teal-700 hover:bg-slate-50 dark:hover:bg-slate-700/50'
@@ -461,7 +461,7 @@ export const ExamView: React.FC<ExamViewProps> = ({
                       id={`opt-${currentIndex}-${optIdx}`}
                     >
                       <div
-                        className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 transition-colors ${
+                        className={`w-7 h-7 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 transition-colors mt-0.5 ${
                           isSelected
                             ? 'bg-teal-600 text-white'
                             : 'bg-slate-100 dark:bg-slate-700 text-slate-500 group-hover:bg-teal-100 dark:group-hover:bg-teal-900/40 group-hover:text-teal-700'
@@ -469,7 +469,7 @@ export const ExamView: React.FC<ExamViewProps> = ({
                       >
                         {optionLetter}
                       </div>
-                      <span className="text-sm sm:text-base font-normal flex-1 leading-snug">
+                      <span className="text-sm sm:text-base font-normal flex-1 leading-relaxed break-words whitespace-pre-wrap overflow-wrap-anywhere">
                         {opt.replace(/^[A-D]\.\s*/, '')}
                       </span>
                     </button>
