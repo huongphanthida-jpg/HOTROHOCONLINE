@@ -88,58 +88,6 @@ export function generateFallbackQuestionsBySubject(subject: Partial<Subject>): Q
   const cname = extractClassName(subject);
   const subName = subject.name || `${stype} lớp ${cname} - Đề kiểm tra định kỳ`;
 
-  return [
-    {
-      id: `q-${subId}-1`,
-      subjectId: subId,
-      content: `Câu 1 (${subName}): Khái niệm trọng tâm nào sau đây mô tả chính xác nhất nội dung bài học môn ${stype} (Lớp ${cname})?`,
-      type: 'multiple_choice' as const,
-      options: [
-        `Khái niệm chuẩn xác theo nội dung trọng tâm bài học môn ${stype}`,
-        'Định nghĩa chưa phản ánh đúng bản chất hiện tượng',
-        'Khái niệm chỉ áp dụng cho trường hợp đặc biệt',
-        'Định nghĩa bị thiếu điều kiện tiên quyết',
-      ],
-      correctAnswer: 0,
-      explanation: `Dựa vào tài liệu bài học môn ${subName}, phương án A là chính xác nhất.`,
-      difficulty: 'easy' as const,
-      topic: subName,
-    },
-    {
-      id: `q-${subId}-2`,
-      subjectId: subId,
-      content: `Câu 2 (${subName}): Trong quá trình giải quyết bài tập môn ${stype}, bước nào sau đây cần thực hiện đầu tiên?`,
-      type: 'multiple_choice' as const,
-      options: [
-        'Đọc kỹ đề bài, xác định giả thiết và dữ kiện đã cho',
-        'Tiến hành tính toán ngay không cần phân tích dữ liệu',
-        'Lựa chọn ngẫu nhiên một công thức chưa kiểm chứng',
-        'Bỏ qua các điều kiện giới hạn của bài toán',
-      ],
-      correctAnswer: 0,
-      explanation: 'Phân tích dữ kiện đề bài luôn là bước quan trọng nhất.',
-      difficulty: 'easy' as const,
-      topic: subName,
-    },
-    {
-      id: `q-${subId}-3`,
-      subjectId: subId,
-      content: `Câu 3 (${subName}): Phương pháp hiệu quả để ghi nhớ bền vững kiến thức môn ${stype} là:`,
-      type: 'multiple_choice' as const,
-      options: [
-        'Sử dụng sơ đồ tư duy kết hợp luyện tập bài tập định kỳ',
-        'Chỉ đọc qua lý thuyết một lần trước kỳ thi',
-        'Học thuộc vẹt không liên hệ ví dụ thực tế',
-        'Không ghi chép trong quá trình nghe giảng',
-      ],
-      correctAnswer: 0,
-      explanation: 'Luyện tập định kỳ và sơ đồ tư duy giúp ghi nhớ kiến thức hiệu quả nhất.',
-      difficulty: 'easy' as const,
-      topic: subName,
-    },
-  ];
-}
-
   if (stype === 'Vật lý') {
     return [
       {
@@ -335,70 +283,53 @@ export function generateFallbackQuestionsBySubject(subject: Partial<Subject>): Q
     ];
   }
 
-  // Default / Toán học
+  // Default / Generic fallback based on actual subject name
   return [
     {
       id: `q-${subId}-1`,
       subjectId: subId,
-      content: `Câu 1 (${subName}): Cho hai véctơ u và v cùng phương. Phát biểu nào sau đây là chính xác nhất?`,
+      content: `Câu 1 (${subName}): Khái niệm trọng tâm nào sau đây mô tả chính xác nhất nội dung bài học môn ${stype} (Lớp ${cname})?`,
       type: 'multiple_choice' as const,
       options: [
-        'Hai véctơ có giá song song hoặc trùng nhau',
-        'Hai véctơ có cùng độ dài và cùng hướng',
-        'Hai véctơ luôn có điểm đầu trùng nhau',
-        'Hai véctơ vuông góc với nhau tại gốc O',
+        `Khái niệm chuẩn xác theo nội dung trọng tâm bài học môn ${stype}`,
+        'Định nghĩa chưa phản ánh đúng bản chất hiện tượng',
+        'Khái niệm chỉ áp dụng cho trường hợp đặc biệt',
+        'Định nghĩa bị thiếu điều kiện tiên quyết',
       ],
       correctAnswer: 0,
-      explanation: 'Theo chuẩn SGK, hai véctơ cùng phương khi và chỉ khi giá của chúng song song hoặc trùng nhau.',
+      explanation: `Dựa vào tài liệu bài học môn ${subName}, phương án A là chính xác nhất.`,
       difficulty: 'easy' as const,
       topic: subName,
     },
     {
       id: `q-${subId}-2`,
       subjectId: subId,
-      content: `Câu 2 (${subName}): Quy tắc 3 điểm đối với tổng hai véctơ AB và BC được phát biểu như thế nào?`,
+      content: `Câu 2 (${subName}): Trong quá trình giải quyết bài tập môn ${stype}, bước nào sau đây cần thực hiện đầu tiên?`,
       type: 'multiple_choice' as const,
-      options: ['AB + BC = AC', 'AB + BC = BA', 'AB - BC = AC', 'AB + AC = BC'],
+      options: [
+        'Đọc kỹ đề bài, xác định giả thiết và dữ kiện đã cho',
+        'Tiến hành tính toán ngay không cần phân tích dữ liệu',
+        'Lựa chọn ngẫu nhiên một công thức chưa kiểm chứng',
+        'Bỏ qua các điều kiện giới hạn của bài toán',
+      ],
       correctAnswer: 0,
-      explanation: 'Quy tắc 3 điểm: AB + BC = AC.',
+      explanation: 'Phân tích dữ kiện đề bài luôn là bước quan trọng nhất.',
       difficulty: 'easy' as const,
       topic: subName,
     },
     {
       id: `q-${subId}-3`,
       subjectId: subId,
-      content: `Câu 3 (${subName}): Tập xác định của hàm số y = 1 / x là:`,
-      type: 'multiple_choice' as const,
-      options: ['R \\ {0}', 'R', '(0; +∞)', '[0; +∞)'],
-      correctAnswer: 0,
-      explanation: 'Mẫu số x phải khác 0.',
-      difficulty: 'easy' as const,
-      topic: subName,
-    },
-    {
-      id: `q-${subId}-4`,
-      subjectId: subId,
-      content: `Câu 4 (${subName}): Nghiệm của phương trình x² - 4 = 0 là:`,
-      type: 'multiple_choice' as const,
-      options: ['x = 2 hoặc x = -2', 'x = 4', 'x = 0', 'x = 1'],
-      correctAnswer: 0,
-      explanation: 'x² = 4 => x = ±2.',
-      difficulty: 'easy' as const,
-      topic: subName,
-    },
-    {
-      id: `q-${subId}-5`,
-      subjectId: subId,
-      content: `Câu 5 (${subName}): Phương pháp rà soát và kiểm tra lại kết quả bài thi trắc nghiệm mang lại hiệu quả cao nhất là:`,
+      content: `Câu 3 (${subName}): Phương pháp hiệu quả để ghi nhớ bền vững kiến thức môn ${stype} là:`,
       type: 'multiple_choice' as const,
       options: [
-        'Đọc kỹ lại đề bài, đối chiếu giả thiết và kiểm tra lại từng bước tính toán',
-        'Chọn lại đáp án ngẫu nhiên trước khi nộp bài',
-        'Không đọc lại bài làm để tiết kiệm thời gian',
-        'Sửa đáp án theo cảm tính cá nhân',
+        'Sử dụng sơ đồ tư duy kết hợp luyện tập bài tập định kỳ',
+        'Chỉ đọc qua lý thuyết một lần trước kỳ thi',
+        'Học thuộc vẹt không liên hệ ví dụ thực tế',
+        'Không ghi chép trong quá trình nghe giảng',
       ],
       correctAnswer: 0,
-      explanation: 'Đọc kỹ đề bài và rà soát từng bước giải là phương pháp tốt nhất.',
+      explanation: 'Luyện tập định kỳ và sơ đồ tư duy giúp ghi nhớ kiến thức hiệu quả nhất.',
       difficulty: 'easy' as const,
       topic: subName,
     },
