@@ -31,7 +31,7 @@ export const StudentSingleTaskView: React.FC<StudentSingleTaskViewProps> = ({
             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
             <span>Đã Chọn Đề Kiểm Tra Định Kỳ</span>
           </span>
-          <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white leading-snug">
+          <h2 className="text-xl sm:text-2xl font-black text-slate-800 dark:text-white leading-snug break-words whitespace-pre-wrap overflow-wrap-anywhere">
             {pendingSubject.name}
           </h2>
           <p className="text-xs text-slate-500 dark:text-slate-400">
