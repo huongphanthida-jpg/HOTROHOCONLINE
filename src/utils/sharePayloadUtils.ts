@@ -86,153 +86,59 @@ export function generateFallbackQuestionsBySubject(subject: Partial<Subject>): Q
   const subId = subject.id || `sub-gen-${Date.now()}`;
   const stype = detectSubjectType(subject);
   const cname = extractClassName(subject);
-  const grade = extractGrade(subject);
   const subName = subject.name || `${stype} lớp ${cname} - Đề kiểm tra định kỳ`;
 
-  if (stype === 'Hóa học') {
-    if (grade === '10') {
-      return [
-        {
-          id: `q-${subId}-1`,
-          subjectId: subId,
-          content: `Câu 1 (Hóa học ${cname}): Trong nguyên tử, hạt mang điện tích dương nằm ở hạt nhân là:`,
-          type: 'multiple_choice' as const,
-          options: ['Proton (p)', 'Electron (e)', 'Neutron (n)', 'Photon'],
-          correctAnswer: 0,
-          explanation: 'Hạt nhân nguyên tử gồm proton (mang điện +) và neutron (không mang điện).',
-          difficulty: 'easy' as const,
-          topic: subName,
-        },
-        {
-          id: `q-${subId}-2`,
-          subjectId: subId,
-          content: `Câu 2 (Hóa học ${cname}): Số hiệu nguyên tử (Z) của một nguyên tố hóa học cho biết:`,
-          type: 'multiple_choice' as const,
-          options: [
-            'Số proton trong hạt nhân và số electron ở vỏ nguyên tử',
-            'Số neutron trong hạt nhân',
-            'Khối lượng nguyên tử tính bằng gam',
-            'Bán kính của nguyên tử',
-          ],
-          correctAnswer: 0,
-          explanation: 'Số hiệu nguyên tử Z = số proton = số electron.',
-          difficulty: 'easy' as const,
-          topic: subName,
-        },
-        {
-          id: `q-${subId}-3`,
-          subjectId: subId,
-          content: `Câu 3 (Hóa học ${cname}): Phản ứng oxi hóa - khử là phản ứng hóa học trong đó có sự:`,
-          type: 'multiple_choice' as const,
-          options: [
-            'Chuyển dời electron giữa các chất phản ứng (thay đổi số oxi hóa)',
-            'Thay đổi màu sắc của dung dịch mà không đổi số oxi hóa',
-            'Tạo ra chất kết tủa trắng',
-            'Giải phóng khí không màu',
-          ],
-          correctAnswer: 0,
-          explanation: 'Phản ứng oxi hóa - khử có sự cho và nhận electron dẫn đến thay đổi số oxi hóa.',
-          difficulty: 'easy' as const,
-          topic: subName,
-        },
-        {
-          id: `q-${subId}-4`,
-          subjectId: subId,
-          content: `Câu 4 (Hóa học ${cname}): Liên kết cộng hóa trị là liên kết được hình thành giữa hai nguyên tử bằng:`,
-          type: 'multiple_choice' as const,
-          options: [
-            'Một hay nhiều cặp electron chung',
-            'Lực hút tĩnh điện giữa các ion trái dấu',
-            'Lực hút giữa các hạt nhân',
-            'Sự cho nhận hoàn toàn 1 electron',
-          ],
-          correctAnswer: 0,
-          explanation: 'Liên kết cộng hóa trị hình thành bằng các cặp electron chung giữa hai nguyên tử.',
-          difficulty: 'medium' as const,
-          topic: subName,
-        },
-        {
-          id: `q-${subId}-5`,
-          subjectId: subId,
-          content: `Câu 5 (Hóa học ${cname}): Quy tắc an toàn tối quan trọng trong phòng thí nghiệm Hóa học 10 là:`,
-          type: 'multiple_choice' as const,
-          options: [
-            'Luôn đeo kính bảo hộ, tuân thủ hướng dẫn và không ngửi trực tiếp hóa chất',
-            'Dùng tay cầm trực tiếp ống nghiệm đang đun nóng',
-            'Ghế ngồi gần khu vực hóa chất dễ cháy',
-            'Tự ý trộn các hóa chất lạ với nhau',
-          ],
-          correctAnswer: 0,
-          explanation: 'Luôn đeo kính bảo hộ và tuân thủ an toàn thí nghiệm Hóa học SGK.',
-          difficulty: 'easy' as const,
-          topic: subName,
-        },
-      ];
-    }
-
-    return [
-      {
-        id: `q-${subId}-1`,
-        subjectId: subId,
-        content: `Câu 1 (Hóa học ${cname}): Theo thuyết Arrhenius về axit - bazơ, chất nào sau đây khi tan trong nước phân ly ra anion OH⁻?`,
-        type: 'multiple_choice' as const,
-        options: ['Base (Bazơ)', 'Acid (Axit)', 'Muối trung hòa', 'Oxit axit'],
-        correctAnswer: 0,
-        explanation: 'Theo thuyết Arrhenius, bazơ là chất khi tan trong nước phân ly ra anion OH⁻.',
-        difficulty: 'easy' as const,
-        topic: subName,
-      },
-      {
-        id: `q-${subId}-2`,
-        subjectId: subId,
-        content: `Câu 2 (Hóa học ${cname}): Cho dung dịch HCl có nồng độ H⁺ là 10⁻² M. Giá trị pH của dung dịch này là:`,
-        type: 'multiple_choice' as const,
-        options: ['pH = 2', 'pH = 12', 'pH = 7', 'pH = 1'],
-        correctAnswer: 0,
-        explanation: 'pH = -lg[H⁺] = -lg(10⁻²) = 2.',
-        difficulty: 'easy' as const,
-        topic: subName,
-      },
-      {
-        id: `q-${subId}-3`,
-        subjectId: subId,
-        content: `Câu 3 (Hóa học ${cname}): Dung dịch chất nào sau đây làm quỳ tím chuyển sang màu đỏ?`,
-        type: 'multiple_choice' as const,
-        options: ['Dung dịch H₂SO₄', 'Dung dịch NaOH', 'Dung dịch NaCl', 'Nước cất tinh khiết'],
-        correctAnswer: 0,
-        explanation: 'Dung dịch axit H₂SO₄ có pH < 7 làm quỳ tím hóa đỏ.',
-        difficulty: 'easy' as const,
-        topic: subName,
-      },
-      {
-        id: `q-${subId}-4`,
-        subjectId: subId,
-        content: `Câu 4 (Hóa học ${cname}): Chất nào sau đây thuộc loại chất điện ly mạnh trong nước?`,
-        type: 'multiple_choice' as const,
-        options: ['Dung dịch muối ăn NaCl', 'Axit axetic CH₃COOH', 'Nước cất H₂O', 'Dung dịch đường saccharose'],
-        correctAnswer: 0,
-        explanation: 'Muối NaCl tan và phân ly hoàn toàn trong nước thành các ion Na⁺ và Cl⁻.',
-        difficulty: 'medium' as const,
-        topic: subName,
-      },
-      {
-        id: `q-${subId}-5`,
-        subjectId: subId,
-        content: `Câu 5 (Hóa học ${cname}): Quy tắc an toàn tối quan trọng khi làm thí nghiệm hóa học là:`,
-        type: 'multiple_choice' as const,
-        options: [
-          'Đeo kính bảo hộ, tuân thủ hướng dẫn và không tự ý ngửi hóa chất đậm đặc',
-          'Sử dụng lửa trực tiếp gần hóa chất dễ cháy',
-          'Đổ trực tiếp hóa chất dư vào cống rãnh',
-          'Thay đổi liều lượng hóa chất theo cảm tính',
-        ],
-        correctAnswer: 0,
-        explanation: 'Luôn tuân thủ quy tắc an toàn thí nghiệm Hóa học SGK.',
-        difficulty: 'easy' as const,
-        topic: subName,
-      },
-    ];
-  }
+  return [
+    {
+      id: `q-${subId}-1`,
+      subjectId: subId,
+      content: `Câu 1 (${subName}): Khái niệm trọng tâm nào sau đây mô tả chính xác nhất nội dung bài học môn ${stype} (Lớp ${cname})?`,
+      type: 'multiple_choice' as const,
+      options: [
+        `Khái niệm chuẩn xác theo nội dung trọng tâm bài học môn ${stype}`,
+        'Định nghĩa chưa phản ánh đúng bản chất hiện tượng',
+        'Khái niệm chỉ áp dụng cho trường hợp đặc biệt',
+        'Định nghĩa bị thiếu điều kiện tiên quyết',
+      ],
+      correctAnswer: 0,
+      explanation: `Dựa vào tài liệu bài học môn ${subName}, phương án A là chính xác nhất.`,
+      difficulty: 'easy' as const,
+      topic: subName,
+    },
+    {
+      id: `q-${subId}-2`,
+      subjectId: subId,
+      content: `Câu 2 (${subName}): Trong quá trình giải quyết bài tập môn ${stype}, bước nào sau đây cần thực hiện đầu tiên?`,
+      type: 'multiple_choice' as const,
+      options: [
+        'Đọc kỹ đề bài, xác định giả thiết và dữ kiện đã cho',
+        'Tiến hành tính toán ngay không cần phân tích dữ liệu',
+        'Lựa chọn ngẫu nhiên một công thức chưa kiểm chứng',
+        'Bỏ qua các điều kiện giới hạn của bài toán',
+      ],
+      correctAnswer: 0,
+      explanation: 'Phân tích dữ kiện đề bài luôn là bước quan trọng nhất.',
+      difficulty: 'easy' as const,
+      topic: subName,
+    },
+    {
+      id: `q-${subId}-3`,
+      subjectId: subId,
+      content: `Câu 3 (${subName}): Phương pháp hiệu quả để ghi nhớ bền vững kiến thức môn ${stype} là:`,
+      type: 'multiple_choice' as const,
+      options: [
+        'Sử dụng sơ đồ tư duy kết hợp luyện tập bài tập định kỳ',
+        'Chỉ đọc qua lý thuyết một lần trước kỳ thi',
+        'Học thuộc vẹt không liên hệ ví dụ thực tế',
+        'Không ghi chép trong quá trình nghe giảng',
+      ],
+      correctAnswer: 0,
+      explanation: 'Luyện tập định kỳ và sơ đồ tư duy giúp ghi nhớ kiến thức hiệu quả nhất.',
+      difficulty: 'easy' as const,
+      topic: subName,
+    },
+  ];
+}
 
   if (stype === 'Vật lý') {
     return [
