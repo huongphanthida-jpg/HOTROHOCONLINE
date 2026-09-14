@@ -283,7 +283,6 @@ export function generateFallbackQuestionsBySubject(subject: Partial<Subject>): Q
     ];
   }
 
-  // Default / Generic fallback based on actual subject name
   return [
     {
       id: `q-${subId}-1`,
@@ -304,71 +303,158 @@ export function generateFallbackQuestionsBySubject(subject: Partial<Subject>): Q
     {
       id: `q-${subId}-2`,
       subjectId: subId,
-      content: `Câu 2 (${subName}): Trong quá trình giải quyết bài tập môn ${stype}, bước nào sau đây cần thực hiện đầu tiên?`,
+      content: `Câu 2 (${subName}): Phương pháp giải quyết bài tập môn ${stype} tối ưu nhất khi gặp dạng toán/câu hỏi này là:`,
       type: 'multiple_choice' as const,
       options: [
-        'Đọc kỹ đề bài, xác định giả thiết và dữ kiện đã cho',
-        'Tiến hành tính toán ngay không cần phân tích dữ liệu',
-        'Lựa chọn ngẫu nhiên một công thức chưa kiểm chứng',
-        'Bỏ qua các điều kiện giới hạn của bài toán',
+        'Áp dụng công thức và lý thuyết nền tảng SGK',
+        'Lựa chọn đáp án theo cảm tính',
+        'Bỏ qua các bước lập luận định tính',
+        'Chỉ dùng phương pháp loại trừ đơn thuần',
       ],
       correctAnswer: 0,
-      explanation: 'Phân tích dữ kiện đề bài luôn là bước quan trọng nhất.',
-      difficulty: 'easy' as const,
+      explanation: 'Áp dụng lý thuyết và công thức SGK là phương pháp giải bài tập chính xác.',
+      difficulty: 'medium' as const,
       topic: subName,
     },
     {
       id: `q-${subId}-3`,
       subjectId: subId,
-      content: `Câu 3 (${subName}): Phương pháp hiệu quả để ghi nhớ bền vững kiến thức môn ${stype} là:`,
+      content: `Câu 3 (${subName}): Nhận định nào sau đây là ĐÚNG khi nói về mối liên hệ kiến thức trong bài học này?`,
       type: 'multiple_choice' as const,
       options: [
-        'Sử dụng sơ đồ tư duy kết hợp luyện tập bài tập định kỳ',
-        'Chỉ đọc qua lý thuyết một lần trước kỳ thi',
-        'Học thuộc vẹt không liên hệ ví dụ thực tế',
-        'Không ghi chép trong quá trình nghe giảng',
+        'Kiến thức bám sát chương trình Giáo dục phổ thông mới SGK 2026-2027',
+        'Nội dung không liên quan đến chương trình học',
+        'Các quy luật hoàn toàn độc lập không có mối liên hệ',
+        'Lý thuyết chỉ có tính chất tham khảo không áp dụng kiểm tra',
       ],
       correctAnswer: 0,
-      explanation: 'Luyện tập định kỳ và sơ đồ tư duy giúp ghi nhớ kiến thức hiệu quả nhất.',
-      difficulty: 'easy' as const,
+      explanation: 'Nội dung bộ đề được biên soạn chuẩn theo chương trình SGK mới 2026-2027.',
+      difficulty: 'medium' as const,
       topic: subName,
     },
   ];
 }
 
+export function encodeExamPayload(subject: Subject, questions: Question[]): string {
+  try {
+    const compactQuestions = questions.map((q) => ({
+      i: q.id,
+      c: q.content,
+      t: q.type,
+      o: q.options,
+      a: q.correctAnswer,
+      e: q.explanation,
+      d: q.difficulty,
+      p: q.points,
+      tp: q.topic,
+    }));
+
+    const payloadObj = {
+      s: {
+        i: subject.id,
+        n: subject.name,
+        ic: subject.icon,
+        cl: subject.color,
+        d: subject.description,
+        c: subject.className,
+        g: subject.grade,
+        st: subject.subjectType,
+      },
+      q: compactQuestions,
+    };
+
+    const jsonStr = JSON.stringify(payloadObj);
+
+    if (typeof window !== 'undefined' && (window as any).LZString) {
+      return (window as any).LZString.compressToEncodedURIComponent(jsonStr);
+    }
+
+    return toBase64Url(jsonStr);
+  } catch (e) {
+    console.warn('Error encoding exam payload:', e);
+    return '';
+  }
+}
+
+export function decodeExamPayload(payloadStr: string): { subject: Subject; questions: Question[] } | null {
+  try {
+    let jsonStr = '';
+
+    if (typeof window !== 'undefined' && (window as any).LZString) {
+      jsonStr = (window as any).LZString.decompressFromEncodedURIComponent(payloadStr) || '';
+    }
+
+    if (!jsonStr) {
+      jsonStr = fromBase64Url(payloadStr);
+    }
+
+    if (!jsonStr) return null;
+
+    const parsed = JSON.parse(jsonStr);
+    if (!parsed || !parsed.s || !parsed.q) return null;
+
+    const subject: Subject = {
+      id: parsed.s.i,
+      name: parsed.s.n,
+      icon: parsed.s.ic || 'BookOpen',
+      color: parsed.s.cl || 'teal',
+      description: parsed.s.d || '',
+      className: parsed.s.c || '10A1',
+      grade: parsed.s.g || '10',
+      subjectType: parsed.s.st || 'Toán học',
+      questionsCount: parsed.q.length,
+      createdAt: new Date().toISOString(),
+    };
+
+    const questions: Question[] = parsed.q.map((item: any, idx: number) => ({
+      id: item.i || `q-${subject.id}-${idx}`,
+      subjectId: subject.id,
+      content: item.c,
+      type: item.t || 'multiple_choice',
+      options: item.o || [],
+      correctAnswer: item.a !== undefined ? item.a : 0,
+      explanation: item.e || '',
+      difficulty: item.d || 'medium',
+      points: item.p || 1,
+      topic: item.tp || subject.name,
+    }));
+
+    return { subject, questions };
+  } catch (e) {
+    console.warn('Error decoding exam payload:', e);
+    return null;
+  }
+}
+
 // LZString compression for URL params and QR codes (100% loss-free, high efficiency compression)
 const LZString = {
-  keyStrUriSafe: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$",
-
+  keyStrUriSafe: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$',
   compressToEncodedURIComponent(uncompressed: string): string {
-    if (uncompressed == null) return "";
+    if (uncompressed == null) return '';
     return LZString._compress(uncompressed, 6, (a) => LZString.keyStrUriSafe.charAt(a));
   },
-
   decompressFromEncodedURIComponent(compressed: string): string {
-    if (compressed == null) return "";
-    if (compressed === "") return null as any;
-    compressed = compressed.replace(/ /g, "+");
+    if (compressed == null) return '';
+    if (compressed === '') return null;
+    compressed = compressed.replace(/ /g, '+');
     return LZString._decompress(compressed.length, 32, (index) => LZString.keyStrUriSafe.indexOf(compressed.charAt(index)));
   },
-
   _compress(uncompressed: string, bitsPerChar: number, getCharFromInt: (a: number) => string): string {
-    if (uncompressed == null) return "";
-    let i: number, value: number,
-      context_dictionary: Record<string, number> = {},
-      context_dictionaryToCreate: Record<string, boolean> = {},
-      context_c = "",
-      context_wc = "",
-      context_w = "",
-      context_enlargeIn = 2,
-      context_dictSize = 3,
-      context_numBits = 2,
-      context_data: string[] = [],
-      context_data_val = 0,
-      context_data_position = 0,
-      ii: number;
+    if (uncompressed == null) return '';
+    let i, value;
+    const context_dictionary: any = {};
+    const context_dictionaryToCreate: any = {};
+    let context_c = '';
+    let context_wc = '';
+    let context_w = '';
+    let context_enlargeIn = 2;
+    let context_dictSize = 3;
+    let context_numBits = 2;
+    let context_data: string[] = [];
+    let context_data_val = 0;
+    let context_data_position = 0;
 
-    for (ii = 0; ii < uncompressed.length; ii += 1) {
+    for (let ii = 0; ii < uncompressed.length; ii += 1) {
       context_c = uncompressed.charAt(ii);
       if (!Object.prototype.hasOwnProperty.call(context_dictionary, context_c)) {
         context_dictionary[context_c] = context_dictSize++;
@@ -382,7 +468,7 @@ const LZString = {
         if (Object.prototype.hasOwnProperty.call(context_dictionaryToCreate, context_w)) {
           if (context_w.charCodeAt(0) < 256) {
             for (i = 0; i < context_numBits; i++) {
-              context_data_val = (context_data_val << 1);
+              context_data_val = context_data_val << 1;
               if (context_data_position === bitsPerChar - 1) {
                 context_data_position = 0;
                 context_data.push(getCharFromInt(context_data_val));
@@ -405,613 +491,4 @@ const LZString = {
             }
           } else {
             value = 1;
-            for (i = 0; i < context_numBits; i++) {
-              context_data_val = (context_data_val << 1) | value;
-              if (context_data_position === bitsPerChar - 1) {
-                context_data_position = 0;
-                context_data.push(getCharFromInt(context_data_val));
-                context_data_val = 0;
-              } else {
-                context_data_position++;
-              }
-              value = 0;
-            }
-            value = context_w.charCodeAt(0);
-            for (i = 0; i < 16; i++) {
-              context_data_val = (context_data_val << 1) | (value & 1);
-              if (context_data_position === bitsPerChar - 1) {
-                context_data_position = 0;
-                context_data.push(getCharFromInt(context_data_val));
-                context_data_val = 0;
-              } else {
-                context_data_position++;
-              }
-              value = value >> 1;
-            }
-          }
-          context_enlargeIn--;
-          if (context_enlargeIn === 0) {
-            context_enlargeIn = Math.pow(2, context_numBits);
-            context_numBits++;
-          }
-          delete context_dictionaryToCreate[context_w];
-        } else {
-          value = context_dictionary[context_w];
-          for (i = 0; i < context_numBits; i++) {
-            context_data_val = (context_data_val << 1) | (value & 1);
-            if (context_data_position === bitsPerChar - 1) {
-              context_data_position = 0;
-              context_data.push(getCharFromInt(context_data_val));
-              context_data_val = 0;
-            } else {
-              context_data_position++;
-            }
-            value = value >> 1;
-          }
-        }
-        context_enlargeIn--;
-        if (context_enlargeIn === 0) {
-          context_enlargeIn = Math.pow(2, context_numBits);
-          context_numBits++;
-        }
-        context_dictionary[context_wc] = context_dictSize++;
-        context_w = String(context_c);
-      }
-    }
-
-    if (context_w !== "") {
-      if (Object.prototype.hasOwnProperty.call(context_dictionaryToCreate, context_w)) {
-        if (context_w.charCodeAt(0) < 256) {
-          for (i = 0; i < context_numBits; i++) {
-            context_data_val = (context_data_val << 1);
-            if (context_data_position === bitsPerChar - 1) {
-              context_data_position = 0;
-              context_data.push(getCharFromInt(context_data_val));
-              context_data_val = 0;
-            } else {
-              context_data_position++;
-            }
-          }
-          value = context_w.charCodeAt(0);
-          for (i = 0; i < 8; i++) {
-            context_data_val = (context_data_val << 1) | (value & 1);
-            if (context_data_position === bitsPerChar - 1) {
-              context_data_position = 0;
-              context_data.push(getCharFromInt(context_data_val));
-              context_data_val = 0;
-            } else {
-              context_data_position++;
-            }
-            value = value >> 1;
-          }
-        } else {
-          value = 1;
-          for (i = 0; i < context_numBits; i++) {
-            context_data_val = (context_data_val << 1) | value;
-            if (context_data_position === bitsPerChar - 1) {
-              context_data_position = 0;
-              context_data.push(getCharFromInt(context_data_val));
-              context_data_val = 0;
-            } else {
-              context_data_position++;
-            }
-            value = 0;
-          }
-          value = context_w.charCodeAt(0);
-          for (i = 0; i < 16; i++) {
-            context_data_val = (context_data_val << 1) | (value & 1);
-            if (context_data_position === bitsPerChar - 1) {
-              context_data_position = 0;
-              context_data.push(getCharFromInt(context_data_val));
-              context_data_val = 0;
-            } else {
-              context_data_position++;
-            }
-            value = value >> 1;
-          }
-        }
-        context_enlargeIn--;
-        if (context_enlargeIn === 0) {
-          context_enlargeIn = Math.pow(2, context_numBits);
-          context_numBits++;
-        }
-        delete context_dictionaryToCreate[context_w];
-      } else {
-        value = context_dictionary[context_w];
-        for (i = 0; i < context_numBits; i++) {
-          context_data_val = (context_data_val << 1) | (value & 1);
-          if (context_data_position === bitsPerChar - 1) {
-            context_data_position = 0;
-            context_data.push(getCharFromInt(context_data_val));
-            context_data_val = 0;
-          } else {
-            context_data_position++;
-          }
-          value = value >> 1;
-        }
-      }
-      context_enlargeIn--;
-      if (context_enlargeIn === 0) {
-        context_enlargeIn = Math.pow(2, context_numBits);
-        context_numBits++;
-      }
-    }
-
-    value = 2;
-    for (i = 0; i < context_numBits; i++) {
-      context_data_val = (context_data_val << 1) | (value & 1);
-      if (context_data_position === bitsPerChar - 1) {
-        context_data_position = 0;
-        context_data.push(getCharFromInt(context_data_val));
-        context_data_val = 0;
-      } else {
-        context_data_position++;
-      }
-      value = value >> 1;
-    }
-
-    while (true) {
-      context_data_val = (context_data_val << 1);
-      if (context_data_position === bitsPerChar - 1) {
-        context_data.push(getCharFromInt(context_data_val));
-        break;
-      } else context_data_position++;
-    }
-    return context_data.join("");
-  },
-
-  _decompress(length: number, resetValue: number, getNextValue: (index: number) => number): string {
-    let dictionary: any[] = [],
-      next: number,
-      enlargeIn = 4,
-      dictSize = 4,
-      numBits = 3,
-      entry = "",
-      result: string[] = [],
-      i: number,
-      w: string,
-      bits: number, resb: number, maxpower: number, power: number,
-      c: any,
-      data = { val: getNextValue(0), position: resetValue, index: 1 };
-
-    for (i = 0; i < 3; i += 1) {
-      dictionary[i] = i;
-    }
-
-    bits = 0;
-    maxpower = Math.pow(2, 2);
-    power = 1;
-    while (power !== maxpower) {
-      resb = data.val & data.position;
-      data.position >>= 1;
-      if (data.position === 0) {
-        data.position = resetValue;
-        data.val = getNextValue(data.index++);
-      }
-      bits |= (resb > 0 ? 1 : 0) * power;
-      power <<= 1;
-    }
-
-    switch (next = bits) {
-      case 0:
-        bits = 0;
-        maxpower = Math.pow(2, 8);
-        power = 1;
-        while (power !== maxpower) {
-          resb = data.val & data.position;
-          data.position >>= 1;
-          if (data.position === 0) {
-            data.position = resetValue;
-            data.val = getNextValue(data.index++);
-          }
-          bits |= (resb > 0 ? 1 : 0) * power;
-          power <<= 1;
-        }
-        c = String.fromCharCode(bits);
-        break;
-      case 1:
-        bits = 0;
-        maxpower = Math.pow(2, 16);
-        power = 1;
-        while (power !== maxpower) {
-          resb = data.val & data.position;
-          data.position >>= 1;
-          if (data.position === 0) {
-            data.position = resetValue;
-            data.val = getNextValue(data.index++);
-          }
-          bits |= (resb > 0 ? 1 : 0) * power;
-          power <<= 1;
-        }
-        c = String.fromCharCode(bits);
-        break;
-      case 2:
-        return "";
-    }
-    dictionary[3] = c;
-    w = c;
-    result.push(c);
-    while (true) {
-      if (data.index > length) {
-        return "";
-      }
-
-      bits = 0;
-      maxpower = Math.pow(2, numBits);
-      power = 1;
-      while (power !== maxpower) {
-        resb = data.val & data.position;
-        data.position >>= 1;
-        if (data.position === 0) {
-          data.position = resetValue;
-          data.val = getNextValue(data.index++);
-        }
-        bits |= (resb > 0 ? 1 : 0) * power;
-        power <<= 1;
-      }
-
-      switch (c = bits) {
-        case 0:
-          bits = 0;
-          maxpower = Math.pow(2, 8);
-          power = 1;
-          while (power !== maxpower) {
-            resb = data.val & data.position;
-            data.position >>= 1;
-            if (data.position === 0) {
-              data.position = resetValue;
-              data.val = getNextValue(data.index++);
-            }
-            bits |= (resb > 0 ? 1 : 0) * power;
-            power <<= 1;
-          }
-
-          dictionary[dictSize++] = String.fromCharCode(bits);
-          c = dictSize - 1;
-          enlargeIn--;
-          break;
-        case 1:
-          bits = 0;
-          maxpower = Math.pow(2, 16);
-          power = 1;
-          while (power !== maxpower) {
-            resb = data.val & data.position;
-            data.position >>= 1;
-            if (data.position === 0) {
-              data.position = resetValue;
-              data.val = getNextValue(data.index++);
-            }
-            bits |= (resb > 0 ? 1 : 0) * power;
-            power <<= 1;
-          }
-          dictionary[dictSize++] = String.fromCharCode(bits);
-          c = dictSize - 1;
-          enlargeIn--;
-          break;
-        case 2:
-          return result.join("");
-      }
-
-      if (enlargeIn === 0) {
-        enlargeIn = Math.pow(2, numBits);
-        numBits++;
-      }
-
-      if (dictionary[c]) {
-        entry = dictionary[c];
-      } else {
-        if (c === dictSize) {
-          entry = w + w.charAt(0);
-        } else {
-          return null as any;
-        }
-      }
-      result.push(entry);
-
-      dictionary[dictSize++] = w + entry.charAt(0);
-      enlargeIn--;
-
-      if (enlargeIn === 0) {
-        enlargeIn = Math.pow(2, numBits);
-        numBits++;
-      }
-
-      w = entry;
-    }
-  }
-};
-
-export function encodeExamPayload(subject: Subject, questions: Question[]): string {
-  try {
-    const listToEncode =
-      questions && questions.length > 0
-        ? questions
-        : generateFallbackQuestionsBySubject(subject);
-
-    const className = extractClassName(subject);
-    const grade = extractGrade(subject);
-    const subjectType = detectSubjectType(subject);
-
-    const minified: any = {
-      i: subject.id,
-      n: subject.name || '',
-      c: className,
-      g: grade,
-      st: subjectType,
-      q: listToEncode.map((q) => {
-        const rawContent = q.content || '';
-        const cleanContent = rawContent
-          .replace(/===\s*DANH MỤC[\s\S]*?===/gi, '')
-          .replace(/===[\s\S]*?===/g, '')
-          .replace(/\s+/g, ' ')
-          .trim();
-
-        const item: any = {
-          c: cleanContent || rawContent,
-          o: q.options ? q.options.map((opt) => String(opt).trim()) : [],
-          a: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
-        };
-
-        if (q.explanation && q.explanation.trim()) {
-          item.e = q.explanation.trim();
-        }
-        if (q.type && q.type !== 'multiple_choice') {
-          item.t = q.type;
-        }
-        if (typeof q.points === 'number') {
-          item.p = q.points;
-        }
-        return item;
-      }),
-    };
-
-    const jsonStr = JSON.stringify(minified);
-    const compressed = LZString.compressToEncodedURIComponent(jsonStr);
-    return `lz_${compressed}`;
-  } catch (e) {
-    console.warn('Error encoding exam payload:', e);
-    return '';
-  }
-}
-
-export function decodeExamPayload(payloadStr: string): { subject: Subject; questions: Question[] } | null {
-  try {
-    let jsonStr = '';
-    
-    if (payloadStr.startsWith('lz_')) {
-      const rawLz = payloadStr.slice(3);
-      jsonStr = LZString.decompressFromEncodedURIComponent(rawLz);
-    } else {
-      jsonStr = fromBase64Url(payloadStr);
-    }
-
-    let data: any = null;
-    try {
-      data = JSON.parse(jsonStr);
-    } catch {
-      try {
-        const directDecoded = decodeURIComponent(payloadStr);
-        data = JSON.parse(directDecoded);
-      } catch {
-        try {
-          const lzRaw = LZString.decompressFromEncodedURIComponent(payloadStr);
-          if (lzRaw) data = JSON.parse(lzRaw);
-        } catch {
-          // Attempt repair
-          const lastObjEnd = jsonStr.lastIndexOf('}');
-          if (lastObjEnd > 0) {
-            const repairedJson = jsonStr.substring(0, lastObjEnd + 1) + ']}';
-            try {
-              data = JSON.parse(repairedJson);
-            } catch {
-              const repairedArray = jsonStr.substring(0, lastObjEnd + 1) + ']';
-              try {
-                data = JSON.parse(repairedArray);
-              } catch {
-                // Repair failed
-              }
-            }
-          }
-        }
-      }
-    }
-
-    if (!data || !data.q || !Array.isArray(data.q) || data.q.length === 0) return null;
-
-    const subjectId = data.i || `sub-shared-${Date.now()}`;
-    const subjectName = data.n || 'Đề thi trắc nghiệm chia sẻ';
-    const questions: Question[] = data.q.map((q: any, idx: number) => ({
-      id: q.id || `q-${subjectId}-${idx + 1}`,
-      subjectId: subjectId,
-      content: q.c || `Câu hỏi ${idx + 1}`,
-      type: q.t || 'multiple_choice',
-      options: q.o && q.o.length > 0 ? q.o : ['Phương án A', 'Phương án B', 'Phương án C', 'Phương án D'],
-      correctAnswer: typeof q.a === 'number' ? q.a : 0,
-      explanation: q.e || 'Giải thích chi tiết bám sát nội dung bài học.',
-      points: q.p,
-      difficulty: 'medium' as const,
-      topic: subjectName,
-    }));
-
-    const subjectClassName = data.c || extractClassName({ name: subjectName, id: subjectId });
-    const subjectGrade = data.g || extractGrade({ name: subjectName, id: subjectId, className: subjectClassName });
-    const subjectType = data.st || detectSubjectType({ name: subjectName, id: subjectId });
-
-    const subject: Subject = {
-      id: subjectId,
-      name: subjectName,
-      description: data.d || `Đề thi trắc nghiệm chia sẻ trực tiếp (Lớp ${subjectClassName})`,
-      questionsCount: questions.length,
-      className: subjectClassName,
-      grade: subjectGrade,
-      subjectType: subjectType,
-      icon: 'fa-solid fa-file-signature',
-      color: 'from-teal-600 to-emerald-600',
-      source: 'teacher_custom',
-    };
-
-    return { subject, questions };
-  } catch (e) {
-    console.warn('Error decoding exam payload:', e);
-    return null;
-  }
-}
-
-export function encodeGamePayload(game: EducationalGame): string {
-  try {
-    const compactGame: any = {
-      i: game.id,
-      t: game.title,
-      s: game.subject,
-      tp: game.type,
-    };
-    if (game.description && game.description.trim()) {
-      compactGame.d = game.description.trim();
-    }
-    if (game.quizData && game.quizData.questions && game.quizData.questions.length > 0) {
-      compactGame.q = {
-        questions: game.quizData.questions.map((q) => {
-          const item: any = {
-            id: q.id,
-            content: (q.content || '').replace(/\s+/g, ' ').trim(),
-            options: q.options ? q.options.map((o) => String(o).trim()) : [],
-            correctAnswer: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
-          };
-          if (q.explanation && q.explanation.trim()) item.explanation = q.explanation.trim();
-          return item;
-        }),
-      };
-    }
-    if (game.dragDropData) {
-      compactGame.dd = game.dragDropData;
-    }
-    if (game.matchingData) {
-      compactGame.m = game.matchingData;
-    }
-    if (game.sourceDocTitle) {
-      compactGame.st = game.sourceDocTitle;
-    }
-
-    const jsonStr = JSON.stringify(compactGame);
-    const compressed = LZString.compressToEncodedURIComponent(jsonStr);
-    return `lz_${compressed}`;
-  } catch (e) {
-    console.warn('Error encoding game payload:', e);
-    return '';
-  }
-}
-
-export function decodeGamePayload(payloadStr: string): EducationalGame | null {
-  try {
-    let jsonStr = '';
-
-    if (payloadStr.startsWith('lz_')) {
-      const rawLz = payloadStr.slice(3);
-      jsonStr = LZString.decompressFromEncodedURIComponent(rawLz);
-    } else {
-      try {
-        jsonStr = fromBase64Url(payloadStr);
-      } catch {
-        jsonStr = decodeURIComponent(payloadStr);
-      }
-    }
-
-    let parsed: any = null;
-    try {
-      parsed = JSON.parse(jsonStr);
-    } catch {
-      try {
-        const directDecoded = decodeURIComponent(payloadStr);
-        parsed = JSON.parse(directDecoded);
-      } catch {
-        try {
-          const lzRaw = LZString.decompressFromEncodedURIComponent(payloadStr);
-          if (lzRaw) parsed = JSON.parse(lzRaw);
-        } catch {}
-      }
-    }
-
-    if (!parsed) return null;
-
-    if (parsed.id && parsed.title) {
-      return parsed as EducationalGame;
-    }
-
-    if (parsed.i && parsed.t) {
-      const game: EducationalGame = {
-        id: parsed.i,
-        title: parsed.t,
-        description: parsed.d || '',
-        subject: parsed.s || 'Tổng hợp',
-        type: parsed.tp || 'quiz',
-        quizData: parsed.q,
-        dragDropData: parsed.dd,
-        matchingData: parsed.m,
-        sourceDocTitle: parsed.st,
-        playCount: 0,
-        createdAt: new Date().toISOString(),
-      };
-      return game;
-    }
-
-    return null;
-  } catch (e) {
-    console.warn('Error decoding game payload:', e);
-    return null;
-  }
-}
-
-export function encodeSimulationPayload(sim: AISimulationItem): string {
-  try {
-    const compactSim = {
-      i: sim.id,
-      t: sim.title,
-      s: sim.subject,
-      d: sim.description || '',
-      c: sim.code,
-    };
-    const jsonStr = JSON.stringify(compactSim);
-    const compressed = LZString.compressToEncodedURIComponent(jsonStr);
-    return `lz_sim_${compressed}`;
-  } catch (e) {
-    console.warn('Error encoding simulation payload:', e);
-    return '';
-  }
-}
-
-export function decodeSimulationPayload(payloadStr: string): AISimulationItem | null {
-  try {
-    let jsonStr = '';
-    if (payloadStr.startsWith('lz_sim_')) {
-      const rawLz = payloadStr.slice(7);
-      jsonStr = LZString.decompressFromEncodedURIComponent(rawLz);
-    } else if (payloadStr.startsWith('lz_')) {
-      const rawLz = payloadStr.slice(3);
-      jsonStr = LZString.decompressFromEncodedURIComponent(rawLz);
-    } else {
-      jsonStr = LZString.decompressFromEncodedURIComponent(payloadStr) || payloadStr;
-    }
-
-    if (!jsonStr) return null;
-    const parsed = JSON.parse(jsonStr);
-
-    if (parsed.id && parsed.code) {
-      return parsed as AISimulationItem;
-    }
-
-    if (parsed.i && parsed.c) {
-      return {
-        id: parsed.i,
-        title: parsed.t || 'Mô phỏng thí nghiệm AI',
-        subject: parsed.s || 'Vật Lý',
-        description: parsed.d || '',
-        code: parsed.c,
-        createdAt: new Date().toISOString(),
-      };
-    }
-    return null;
-  } catch (e) {
-    console.warn('Error decoding simulation payload:', e);
-    return null;
-  }
-}
+            for (i = 0; i
