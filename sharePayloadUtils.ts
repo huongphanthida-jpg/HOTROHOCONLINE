@@ -82,6 +82,81 @@ export function buildSlugSubjectId(stype: string, cname: string): string {
   return `sub-custom-${normStype}_${normCname}-${Date.now()}-${rand}`;
 }
 
+export function encodeSimulationPayload(sim: AISimulationItem): string {
+  try {
+    const compactSim = {
+      i: sim.id,
+      t: sim.title,
+      s: sim.subject,
+      d: sim.description || '',
+      c: sim.code,
+    };
+    const jsonStr = JSON.stringify(compactSim);
+    if (typeof window !== 'undefined' && (window as any).LZString) {
+      return `lz_sim_${(window as any).LZString.compressToEncodedURIComponent(jsonStr)}`;
+    }
+    return `lz_sim_${btoa(unescape(encodeURIComponent(jsonStr)))}`;
+  } catch (e) {
+    console.warn('Error encoding simulation payload:', e);
+    return '';
+  }
+}
+
+export function decodeSimulationPayload(payloadStr: string): AISimulationItem | null {
+  try {
+    if (!payloadStr) return null;
+    let jsonStr = '';
+    if (payloadStr.startsWith('lz_sim_')) {
+      const rawLz = payloadStr.slice(7);
+      if (typeof window !== 'undefined' && (window as any).LZString) {
+        jsonStr = (window as any).LZString.decompressFromEncodedURIComponent(rawLz);
+      }
+      if (!jsonStr) {
+        try { jsonStr = decodeURIComponent(escape(atob(rawLz))); } catch {}
+      }
+    } else if (payloadStr.startsWith('lz_')) {
+      const rawLz = payloadStr.slice(3);
+      if (typeof window !== 'undefined' && (window as any).LZString) {
+        jsonStr = (window as any).LZString.decompressFromEncodedURIComponent(rawLz);
+      }
+      if (!jsonStr) {
+        try { jsonStr = decodeURIComponent(escape(atob(rawLz))); } catch {}
+      }
+    } else {
+      try {
+        if (typeof window !== 'undefined' && (window as any).LZString) {
+          jsonStr = (window as any).LZString.decompressFromEncodedURIComponent(payloadStr);
+        }
+        if (!jsonStr) jsonStr = decodeURIComponent(escape(atob(payloadStr)));
+      } catch {
+        jsonStr = payloadStr;
+      }
+    }
+
+    if (!jsonStr) return null;
+    const parsed = JSON.parse(jsonStr);
+
+    if (parsed.id && parsed.code) {
+      return parsed as AISimulationItem;
+    }
+
+    if (parsed.i && parsed.c) {
+      return {
+        id: parsed.i,
+        title: parsed.t || 'Mô phỏng thí nghiệm AI',
+        subject: parsed.s || 'Vật Lý',
+        description: parsed.d || '',
+        code: parsed.c,
+        createdAt: new Date().toISOString(),
+      };
+    }
+    return null;
+  } catch (e) {
+    console.warn('Error decoding simulation payload:', e);
+    return null;
+  }
+}
+
 export function generateFallbackQuestionsBySubject(subject: Partial<Subject>): Question[] {
   const subId = subject.id || `sub-gen-${Date.now()}`;
   const stype = detectSubjectType(subject);
@@ -957,61 +1032,6 @@ export function decodeGamePayload(payloadStr: string): EducationalGame | null {
     return null;
   } catch (e) {
     console.warn('Error decoding game payload:', e);
-    return null;
-  }
-}
-
-export function encodeSimulationPayload(sim: AISimulationItem): string {
-  try {
-    const compactSim = {
-      i: sim.id,
-      t: sim.title,
-      s: sim.subject,
-      d: sim.description || '',
-      c: sim.code,
-    };
-    const jsonStr = JSON.stringify(compactSim);
-    const compressed = LZString.compressToEncodedURIComponent(jsonStr);
-    return `lz_sim_${compressed}`;
-  } catch (e) {
-    console.warn('Error encoding simulation payload:', e);
-    return '';
-  }
-}
-
-export function decodeSimulationPayload(payloadStr: string): AISimulationItem | null {
-  try {
-    let jsonStr = '';
-    if (payloadStr.startsWith('lz_sim_')) {
-      const rawLz = payloadStr.slice(7);
-      jsonStr = LZString.decompressFromEncodedURIComponent(rawLz);
-    } else if (payloadStr.startsWith('lz_')) {
-      const rawLz = payloadStr.slice(3);
-      jsonStr = LZString.decompressFromEncodedURIComponent(rawLz);
-    } else {
-      jsonStr = LZString.decompressFromEncodedURIComponent(payloadStr) || payloadStr;
-    }
-
-    if (!jsonStr) return null;
-    const parsed = JSON.parse(jsonStr);
-
-    if (parsed.id && parsed.code) {
-      return parsed as AISimulationItem;
-    }
-
-    if (parsed.i && parsed.c) {
-      return {
-        id: parsed.i,
-        title: parsed.t || 'Mô phỏng thí nghiệm AI',
-        subject: parsed.s || 'Vật Lý',
-        description: parsed.d || '',
-        code: parsed.c,
-        createdAt: new Date().toISOString(),
-      };
-    }
-    return null;
-  } catch (e) {
-    console.warn('Error decoding simulation payload:', e);
     return null;
   }
 }
