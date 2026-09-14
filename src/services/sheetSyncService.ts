@@ -1,7 +1,7 @@
-import { SessionRecord, OnlineClass } from '../types';
+import { SessionRecord, OnlineClass, AppData } from '../types';
 
 export const APPS_SCRIPT_SAMPLE_CODE = `// ==========================================
-// CODE GOOGLE APPS SCRIPT ĐỒNG BỘ HỌC ONLINE
+// CODE GOOGLE APPS SCRIPT ĐỒNG BỘ HỌC ONLINE 2026-2027
 // Hướng dẫn cài đặt trong 1 phút:
 // 1. Mở Google Sheet mới hoặc hiện có của bạn
 // 2. Vào Tiện ích mở rộng (Extensions) > Apps Script
@@ -30,11 +30,38 @@ function getOrCreateSheet(ss, name, headers, tabColor) {
 
 function doGet(e) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var action = e && e.parameter && e.parameter.action;
+
+  // Lấy toàn bộ bản lưu trữ AppData từ Google Sheets
+  if (action === "getFullAppData") {
+    var syncSheet = ss.getSheetByName("DuLieuDongBoApp");
+    if (syncSheet && syncSheet.getLastRow() >= 2) {
+      var jsonStr = syncSheet.getRange(2, 1).getValue();
+      try {
+        var parsed = JSON.parse(jsonStr);
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "success",
+          appData: parsed,
+          updatedAt: syncSheet.getRange(2, 2).getValue()
+        })).setMimeType(ContentService.MimeType.JSON);
+      } catch (err) {
+        return ContentService.createTextOutput(JSON.stringify({
+          status: "error",
+          message: "Lỗi đọc dữ liệu JSON: " + err.toString()
+        })).setMimeType(ContentService.MimeType.JSON);
+      }
+    }
+    return ContentService.createTextOutput(JSON.stringify({
+      status: "error",
+      message: "Chưa có bản đồng bộ dữ liệu nào trong tab DuLieuDongBoApp."
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // Mặc định: Lấy danh sách Lớp học trực tuyến
   var sheet = getOrCreateSheet(ss, "LopHocTrucTuyen", [
     "ID", "Tên lớp", "Khối", "Môn học", "Giáo viên", "Lịch học", "Link phòng học", "Nền tảng", "Mã phòng", "Mật khẩu", "Trạng thái", "Ghi chú", "Thời gian Cập nhật"
   ], "#0d9488");
   
-  // Nếu sheet vừa tạo chưa có lớp học mẫu, tự tạo dữ liệu mẫu chuẩn
   if (sheet.getLastRow() <= 1) {
     var sampleClasses = [
       ["cls-10a1", "10A1", "10", "Toán học", "Thầy Nguyễn Văn An", "Thứ 2, 4, 6 - 08:00 - 09:30", "https://meet.google.com/abc-defg-hij", "google_meet", "abc-defg-hij", "", "live", "Ôn tập Mệnh đề & Bất phương trình bậc hai SGK 10", new Date().toISOString()],
@@ -52,7 +79,7 @@ function doGet(e) {
 
   for (var r = 1; r < data.length; r++) {
     var row = data[r];
-    if (!row[1]) continue; // Bỏ qua nếu Tên lớp rỗng
+    if (!row[1]) continue;
     classes.push({
       id: row[0] || ("cls-" + r),
       className: String(row[1]),
@@ -85,6 +112,16 @@ function doPost(e) {
   try {
     var ss = SpreadsheetApp.getActiveSpreadsheet();
     var data = JSON.parse(e.postData.contents);
+
+    // Đồng bộ toàn bộ dữ liệu App (Subjects, Documents, Games, Classes)
+    if (data.action === "syncFullAppData") {
+      var syncSheet = getOrCreateSheet(ss, "DuLieuDongBoApp", ["JSON_AppData", "Thời gian Cập nhật"], "#0d9488");
+      syncSheet.getRange("A2:B2").setValues([[JSON.stringify(data.appData), new Date().toLocaleString("vi-VN")]]);
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        message: "Đã lưu toàn bộ dữ liệu ứng dụng (Môn học, Đề thi, Tài liệu, Games, Lớp học) lên Google Sheets!"
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
 
     if (data.action === "saveClass") {
       var classSheet = getOrCreateSheet(ss, "LopHocTrucTuyen", [
@@ -184,6 +221,87 @@ export function validateAppsScriptUrl(url?: string): { isValid: boolean; message
   }
 
   return { isValid: true };
+}
+
+export async function pushFullAppDataToGoogleSheets(
+  appData: AppData,
+  customScriptUrl?: string
+): Promise<{ success: boolean; message: string }> {
+  const scriptUrl = customScriptUrl || localStorage.getItem('google_apps_script_url');
+  const validation = validateAppsScriptUrl(scriptUrl || '');
+  if (!validation.isValid) {
+    return { success: false, message: validation.message || 'URL Google Apps Script không hợp lệ.' };
+  }
+
+  const payload = {
+    action: 'syncFullAppData',
+    timestamp: new Date().toISOString(),
+    appData: {
+      subjects: appData.subjects || [],
+      questions: appData.questions || [],
+      documents: appData.documents || [],
+      games: appData.games || [],
+      onlineClasses: appData.onlineClasses || [],
+    },
+  };
+
+  const targetUrl = (scriptUrl || '').trim();
+
+  try {
+    const proxyRes = await fetch('/api/sync-google-sheets', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ scriptUrl: targetUrl, payload }),
+    });
+    if (proxyRes.ok) {
+      const data = await proxyRes.json();
+      return { success: true, message: data.result?.message || 'Đã tải toàn bộ dữ liệu ứng dụng lên Google Sheets thành công!' };
+    }
+  } catch (e) {
+    console.warn('Proxy sync failed, falling back to direct fetch', e);
+  }
+
+  try {
+    await fetch(targetUrl, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+    });
+    return { success: true, message: 'Đã phát tín hiệu đồng bộ toàn bộ dữ liệu ứng dụng tới Google Sheets thành công!' };
+  } catch (err: any) {
+    return { success: false, message: `Lỗi kết nối: ${err?.message || err}` };
+  }
+}
+
+export async function pullFullAppDataFromGoogleSheets(
+  customScriptUrl?: string
+): Promise<{ success: boolean; data?: Partial<AppData>; message: string }> {
+  const scriptUrl = customScriptUrl || localStorage.getItem('google_apps_script_url');
+  const validation = validateAppsScriptUrl(scriptUrl || '');
+  if (!validation.isValid) {
+    return { success: false, message: validation.message || 'URL Google Apps Script không hợp lệ.' };
+  }
+
+  const targetUrl = `${(scriptUrl || '').trim()}?action=getFullAppData&t=${Date.now()}`;
+
+  try {
+    const response = await fetch(targetUrl);
+    if (!response.ok) {
+      return { success: false, message: `Lỗi HTTP ${response.status} từ Google Apps Script` };
+    }
+    const json = await response.json();
+    if (json.status === 'success' && json.appData) {
+      return {
+        success: true,
+        data: json.appData,
+        message: 'Đã tải toàn bộ dữ liệu mới nhất từ Google Sheets thành công!',
+      };
+    }
+    return { success: false, message: json.message || 'Chưa tìm thấy bản sao lưu dữ liệu trên Google Sheets.' };
+  } catch (err: any) {
+    return { success: false, message: `Không thể kết nối đến Google Apps Script: ${err?.message || err}` };
+  }
 }
 
 export async function syncSessionToGoogleSheets(
@@ -497,5 +615,3 @@ function parseCsvToClasses(csvText: string): OnlineClass[] {
 
   return classes;
 }
-
-
