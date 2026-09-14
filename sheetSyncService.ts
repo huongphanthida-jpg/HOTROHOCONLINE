@@ -1,8 +1,29 @@
-import { AppData, SessionRecord } from '../types';
+import { AppData, SessionRecord, AISimulationItem } from '../types';
 
 /**
  * Service to validate Apps Script URLs and sync full application data with Google Sheets.
  */
+
+export const encodeSimulationPayload = (payload: AISimulationItem | Record<string, any>): string => {
+  try {
+    const jsonStr = JSON.stringify(payload);
+    return btoa(encodeURIComponent(jsonStr));
+  } catch (err) {
+    console.error('Failed to encode simulation payload:', err);
+    return '';
+  }
+};
+
+export const decodeSimulationPayload = (encoded: string): AISimulationItem | Record<string, any> | null => {
+  try {
+    if (!encoded) return null;
+    const jsonStr = decodeURIComponent(atob(encoded));
+    return JSON.parse(jsonStr);
+  } catch (err) {
+    console.error('Failed to decode simulation payload:', err);
+    return null;
+  }
+};
 
 export const validateAppsScriptUrl = (url: string): boolean => {
   if (!url) return false;
