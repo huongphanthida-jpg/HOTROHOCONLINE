@@ -707,6 +707,21 @@ export const FillBlankGamePlayer: React.FC<FillBlankGamePlayerProps> = ({
               >
                 Hủy
               </button>
+              <button
+                onClick={() => {
+                  if (onDeleteGame) onDeleteGame(game.id);
+                  setIsConfirmingDelete(false);
+                  onBack();
+                }}
+                className="px-4 py-2 text-xs font-bold rounded-xl bg-rose-600 text-white"
+              >
+                Xác nhận xóa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Student Info Modal when finishing fill blank game with missing info */}
       <GameStudentModal
         isOpen={showStudentInfoModal}

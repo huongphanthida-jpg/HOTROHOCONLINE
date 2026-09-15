@@ -603,6 +603,11 @@ export const QuizGamePlayer: React.FC<QuizGamePlayerProps> = ({
               >
                 Xác nhận xóa
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Student Info Modal when finishing quiz with missing info */}
       <GameStudentModal
         isOpen={showStudentInfoModal}
