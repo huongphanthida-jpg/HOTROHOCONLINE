@@ -4,7 +4,10 @@ import {
   QuizGameQuestion, 
   DragDropCategory, 
   DragDropItem, 
-  MatchingPair 
+  MatchingPair,
+  FillBlankQuestion,
+  FillBlankGameData,
+  FillBlankBlankItem
 } from '../types';
 import { buildSlugSubjectId } from '../utils/sharePayloadUtils';
 
@@ -779,6 +782,11 @@ export async function generateEducationalGameFromSources(params: GenerateGamePar
     instruction: string;
     pairs: MatchingPair[];
   };
+  fillBlankData?: {
+    instruction: string;
+    timePerQuestion: number;
+    questions: FillBlankQuestion[];
+  };
   sourceCitations?: string[];
 }> {
   const { docTitle, docContent, subjectName = 'Toán học', gameType, images = [], sourceItemsSummary = '' } = params;
@@ -789,7 +797,7 @@ export async function generateEducationalGameFromSources(params: GenerateGamePar
     : '';
 
   const systemInstruction = `Bạn là Chuyên gia Thiết kế Trò Chơi Giáo Dục (Gamification & Instructional Design) xuất sắc theo chuẩn Chương trình Giáo dục Phổ thông 2018.
-NHIỆM VỤ CỐT LÕI: Thiết kế trò chơi tương tác giáo dục ("QUIZ", "KÉO THẢ", hoặc "GHÉP CẶP") từ tài liệu học tập và các ảnh sách giáo khoa được cung cấp.
+NHIỆM VỤ CỐT LÕI: Thiết kế trò chơi tương tác giáo dục ("QUIZ", "KÉO THẢ", "GHÉP CẶP", hoặc "ĐIỀN KHUYẾT") từ tài liệu học tập và các ảnh sách giáo khoa được cung cấp.
 
 NGUYÊN TẮC BẤT DI BẤT DỊCH (ZERO-HALLUCINATION):
 1. 100% kiến thức, câu hỏi, mệnh đề, thuật ngữ, công thức, đáp án trong trò chơi PHẢI ĐƯỢC TRÍCH XUẤT TRỰC TIẾP TỪ NỘI DUNG TÀI LIỆU VÀ HÌNH ẢNH CUNG CẤP.
@@ -862,6 +870,39 @@ JSON schema:
     ]
   }
 }`;
+  } else if (gameType === 'fill_blank') {
+    typeSpecificPrompt = `
+Hãy tạo trò chơi dạng "ĐIỀN KHUYẾT" (Fill-in-the-blank - 5 đến 8 câu hỏi):
+Tạo các câu văn trích từ tài liệu chứa từ 1 đến 2 vị trí khuyết được đánh dấu bằng [blank].
+JSON schema:
+{
+  "title": "Tên trò chơi Điền Khuyết sinh động",
+  "description": "Hướng dẫn điền từ hoặc công thức vào chỗ khuyết",
+  "type": "fill_blank",
+  "sourceCitations": ["[Trích dẫn 1]", "[Trích dẫn 2]"],
+  "fillBlankData": {
+    "instruction": "Hãy điền từ hoặc công thức chính xác vào chỗ khuyết [blank]!",
+    "timePerQuestion": 20,
+    "questions": [
+      {
+        "id": "fb1",
+        "question": "Nội dung câu văn chứa vị trí khuyết [blank] trích từ tài liệu",
+        "blanks": [
+          {
+            "id": "blank_1",
+            "correctAnswer": "Từ hoặc công thức đúng",
+            "acceptableAnswers": ["Từ không dấu hoặc từ viết tắt"],
+            "hint": "Gợi ý từ khuyết"
+          }
+        ],
+        "options": ["Từ đúng", "Nhiễu từ 1", "Nhiễu từ 2", "Nhiễu từ 3"],
+        "explanation": "Lời giải thích chuẩn xác trích từ tài liệu",
+        "sourceCitation": "[Trích từ tài liệu]",
+        "points": 100
+      }
+    ]
+  }
+}`;
   } else {
     typeSpecificPrompt = `
 Hãy tạo trò chơi dạng "GHÉP CẶP" (Matching Pairs - Nối Khái niệm & Định nghĩa / Công thức & Ý nghĩa):
@@ -925,7 +966,7 @@ HÃY ĐẢM BẢO DỮ LIỆU JSON ĐẦY ĐỦ, HỢP LỆ VÀ ĐÚNG CHUẨN.`
 
     const parsed = JSON.parse(raw);
     
-    // Normalize dragDropData from various AI key namings
+    // Normalize dragDropData
     const rawDragDrop = parsed.dragDropData || parsed.drag_drop_data || parsed.dragDrop || parsed.drag_drop;
     let normalizedDragDrop = undefined;
     if (rawDragDrop && typeof rawDragDrop === 'object') {
@@ -960,7 +1001,7 @@ HÃY ĐẢM BẢO DỮ LIỆU JSON ĐẦY ĐỦ, HỢP LỆ VÀ ĐÚNG CHUẨN.`
       }
     }
 
-    // Normalize matchingData from various AI key namings
+    // Normalize matchingData
     const rawMatching = parsed.matchingData || parsed.matching_data || parsed.matching;
     let normalizedMatching = undefined;
     if (rawMatching && typeof rawMatching === 'object') {
@@ -979,7 +1020,7 @@ HÃY ĐẢM BẢO DỮ LIỆU JSON ĐẦY ĐỦ, HỢP LỆ VÀ ĐÚNG CHUẨN.`
       }
     }
 
-    // Normalize quizData from various AI key namings
+    // Normalize quizData
     const rawQuiz = parsed.quizData || parsed.quiz_data || parsed.quiz;
     let normalizedQuiz = undefined;
     if (rawQuiz && typeof rawQuiz === 'object') {
@@ -1001,6 +1042,36 @@ HÃY ĐẢM BẢO DỮ LIỆU JSON ĐẦY ĐỦ, HỢP LỆ VÀ ĐÚNG CHUẨN.`
       }
     }
 
+    // Normalize fillBlankData
+    const rawFillBlank = parsed.fillBlankData || parsed.fill_blank_data || parsed.fillBlank || parsed.fill_blank;
+    let normalizedFillBlank = undefined;
+    if (rawFillBlank && typeof rawFillBlank === 'object') {
+      const rawQuestions = Array.isArray(rawFillBlank.questions) ? rawFillBlank.questions : [];
+      const questions: FillBlankQuestion[] = rawQuestions.map((q: any, idx: number) => ({
+        id: String(q.id || `fb_q_${idx + 1}`),
+        question: String(q.question || q.content || q.text || `Câu khuyết ${idx + 1}: [blank]`),
+        blanks: Array.isArray(q.blanks) && q.blanks.length > 0
+          ? q.blanks.map((b: any, bIdx: number) => ({
+              id: String(b.id || `blank_${bIdx + 1}`),
+              correctAnswer: String(b.correctAnswer || b.answer || b.correct || 'đúng'),
+              acceptableAnswers: Array.isArray(b.acceptableAnswers) ? b.acceptableAnswers.map(String) : [],
+              hint: b.hint ? String(b.hint) : undefined,
+            }))
+          : [{ id: 'blank_1', correctAnswer: String(q.correctAnswer || q.answer || 'đúng') }],
+        options: Array.isArray(q.options) ? q.options.map(String) : [],
+        explanation: String(q.explanation || 'Lời giải đáp án điền khuyết chuẩn SGK'),
+        sourceCitation: q.sourceCitation,
+        points: typeof q.points === 'number' ? q.points : 100,
+      }));
+      if (questions.length > 0) {
+        normalizedFillBlank = {
+          instruction: rawFillBlank.instruction || 'Hãy điền từ hoặc công thức thích hợp vào chỗ khuyết [blank]!',
+          timePerQuestion: typeof rawFillBlank.timePerQuestion === 'number' ? rawFillBlank.timePerQuestion : 20,
+          questions,
+        };
+      }
+    }
+
     return {
       title: parsed.title || `Trò chơi ${gameType.toUpperCase()}: ${docTitle.slice(0, 35)}`,
       description: parsed.description || `Trò chơi học tập tương tác tạo từ tài liệu "${docTitle}"`,
@@ -1008,6 +1079,7 @@ HÃY ĐẢM BẢO DỮ LIỆU JSON ĐẦY ĐỦ, HỢP LỆ VÀ ĐÚNG CHUẨN.`
       quizData: normalizedQuiz || (gameType === 'quiz' ? createFallbackGame(docTitle, docContent, 'quiz', subjectName).quizData : undefined),
       dragDropData: normalizedDragDrop || (gameType === 'drag_drop' ? createFallbackGame(docTitle, docContent, 'drag_drop', subjectName).dragDropData : undefined),
       matchingData: normalizedMatching || (gameType === 'matching' ? createFallbackGame(docTitle, docContent, 'matching', subjectName).matchingData : undefined),
+      fillBlankData: normalizedFillBlank || (gameType === 'fill_blank' ? createFallbackGame(docTitle, docContent, 'fill_blank', subjectName).fillBlankData : undefined),
       sourceCitations: parsed.sourceCitations || ['[Trích xuất từ tài liệu cung cấp]'],
     };
   } catch (err) {
@@ -1038,9 +1110,45 @@ function createFallbackGame(
     instruction: string;
     pairs: MatchingPair[];
   };
+  fillBlankData?: {
+    instruction: string;
+    timePerQuestion: number;
+    questions: FillBlankQuestion[];
+  };
   sourceCitations?: string[];
 } {
   const cleanSnippet = docContent.replace(/[\n\r]+/g, ' ').trim().slice(0, 300);
+
+  if (gameType === 'fill_blank') {
+    return {
+      title: `Thử Thách Điền Khuyết: ${docTitle.slice(0, 30)}`,
+      description: `Điền từ hoặc công thức chính xác vào chỗ khuyết trích từ tài liệu "${docTitle}"`,
+      type: 'fill_blank',
+      sourceCitations: ['[Trích xuất từ nội dung tài liệu tải lên]'],
+      fillBlankData: {
+        instruction: 'Nhập từ thích hợp hoặc chọn từ gợi ý để hoàn thành chỗ khuyết [blank]!',
+        timePerQuestion: 20,
+        questions: [
+          {
+            id: 'fb-fallback-1',
+            question: `Kiến thức trọng tâm từ tài liệu "${docTitle.slice(0, 30)}": Khái niệm cốt lõi bắt buộc phải [blank] trước khi làm bài tập.`,
+            blanks: [
+              {
+                id: 'blank_1',
+                correctAnswer: 'nắm vững',
+                acceptableAnswers: ['nam vung', 'Nắm vững'],
+                hint: 'Hiểu rõ bản chất kiến thức',
+              },
+            ],
+            options: ['nắm vững', 'bỏ qua', 'suy đoán', 'tùy ý'],
+            explanation: 'Nắm vững kiến thức nền tảng luôn là yêu cầu quan trọng hàng đầu.',
+            sourceCitation: '[Trích tài liệu nguồn]',
+            points: 100,
+          },
+        ],
+      },
+    };
+  }
 
   if (gameType === 'quiz') {
     return {
