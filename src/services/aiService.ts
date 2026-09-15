@@ -1375,3 +1375,95 @@ Hãy đánh giá và trả về kết quả định dạng JSON thuần túy (kh
     };
   }
 }
+
+/**
+ * Phân tích đề gốc (Word / PDF / Ảnh) và tạo ra bộ đề thi mới HOÀN TOÀN TƯƠNG TỰ
+ * Giữ nguyên ma trận kiến thức, cấu trúc, tỷ lệ dạng bài và văn phong ra đề
+ */
+export async function generateSimilarExamFromSource(
+  fileData: string,
+  fileType: string,
+  options?: {
+    subjectName?: string;
+    grade?: string;
+    questionCount?: number;
+    images?: { mimeType: string; data: string }[];
+  }
+): Promise<Question[]> {
+  const subjectName = options?.subjectName || 'Môn học chuẩn SGK';
+  const grade = options?.grade || '12';
+  const targetCount = options?.questionCount || 10;
+  const images = options?.images || [];
+
+  const prompt = `Bạn là chuyên gia sư phạm và giáo viên ra đề thi quốc gia hàng đầu tại Việt Nam.
+Nhiệm vụ của bạn: Phân tích kỹ nội dung đề thi gốc được cung cấp bên dưới (bao gồm văn bản và hình ảnh nếu có), sau đó **TẠO RA MỘT ĐỀ THI MỚI HOÀN TOÀN TƯƠNG TỰ**.
+
+YÊU CẦU CHI TIẾT (MANDATORY REQUIREMENTS):
+1. PHÂN TÍCH ĐỀ GỐC:
+   - Xác định chính xác ma trận kiến thức, các chủ đề/dạng bài xuất hiện trong đề gốc.
+   - Phân bổ mức độ nhận thức tương tự đề gốc (Nhận biết, Thông hiểu, Vận dụng, Vận dụng cao).
+   - Xác định phong cách diễn đạt và văn phong ra đề của giáo viên trong đề gốc.
+
+2. TẠO ĐỀ THI TƯƠNG TỰ MỚI 100%:
+   - Tạo chính xác ${targetCount} câu hỏi thi tương tự.
+   - GIỮ NGUYÊN cấu trúc ma trận, phân bổ dạng bài và mức độ khó từ đề gốc.
+   - THAY ĐỔI TOÀN BỘ số liệu, ngữ cảnh, hình ảnh diễn đạt, đáp án để tạo ra bộ đề song song hoàn toàn mới.
+   - Đảm bảo tính chính xác khoa học, chuẩn kiến thức SGK mới.
+   - Công thức Toán/Lý/Hóa/Sinh PHẢI giữ nguyên ký hiệu LaTeX chuẩn (ví dụ: $y = x^3 - 3x + 1$, $\\int_0^1 x dx$, $H_2SO_4$).
+
+3. ĐỊNH DẠNG HỢP LỆ VÀ CÁC DẠNG CÂU HỎI HỖ TRỢ:
+   - Trắc nghiệm 4 lựa chọn (multiple_choice): "options" gồm 4 phương án ["A. ...", "B. ...", "C. ...", "D. ..."], "correctAnswer" từ 0 đến 3.
+   - Trắc nghiệm Đúng / Sai (true_false): "options": ["Đúng", "Sai"], "correctAnswer": 0 (Đúng) hoặc 1 (SAI).
+   - Trả lời ngắn (short_answer): "options": [], "expectedShortAnswer": "đáp số ngắn gọn".
+
+4. ĐỊNH DẠNG TRẢ VỀ:
+   Trả về CHỈ duy nhất 1 mảng JSON chuẩn (không kèm văn bản tự do hay markdown \`\`\`json ở bên ngoài):
+   [
+     {
+       "id": "q_sim_1",
+       "content": "Nội dung câu hỏi 1 tương tự...",
+       "type": "multiple_choice",
+       "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
+       "correctAnswer": 0,
+       "explanation": "Lời giải chi tiết...",
+       "difficulty": "medium",
+       "topic": "Chủ đề 1"
+     }
+   ]
+
+--- NỘI DUNG ĐỀ GỐC CẦN PHÂN TÍCH VÀ TẠO ĐỀ TƯƠNG TỰ ---
+${fileData.slice(0, 30000)}
+--- KẾT THÚC NỘI DUNG ĐỀ GỐC ---`;
+
+  try {
+    const { text } = await callGeminiAI({
+      prompt,
+      temperature: 0.5,
+      images: images.length > 0 ? images.map((img) => ({ mimeType: img.mimeType, data: img.data })) : undefined,
+    });
+
+    const cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+    const parsed = JSON.parse(cleaned);
+
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed.map((q: any, idx: number) => ({
+        id: q.id || `q-sim-${Date.now()}-${idx}`,
+        subjectId: '',
+        content: q.content || q.question || q.questionText || `Câu ${idx + 1}`,
+        questionText: q.content || q.question || q.questionText || `Câu ${idx + 1}`,
+        type: (q.type as any) || 'multiple_choice',
+        options: Array.isArray(q.options) && q.options.length > 0 ? q.options : ['A. Đúng', 'B. Sai'],
+        correctAnswer: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
+        expectedShortAnswer: q.expectedShortAnswer || q.sampleAnswer || '',
+        explanation: q.explanation || 'Lời giải chi tiết chuẩn SGK.',
+        difficulty: q.difficulty || 'medium',
+        topic: q.topic || subjectName,
+      }));
+    }
+  } catch (err) {
+    console.warn('generateSimilarExamFromSource AI call failed, generating safe fallback exam:', err);
+  }
+
+  // Fallback if AI call fails or output cannot be parsed
+  return generateFallbackQuestionsBySubject({ id: `sub-sim-${Date.now()}`, name: subjectName }, targetCount);
+}
