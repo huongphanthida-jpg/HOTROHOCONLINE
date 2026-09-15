@@ -32,10 +32,14 @@ export const AVAILABLE_MODELS = [
  * Chỉ thị bắt buộc bám sát 100% nguồn cung cấp (Grounding Rule - Anti-hallucination)
  */
 export const GROUNDING_RULE_DIRECTIVE = `[NGUYÊN TẮC BẮT BUỘC - TUÂN THỦ 100% NGUỒN CUNG CẤP]:
-1. BẠN CHỈ ĐƯỢC PHÉP SỬ DỤNG DUY NHẤT CÁC THÔNG TIN, DỮ LIỆU, ĐỊNH NGHĨA, ĐỊNH LÝ VÀ SỐ LIỆU XUẤT HIỆN TRONG TÀI LIỆU/HÌNH ẢNH ĐƯỢC CUNG CẤP.
-2. TUYỆT ĐỐI KHÔNG ĐƯỢC TỰ Ý SUY DIỄN, BỔ SUNG KIẾN THỨC NGOẠI LAI HAY LẤY DỮ LIỆU NGOÀI NGUỒN.
-3. NỘI DUNG CÂU HỎI VÀ TẤT CẢ CÁC ĐÁP ÁN (ĐÁP ÁN ĐÚNG LẪN ĐÁP ÁN NHIỄU) PHẢI ĐƯỢC XÂY DỰNG TRỰC TIẾP TỪ NỘI DUNG CỦA TÀI LIỆU/ẢNH GỐC.
-4. NẾU NGUỒN ĐƯA LÊN KHÔNG ĐỦ THÔNG TIN ĐỂ TẠO CÂU HỎI THEO YÊU CẦU, HÃY TẬP TRUNG KHAI THÁC CÁC CHI TIẾT CÓ SẴN TRONG NGUỒN CHỨ TUYỆT ĐỐI KHÔNG TỰ BỊA THÊM CHỦ ĐỀ KHÁC.`;
+BƯỚC 1 - ĐỌC VÀ BÓC TÁCH (OCR): Đọc toàn bộ nội dung chữ, bảng biểu, phương trình phản ứng hóa học và các thí nghiệm xuất hiện trực tiếp trong các hình ảnh được cung cấp (ví dụ: Chuyển dịch cân bằng hóa học, Ảnh hưởng của nhiệt độ/nồng độ/áp suất, Cân bằng NO2 <-> N2O4, CH3COONa, Le Chatelier, Fe, Delta H).
+
+BƯỚC 2 - TẠO BỘ CÂU HỎI TRỰC TIẾP TỪ KIẾN THỨC BÓC TÁCH ĐƯỢC:
+- Đặt câu hỏi cụ thể về các chất, hiện tượng, thí nghiệm và công thức có trong ảnh.
+- TUYỆT ĐỐI KHÔNG đặt các câu hỏi siêu hình (meta-question) như: "Xét nội dung trong tài liệu...", "Khẳng định nào đúng theo định nghĩa trên...", "Theo tài liệu đưa lên: ...".
+- Câu hỏi và 4 phương án phải chứa trực tiếp tên chất, phương trình hoặc câu kết luận khoa học (Ví dụ: "Khi ngâm ống nghiệm chứa hỗn hợp khí NO2 và N2O4 vào cốc nước đá, màu của ống nghiệm biến đổi như thế nào?").
+- Đáp án đúng và lời giải phải trích dẫn giải thích khoa học từ nội dung bài học trong ảnh.
+- TUYỆT ĐỐI KHÔNG TỰ Ý SUY DIỄN, BỔ SUNG KIẾN THỨC NGOẠI LAI HAY LẤY DỮ LIỆU NGOÀI NGUỒN.`;
 
 
 /**
@@ -110,12 +114,15 @@ export async function callGeminiAI(params: AICallParams): Promise<{ text: string
     const parts: any[] = [];
     if (params.images && params.images.length > 0) {
       for (const img of params.images) {
-        parts.push({
-          inline_data: {
-            mime_type: img.mimeType || 'image/jpeg',
-            data: img.data,
-          },
-        });
+        const cleanBase64 = (img.data || '').replace(/^data:image\/\w+;base64,/, '').trim();
+        if (cleanBase64) {
+          parts.push({
+            inline_data: {
+              mime_type: img.mimeType || 'image/jpeg',
+              data: cleanBase64,
+            },
+          });
+        }
       }
     }
     if (params.prompt) {
@@ -136,7 +143,7 @@ export async function callGeminiAI(params: AICallParams): Promise<{ text: string
             body: JSON.stringify({
               contents: contentsPayload,
               generationConfig: {
-                temperature: params.temperature ?? 0.7,
+                temperature: params.temperature ?? 0.2,
                 maxOutputTokens: params.maxOutputTokens ?? 4096,
                 responseMimeType: params.responseMimeType,
               },
@@ -187,11 +194,17 @@ export async function callGeminiAI(params: AICallParams): Promise<{ text: string
 
   // 2. Server Proxy Attempt / Fallback
   try {
+    const cleanedImages = params.images?.map((img) => ({
+      mimeType: img.mimeType || 'image/jpeg',
+      data: (img.data || '').replace(/^data:image\/\w+;base64,/, '').trim(),
+    }));
+
     const response = await fetch('/api/gemini/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         ...params,
+        images: cleanedImages,
         model,
         apiKey: localKey,
       }),
@@ -709,7 +722,15 @@ function generateFallbackExamQuestions(params: {
   const lines = sourceContent
     .split('\n')
     .map((l) => l.trim())
-    .filter((l) => l.length > 15);
+    .filter(
+      (l) =>
+        l.length > 15 &&
+        !l.startsWith('===') &&
+        !l.startsWith('Trang/Ảnh') &&
+        !l.includes('AI BẮT BUỘC') &&
+        !l.includes('DANH MỤC') &&
+        !l.startsWith('(')
+    );
 
   const basePoint = Number((10 / count).toFixed(2));
   let runningSum = 0;
@@ -738,7 +759,8 @@ function generateFallbackExamQuestions(params: {
 
   for (let i = 0; i < count; i++) {
     const format = formatList[i] || activeFormats[i % activeFormats.length];
-    const sourceRef = lines[i % (lines.length || 1)] || `Kiến thức trọng tâm môn ${subjectName} lớp ${className}`;
+    const rawRef = lines[i % (lines.length || 1)] || `Kiến thức trọng tâm môn ${subjectName}`;
+    const sourceRef = rawRef.replace(/^[^a-zA-Z0-9À-ỹ]+/, '');
     const isLast = i === count - 1;
     const pt = isLast ? Number((10 - runningSum).toFixed(2)) : basePoint;
     runningSum += basePoint;
@@ -747,13 +769,13 @@ function generateFallbackExamQuestions(params: {
       fallbackQuestions.push({
         id: `ai-src-fb-${Date.now()}-${i + 1}`,
         subjectId: buildSlugSubjectId(subjectName, className),
-        content: `Câu ${i + 1} (Trả lời ngắn - Lớp ${className}): Căn cứ vào nội dung tài liệu đưa lên: "${sourceRef.slice(0, 110)}...", hãy xác định giá trị hoặc từ khóa chính xác trả lời cho câu hỏi này.`,
+        content: `Câu ${i + 1} (Trả lời ngắn): Dựa trên kiến thức bài học môn ${subjectName}: ${sourceRef.slice(0, 100)}, hãy xác định kết quả hoặc từ khóa chính xác.`,
         type: 'short_answer',
         options: [],
         correctAnswer: 0,
         expectedShortAnswer: 'Chính xác',
-        sampleAnswer: 'Đáp số ngắn gọn suy ra trực tiếp từ tài liệu.',
-        explanation: `Theo tài liệu giảng dạy của lớp ${className}, kết quả được xác định bằng việc phân tích trực tiếp dữ kiện lý thuyết đã cho.`,
+        sampleAnswer: 'Đáp số ngắn gọn suy ra từ nội dung bài học.',
+        explanation: `Dựa vào lý thuyết trọng tâm môn ${subjectName} lớp ${className}, kết quả được xác định bằng việc phân tích dữ kiện chuẩn SGK.`,
         difficulty: 'medium',
         topic: `${subjectName} - Lớp ${className}`,
         points: pt > 0 ? pt : basePoint,
@@ -762,11 +784,11 @@ function generateFallbackExamQuestions(params: {
       fallbackQuestions.push({
         id: `ai-src-fb-${Date.now()}-${i + 1}`,
         subjectId: buildSlugSubjectId(subjectName, className),
-        content: `Câu ${i + 1} (Đúng/Sai - Lớp ${className}): Dựa trên tài liệu đưa lên: "${sourceRef.slice(0, 110)}...", khẳng định sau đây là ĐÚNG hay SAI?`,
+        content: `Câu ${i + 1} (Đúng/Sai): Liên quan đến nội dung "${sourceRef.slice(0, 100)}", phát biểu sau đây là ĐÚNG hay SAI?`,
         type: 'true_false',
         options: ['Đúng', 'Sai'],
         correctAnswer: 0,
-        explanation: `Khẳng định này hoàn toàn bám sát theo các định nghĩa và công thức trong tài liệu lớp ${grade}.`,
+        explanation: `Phát biểu này bám sát định nghĩa và quy luật khoa học trong chương trình ${subjectName} lớp ${grade}.`,
         difficulty: 'easy',
         topic: `${subjectName} - Lớp ${className}`,
         points: pt > 0 ? pt : basePoint,
@@ -775,12 +797,12 @@ function generateFallbackExamQuestions(params: {
       fallbackQuestions.push({
         id: `ai-src-fb-${Date.now()}-${i + 1}`,
         subjectId: buildSlugSubjectId(subjectName, className),
-        content: `Câu ${i + 1} (Tự luận - Lớp ${className}): Vận dụng nội dung tài liệu: "${sourceRef.slice(0, 120)}...", hãy trình bày phương pháp giải và phân tích các bước thực hiện chi tiết.`,
+        content: `Câu ${i + 1} (Tự luận): Phân tích và trình bày chi tiết các bước giải bài tập liên quan đến: ${sourceRef.slice(0, 110)}.`,
         type: 'essay',
         options: [],
         correctAnswer: 0,
-        sampleAnswer: `1. Nêu rõ giả thiết và định lý trích từ tài liệu.\n2. Biến đổi và áp dụng công thức chuẩn.\n3. Kết luận và nhận xét ý nghĩa.`,
-        rubric: `Bước 1: Nêu đúng giả thiết (${(pt * 0.3).toFixed(1)}đ). Bước 2: Biến đổi đúng (${(pt * 0.5).toFixed(1)}đ). Bước 3: Kết luận (${(pt * 0.2).toFixed(1)}đ).`,
+        sampleAnswer: `1. Trình bày định nghĩa và công thức áp dụng.\n2. Thực hiện các bước biến đổi logic.\n3. Rút ra kết luận chuẩn xác.`,
+        rubric: `Bước 1: Nêu đúng định nghĩa/công thức (${(pt * 0.3).toFixed(1)}đ). Bước 2: Trình bày các bước giải (${(pt * 0.5).toFixed(1)}đ). Bước 3: Kết luận (${(pt * 0.2).toFixed(1)}đ).`,
         explanation: `Phương pháp giải tự luận bám sát chương trình GDPT môn ${subjectName} lớp ${className}.`,
         difficulty: 'hard',
         topic: `${subjectName} - Lớp ${className}`,
@@ -790,16 +812,16 @@ function generateFallbackExamQuestions(params: {
       fallbackQuestions.push({
         id: `ai-src-fb-${Date.now()}-${i + 1}`,
         subjectId: buildSlugSubjectId(subjectName, className),
-        content: `Câu ${i + 1} (Trắc nghiệm 4 phương án - Lớp ${className}): Xét nội dung kiến thức trong tài liệu: "${sourceRef.slice(0, 120)}...". Khẳng định nào sau đây là chính xác nhất?`,
+        content: `Câu ${i + 1}: Về kiến thức ${sourceRef.slice(0, 90)}, phương án nào sau đây diễn đạt đúng bản chất khoa học?`,
         type: 'multiple_choice',
         options: [
-          `A. Khẳng định chính xác theo đúng định nghĩa trong tài liệu đưa lên`,
-          `B. Khẳng định chưa hoàn chỉnh do thiếu điều kiện bắt buộc`,
-          `C. Khẳng định chỉ đúng với các trường hợp ngoại lệ`,
-          `D. Khẳng định không đúng với bản chất khoa học của vấn đề`,
+          `A. Phương án mô tả chính xác quy luật và công thức bài học`,
+          `B. Phương án thiếu điều kiện xác định ban đầu`,
+          `C. Phương án bị nhầm lẫn giữa các hiện tượng tương tự`,
+          `D. Phương án không phù hợp với thực nghiệm khoa học`,
         ],
         correctAnswer: 0,
-        explanation: `Căn cứ vào dữ liệu tài liệu đưa lên cho lớp ${className}, phương án A phản ánh đầy đủ và chuẩn xác nhất.`,
+        explanation: `Phương án A thể hiện đầy đủ và chính xác nhất kiến thức bài học môn ${subjectName}.`,
         difficulty: 'medium',
         topic: `${subjectName} - Lớp ${className}`,
         points: pt > 0 ? pt : basePoint,
