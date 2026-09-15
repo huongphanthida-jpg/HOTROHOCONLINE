@@ -93,44 +93,30 @@ export function cleanAiProseText(rawText: string): string {
 /**
  * Bóc tách và parse JSON an toàn từ chuỗi phản hồi AI, tự động loại bỏ markdown code block và văn bản thừa xung quanh
  */
-export function cleanAndParseJSON(rawText: string): any {
-  if (!rawText) return null;
+export function cleanAndParseJSON<T = any>(rawText: string): T {
+  if (!rawText) return null as unknown as T;
   let cleaned = rawText.trim();
 
-  // Xóa bỏ các thẻ code block ```json hoặc ``` nếu có
+  // Xóa các khối mã markdown
   if (cleaned.startsWith('```json')) {
-    cleaned = cleaned.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+    cleaned = cleaned.replace(/^```json\s*/i, '').replace(/\s*```$/i, '');
   } else if (cleaned.startsWith('```')) {
-    cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    cleaned = cleaned.replace(/^```\s*/i, '').replace(/\s*```$/i, '');
   }
 
-  // Tìm vị trí của mảng JSON [...] hoặc đối tượng JSON {...}
-  const firstArray = cleaned.indexOf('[');
-  const lastArray = cleaned.lastIndexOf(']');
-  const firstObject = cleaned.indexOf('{');
-  const lastObject = cleaned.lastIndexOf('}');
+  // Trích xuất chính xác khối mảng [...] hoặc đối tượng {...}
+  const firstBracket = cleaned.indexOf('[');
+  const lastBracket = cleaned.lastIndexOf(']');
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
 
-  let firstBracket = -1;
-  let lastBracket = -1;
-
-  if (firstArray !== -1 && lastArray !== -1 && lastArray > firstArray) {
-    if (firstObject !== -1 && firstObject < firstArray && lastObject > lastArray) {
-      firstBracket = firstObject;
-      lastBracket = lastObject;
-    } else {
-      firstBracket = firstArray;
-      lastBracket = lastArray;
-    }
-  } else if (firstObject !== -1 && lastObject !== -1 && lastObject > firstObject) {
-    firstBracket = firstObject;
-    lastBracket = lastObject;
-  }
-
-  if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+  if (firstBracket !== -1 && lastBracket !== -1 && (firstBrace === -1 || firstBracket < firstBrace)) {
     cleaned = cleaned.substring(firstBracket, lastBracket + 1);
+  } else if (firstBrace !== -1 && lastBrace !== -1) {
+    cleaned = cleaned.substring(firstBrace, lastBrace + 1);
   }
 
-  return JSON.parse(cleaned);
+  return JSON.parse(cleaned) as T;
 }
 
 /**
@@ -451,6 +437,7 @@ Nhiệm vụ của bạn:
   const { text } = await callGeminiAI({
     prompt,
     temperature: 0.2,
+    responseMimeType: 'application/json',
     images: images && images.length > 0 ? images.map(img => ({ mimeType: img.mimeType, data: img.data })) : undefined,
   });
 
