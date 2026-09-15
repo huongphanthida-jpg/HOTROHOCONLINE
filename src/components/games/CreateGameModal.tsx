@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   X, 
   Sparkles, 
@@ -37,6 +37,18 @@ export const CreateGameModal: React.FC<CreateGameModalProps> = ({
   const [customTitle, setCustomTitle] = useState('');
   const [customContent, setCustomContent] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<UploadedSourceItem[]>([]);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleRemoveFile = (indexToRemove: number) => {
+    setUploadedFiles((prev) => prev.filter((_, index) => index !== indexToRemove));
+  };
+
+  const handleClearAllFiles = () => {
+    setUploadedFiles([]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
   
   // Game parameters
   const [gameType, setGameType] = useState<GameType>('quiz');
@@ -419,6 +431,7 @@ export const CreateGameModal: React.FC<CreateGameModalProps> = ({
                     Hỗ trợ tải nhiều file ảnh cùng lúc
                   </span>
                   <input
+                    ref={fileInputRef}
                     type="file"
                     multiple
                     accept="image/*,.pdf,.docx,.txt"
@@ -428,16 +441,42 @@ export const CreateGameModal: React.FC<CreateGameModalProps> = ({
                 </label>
 
                 {uploadedFiles.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {uploadedFiles.map((f) => (
-                      <span
-                        key={f.id}
-                        className="px-2.5 py-1 rounded-xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-300 text-xs font-medium flex items-center space-x-1"
-                      >
-                        <span>{f.name}</span>
-                        <span className="text-[10px] text-teal-600">({f.sizeFormatted})</span>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                        Danh sách file/ảnh đã tải lên ({uploadedFiles.length}):
                       </span>
-                    ))}
+                      {uploadedFiles.length >= 2 && (
+                        <button
+                          type="button"
+                          onClick={handleClearAllFiles}
+                          className="text-[11px] font-bold text-rose-600 hover:text-rose-700 hover:bg-rose-50 dark:hover:bg-rose-950/40 px-2 py-0.5 rounded-md transition-all flex items-center space-x-1 cursor-pointer"
+                          title="Xóa tất cả file đã chọn"
+                        >
+                          <X className="w-3 h-3" />
+                          <span>Xóa tất cả file</span>
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {uploadedFiles.map((f, index) => (
+                        <span
+                          key={f.id || index}
+                          className="px-2.5 py-1 rounded-xl bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 text-teal-800 dark:text-teal-300 text-xs font-medium flex items-center space-x-1 shadow-2xs"
+                        >
+                          <span className="truncate max-w-[160px]">{f.name}</span>
+                          <span className="text-[10px] text-teal-600 dark:text-teal-400">({f.sizeFormatted})</span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFile(index)}
+                            className="hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/60 rounded-full p-0.5 ml-1 transition cursor-pointer text-slate-400 dark:text-slate-500"
+                            title={`Xóa file ${f.name}`}
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
