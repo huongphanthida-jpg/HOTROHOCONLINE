@@ -7,13 +7,13 @@ import {
   ArrowLeft,
   CheckCircle2,
   XCircle,
-  Sparkles,
   HelpCircle,
   BookOpen,
   Trash2,
   User,
-  Check,
-  Edit3
+  Send,
+  ChevronRight,
+  ChevronLeft
 } from 'lucide-react';
 import { EducationalGame, FillBlankQuestion, FillBlankBlankItem, StudentInfo } from '../../types';
 import { soundEffects } from '../../utils/soundEffects';
@@ -52,11 +52,13 @@ export const FillBlankGamePlayer: React.FC<FillBlankGamePlayerProps> = ({
   initialScriptUrl,
 }) => {
   const questions: FillBlankQuestion[] = game.fillBlankData?.questions || [];
-  const baseTime = game.fillBlankData?.timePerQuestion || 25;
+  const baseTime = game.fillBlankData?.timePerQuestion || 30;
 
   const [currentIndex, setCurrentIndex] = useState(0);
+  // Store answers per question: { [questionIndex]: { [blankId]: studentInput } }
+  const [allUserAnswers, setAllUserAnswers] = useState<Record<number, Record<string, string>>>({});
   const [userInputs, setUserInputs] = useState<Record<string, string>>({});
-  const [isAnswered, setIsAnswered] = useState(false);
+  
   const [timeLeft, setTimeLeft] = useState(baseTime);
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
@@ -129,14 +131,85 @@ export const FillBlankGamePlayer: React.FC<FillBlankGamePlayerProps> = ({
     }
   };
 
+  // Navigate between questions, saving current question inputs
+  const handleNavigate = (nextIdx: number) => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    setAllUserAnswers((prev) => ({
+      ...prev,
+      [currentIndex]: userInputs,
+    }));
+    setCurrentIndex(nextIdx);
+    setUserInputs(allUserAnswers[nextIdx] || {});
+    setTimeLeft(baseTime);
+  };
+
+  // Submit test and grade all questions
+  const handleSubmitTest = () => {
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    const finalAnswersMap = {
+      ...allUserAnswers,
+      [currentIndex]: userInputs,
+    };
+    setAllUserAnswers(finalAnswersMap);
+
+    let calculatedCorrect = 0;
+    let calculatedScore = 0;
+    let currentStreakCounter = 0;
+    let highestStreak = 0;
+
+    questions.forEach((q, qIdx) => {
+      const qBlanks = q.blanks || [];
+      const studentAnsMap = finalAnswersMap[qIdx] || {};
+      let isQuestionAllCorrect = true;
+
+      if (qBlanks.length === 0) {
+        isQuestionAllCorrect = false;
+      } else {
+        qBlanks.forEach((b, bIdx) => {
+          const userVal = studentAnsMap[b.id || `blank_${bIdx}`] || '';
+          const targetCorrect = b.correctAnswer || '';
+          const acceptable = b.acceptableAnswers || [];
+          const isMatch =
+            normalizeText(userVal) === normalizeText(targetCorrect) ||
+            acceptable.some((acc) => normalizeText(userVal) === normalizeText(acc));
+
+          if (!isMatch) {
+            isQuestionAllCorrect = false;
+          }
+        });
+      }
+
+      if (isQuestionAllCorrect) {
+        calculatedCorrect += 1;
+        calculatedScore += q.points || 100;
+        currentStreakCounter += 1;
+        if (currentStreakCounter > highestStreak) highestStreak = currentStreakCounter;
+      } else {
+        currentStreakCounter = 0;
+      }
+    });
+
+    setCorrectCount(calculatedCorrect);
+    setScore(calculatedScore);
+    setStreak(currentStreakCounter);
+    setMaxStreak(highestStreak);
+
+    handleFinishGame(calculatedScore, calculatedCorrect);
+  };
+
   // Timer Countdown Effect
   useEffect(() => {
-    if (isGameOver || isAnswered || !currentQ) return;
+    if (isGameOver || !currentQ) return;
 
     timerRef.current = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          handleCheckAnswer(true);
+          if (currentIndex + 1 < questions.length) {
+            handleNavigate(currentIndex + 1);
+          } else {
+            handleSubmitTest();
+          }
           return 0;
         }
         return prev - 1;
@@ -146,73 +219,12 @@ export const FillBlankGamePlayer: React.FC<FillBlankGamePlayerProps> = ({
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [currentIndex, isAnswered, isGameOver]);
-
-  // Reset input when question changes
-  useEffect(() => {
-    setUserInputs({});
-    setIsAnswered(false);
-    setTimeLeft(baseTime);
-  }, [currentIndex]);
-
-  const handleCheckAnswer = (isTimeOut = false) => {
-    if (isAnswered) return;
-    if (timerRef.current) clearInterval(timerRef.current);
-
-    setIsAnswered(true);
-
-    if (!currentQ) return;
-
-    const blanks = currentQ.blanks || [];
-    let allBlanksCorrect = true;
-
-    if (blanks.length === 0) {
-      // Fallback if no explicit blanks defined
-      allBlanksCorrect = false;
-    } else {
-      blanks.forEach((b, bIdx) => {
-        const userVal = userInputs[b.id || `blank_${bIdx}`] || '';
-        const targetCorrect = b.correctAnswer || '';
-        const acceptable = b.acceptableAnswers || [];
-        const isMatch =
-          normalizeText(userVal) === normalizeText(targetCorrect) ||
-          acceptable.some((acc) => normalizeText(userVal) === normalizeText(acc));
-
-        if (!isMatch) {
-          allBlanksCorrect = false;
-        }
-      });
-    }
-
-    if (!isTimeOut && allBlanksCorrect) {
-      soundEffects.playCorrect();
-      const newStreak = streak + 1;
-      setStreak(newStreak);
-      if (newStreak > maxStreak) setMaxStreak(newStreak);
-      setCorrectCount((c) => c + 1);
-
-      const timeBonus = Math.floor(timeLeft * 8);
-      const streakBonus = Math.min(newStreak, 5) * 15;
-      const pointsGained = (currentQ.points || 100) + timeBonus + streakBonus;
-      setScore((s) => s + pointsGained);
-    } else {
-      soundEffects.playWrong();
-      setStreak(0);
-    }
-  };
-
-  const handleNext = () => {
-    if (currentIndex + 1 < questions.length) {
-      setCurrentIndex((prev) => prev + 1);
-    } else {
-      handleFinishGame(score, correctCount);
-    }
-  };
+  }, [currentIndex, isGameOver]);
 
   const handleRestart = () => {
     setCurrentIndex(0);
+    setAllUserAnswers({});
     setUserInputs({});
-    setIsAnswered(false);
     setTimeLeft(baseTime);
     setScore(0);
     setStreak(0);
@@ -227,7 +239,9 @@ export const FillBlankGamePlayer: React.FC<FillBlankGamePlayerProps> = ({
   if (questions.length === 0) {
     return (
       <div className="bg-white dark:bg-slate-800 rounded-3xl p-8 text-center max-w-lg mx-auto shadow-sm border border-slate-200 dark:border-slate-700">
-        <p className="text-slate-600 dark:text-slate-300">Trò chơi chưa có câu hỏi điền khuyết nào. Vui lòng cập nhật hoặc tạo lại từ tài liệu.</p>
+        <p className="text-slate-600 dark:text-slate-300">
+          Trò chơi chưa có câu hỏi điền khuyết nào. Vui lòng cập nhật hoặc tạo lại từ tài liệu.
+        </p>
         <button
           onClick={onBack}
           className="mt-4 px-5 py-2.5 bg-teal-600 text-white rounded-xl hover:bg-teal-700 font-bold text-xs"
@@ -238,7 +252,7 @@ export const FillBlankGamePlayer: React.FC<FillBlankGamePlayerProps> = ({
     );
   }
 
-  // Finished Game View
+  // Finished Game View - Displays Score & Detailed Answers Review
   if (isGameOver) {
     const accuracy = Math.round((correctCount / questions.length) * 100);
     const score10 = Number(((correctCount / questions.length) * 10).toFixed(1));
@@ -264,7 +278,7 @@ export const FillBlankGamePlayer: React.FC<FillBlankGamePlayerProps> = ({
         </div>
 
         <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-800 dark:text-white">
-          Hoàn Thành Điền Khuyết!
+          KẾT QUẢ BÀI ĐIỀN KHUYẾT
         </h2>
         <p className="text-slate-500 dark:text-slate-400 mt-1 text-xs sm:text-sm">
           {game.title}
@@ -317,7 +331,117 @@ export const FillBlankGamePlayer: React.FC<FillBlankGamePlayerProps> = ({
           initialScriptUrl={initialScriptUrl}
         />
 
-        <div className="flex items-center justify-center space-x-3 mt-6">
+        {/* Detailed Answers Review Section */}
+        <div className="mt-8 text-left border-t border-slate-200 dark:border-slate-700 pt-6">
+          <h3 className="text-base font-bold text-slate-800 dark:text-white mb-4 flex items-center space-x-2">
+            <BookOpen className="w-4 h-4 text-teal-600 dark:text-teal-400" />
+            <span>Chi Tiết Đáp Án & Bài Làm Từng Câu</span>
+          </h3>
+
+          <div className="space-y-4">
+            {questions.map((q, qIdx) => {
+              const qBlanks = q.blanks || [];
+              const ansMap = allUserAnswers[qIdx] || {};
+              let isQCorrect = true;
+
+              if (qBlanks.length === 0) {
+                isQCorrect = false;
+              } else {
+                qBlanks.forEach((b, bIdx) => {
+                  const userVal = ansMap[b.id || `blank_${bIdx}`] || '';
+                  const targetCorrect = b.correctAnswer || '';
+                  const acceptable = b.acceptableAnswers || [];
+                  const isMatch =
+                    normalizeText(userVal) === normalizeText(targetCorrect) ||
+                    acceptable.some((acc) => normalizeText(userVal) === normalizeText(acc));
+                  if (!isMatch) isQCorrect = false;
+                });
+              }
+
+              return (
+                <div
+                  key={q.id}
+                  className={`p-4 rounded-2xl border ${
+                    isQCorrect
+                      ? 'bg-emerald-50/60 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/60'
+                      : 'bg-rose-50/60 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800/60'
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                      Câu {qIdx + 1}
+                    </span>
+                    <span
+                      className={`text-xs font-bold flex items-center space-x-1 ${
+                        isQCorrect
+                          ? 'text-emerald-700 dark:text-emerald-400'
+                          : 'text-rose-700 dark:text-rose-400'
+                      }`}
+                    >
+                      {isQCorrect ? (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>Đúng</span>
+                        </>
+                      ) : (
+                        <>
+                          <XCircle className="w-4 h-4" />
+                          <span>Chưa chính xác</span>
+                        </>
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="text-sm font-medium text-slate-800 dark:text-slate-200 mb-2 leading-relaxed">
+                    <FormattedMathText text={q.question || q.content || ''} />
+                  </div>
+
+                  <div className="space-y-1.5 text-xs">
+                    {qBlanks.map((b, bIdx) => {
+                      const uVal = ansMap[b.id || `blank_${bIdx}`] || '';
+                      const correctVal = b.correctAnswer || '';
+                      const acceptable = b.acceptableAnswers || [];
+                      const isMatch =
+                        normalizeText(uVal) === normalizeText(correctVal) ||
+                        acceptable.some((acc) => normalizeText(uVal) === normalizeText(acc));
+
+                      return (
+                        <div key={bIdx} className="flex flex-wrap items-center gap-1.5">
+                          <span className="text-slate-500 dark:text-slate-400 font-medium">
+                            [Chỗ khuyết {bIdx + 1}]:
+                          </span>
+                          <span
+                            className={`font-bold ${
+                              isMatch
+                                ? 'text-emerald-700 dark:text-emerald-300'
+                                : 'text-rose-700 dark:text-rose-300 line-through'
+                            }`}
+                          >
+                            {uVal || '(Chưa điền)'}
+                          </span>
+                          {!isMatch && (
+                            <span className="text-emerald-700 dark:text-emerald-300 font-bold ml-1">
+                              → Đáp án đúng: <strong className="underline">{correctVal}</strong>
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {q.explanation && (
+                    <div className="mt-3 pt-2.5 border-t border-slate-200/60 dark:border-slate-700/60 text-xs text-slate-600 dark:text-slate-400">
+                      <strong className="text-teal-700 dark:text-teal-300">Giải thích:</strong>{' '}
+                      <FormattedMathText text={q.explanation} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-center space-x-3 mt-8">
           <button
             onClick={handleRestart}
             className="flex items-center space-x-2 px-5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold transition-all shadow-md active:scale-95 text-xs"
@@ -344,7 +468,6 @@ export const FillBlankGamePlayer: React.FC<FillBlankGamePlayerProps> = ({
 
   // Parse text containing [blank], [blank1], ___, or [...]
   const renderInteractiveText = () => {
-    // Replace placeholders with input components
     const placeholderRegex = /(\[blank\d*\]|_{2,}|\[\.\.\.\])/gi;
     const parts = questionRaw.split(placeholderRegex);
 
@@ -359,43 +482,19 @@ export const FillBlankGamePlayer: React.FC<FillBlankGamePlayerProps> = ({
             const blankObj = blanks[blankIndex] || { id: `blank_${blankIndex}`, correctAnswer: '' };
             const blankKey = blankObj.id || `blank_${blankIndex}`;
             const userVal = userInputs[blankKey] || '';
-            const targetAns = blankObj.correctAnswer || '';
-
-            const isCorrect =
-              isAnswered &&
-              (normalizeText(userVal) === normalizeText(targetAns) ||
-                (blankObj.acceptableAnswers || []).some((acc) => normalizeText(userVal) === normalizeText(acc)));
 
             return (
               <span key={idx} className="inline-flex items-center my-1">
                 <input
                   type="text"
-                  disabled={isAnswered}
                   value={userVal}
                   onChange={(e) => {
                     const val = e.target.value;
                     setUserInputs((prev) => ({ ...prev, [blankKey]: val }));
                   }}
                   placeholder={`[Vị trí ${blankIndex + 1}]`}
-                  className={`px-3 py-1 text-sm font-bold rounded-xl border transition-all text-center focus:outline-hidden min-w-[110px] max-w-[180px] ${
-                    isAnswered
-                      ? isCorrect
-                        ? 'bg-emerald-100 dark:bg-emerald-950/60 border-emerald-500 text-emerald-800 dark:text-emerald-200 font-black'
-                        : 'bg-rose-100 dark:bg-rose-950/60 border-rose-500 text-rose-800 dark:text-rose-200 font-black'
-                      : 'bg-white dark:bg-slate-900 border-teal-400 focus:ring-2 focus:ring-teal-500 text-teal-800 dark:text-teal-200'
-                  }`}
+                  className="px-3 py-1 text-sm font-bold rounded-xl border border-teal-400 dark:border-teal-600 bg-white dark:bg-slate-900 focus:ring-2 focus:ring-teal-500 text-teal-800 dark:text-teal-200 transition-all text-center focus:outline-hidden min-w-[110px] max-w-[180px]"
                 />
-                {isAnswered && (
-                  <span className="ml-1">
-                    {isCorrect ? (
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 inline" />
-                    ) : (
-                      <span className="text-xs font-bold text-rose-600 dark:text-rose-400 ml-1">
-                        (Đáp án: <strong className="underline">{targetAns}</strong>)
-                      </span>
-                    )}
-                  </span>
-                )}
               </span>
             );
           }
@@ -411,7 +510,7 @@ export const FillBlankGamePlayer: React.FC<FillBlankGamePlayerProps> = ({
   };
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-3xl mx-auto animate-fadeIn">
       {/* Top Header */}
       <div className="bg-white dark:bg-slate-800 rounded-2xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 flex items-center justify-between mb-4">
         <div className="flex items-center space-x-2">
@@ -448,24 +547,16 @@ export const FillBlankGamePlayer: React.FC<FillBlankGamePlayerProps> = ({
           </span>
           <div className="w-24 bg-slate-100 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
             <div
-              className="bg-indigo-500 h-full rounded-full transition-all duration-300"
+              className="bg-teal-600 h-full rounded-full transition-all duration-300"
               style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
             />
           </div>
         </div>
 
-        {/* Streak & Score */}
-        <div className="flex items-center space-x-3">
-          {streak > 1 && (
-            <div className="flex items-center space-x-1 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full text-xs font-black animate-pulse">
-              <Zap className="w-3.5 h-3.5 fill-amber-500" />
-              <span>Combo x{streak}</span>
-            </div>
-          )}
-          <div className="flex items-center space-x-1 font-black text-indigo-600 dark:text-indigo-400 text-sm sm:text-base">
-            <Trophy className="w-4 h-4 text-amber-500" />
-            <span>{score}</span>
-          </div>
+        {/* Score indicator */}
+        <div className="flex items-center space-x-1 font-black text-teal-600 dark:text-teal-400 text-sm sm:text-base">
+          <Trophy className="w-4 h-4 text-amber-500" />
+          <span>Làm bài độc lập</span>
         </div>
       </div>
 
@@ -480,7 +571,7 @@ export const FillBlankGamePlayer: React.FC<FillBlankGamePlayerProps> = ({
             </span>
             <span
               className={`font-black ${
-                timeLeft <= 5 ? 'text-rose-600 dark:text-rose-400 animate-ping' : 'text-indigo-600 dark:text-indigo-400'
+                timeLeft <= 5 ? 'text-rose-600 dark:text-rose-400 animate-ping' : 'text-teal-600 dark:text-teal-400'
               }`}
             >
               {timeLeft}s
@@ -493,7 +584,7 @@ export const FillBlankGamePlayer: React.FC<FillBlankGamePlayerProps> = ({
                   ? 'bg-rose-500'
                   : timeLeft <= 10
                   ? 'bg-amber-500'
-                  : 'bg-indigo-500'
+                  : 'bg-teal-500'
               }`}
               style={{ width: `${(timeLeft / baseTime) * 100}%` }}
             />
@@ -513,9 +604,9 @@ export const FillBlankGamePlayer: React.FC<FillBlankGamePlayerProps> = ({
         </div>
 
         {/* Optional Word Bank (Words can be tapped to auto-fill active blank) */}
-        {wordOptions.length > 0 && !isAnswered && (
-          <div className="my-4 p-4 rounded-2xl bg-indigo-50/50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800">
-            <div className="text-xs font-bold text-indigo-900 dark:text-indigo-300 mb-2">
+        {wordOptions.length > 0 && (
+          <div className="my-4 p-4 rounded-2xl bg-teal-50/50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/60">
+            <div className="text-xs font-bold text-teal-900 dark:text-teal-300 mb-2">
               💡 Ngân hàng từ gợi ý (Bấm vào từ để điền nhanh vào ô khuyết):
             </div>
             <div className="flex flex-wrap gap-2">
@@ -524,11 +615,13 @@ export const FillBlankGamePlayer: React.FC<FillBlankGamePlayerProps> = ({
                   key={wIdx}
                   type="button"
                   onClick={() => {
-                    // Find first empty blank key or first blank key
-                    const blankKey = blanks.find((b, idx) => !userInputs[b.id || `blank_${idx}`])?.id || blanks[0]?.id || 'blank_0';
+                    const blankKey =
+                      blanks.find((b, idx) => !userInputs[b.id || `blank_${idx}`])?.id ||
+                      blanks[0]?.id ||
+                      'blank_0';
                     setUserInputs((prev) => ({ ...prev, [blankKey]: word }));
                   }}
-                  className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-700 text-xs font-bold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-600 hover:text-white transition-all shadow-2xs active:scale-95"
+                  className="px-3 py-1.5 rounded-xl bg-white dark:bg-slate-800 border border-teal-200 dark:border-teal-700 text-xs font-bold text-teal-800 dark:text-teal-200 hover:bg-teal-600 hover:text-white transition-all shadow-2xs active:scale-95"
                 >
                   <FormattedMathText text={word} />
                 </button>
@@ -537,38 +630,38 @@ export const FillBlankGamePlayer: React.FC<FillBlankGamePlayerProps> = ({
           </div>
         )}
 
-        {/* Check / Next Action Buttons */}
-        <div className="mt-6 flex justify-end">
-          {!isAnswered ? (
+        {/* Navigation Action Buttons (No Check Answer Button) */}
+        <div className="mt-6 flex items-center justify-between">
+          {currentIndex > 0 ? (
             <button
-              onClick={() => handleCheckAnswer(false)}
-              className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm transition-all shadow-md active:scale-95 flex items-center space-x-2"
+              onClick={() => handleNavigate(currentIndex - 1)}
+              className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-bold text-xs hover:bg-slate-100 transition-all flex items-center space-x-1.5"
             >
-              <Check className="w-4 h-4 stroke-[3]" />
-              <span>Kiểm Tra Đáp Án</span>
+              <ChevronLeft className="w-4 h-4" />
+              <span>Câu trước</span>
+            </button>
+          ) : (
+            <div />
+          )}
+
+          {currentIndex + 1 < questions.length ? (
+            <button
+              onClick={() => handleNavigate(currentIndex + 1)}
+              className="px-6 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs sm:text-sm transition-all shadow-md active:scale-95 flex items-center space-x-2"
+            >
+              <span>Câu Tiếp Theo</span>
+              <ChevronRight className="w-4 h-4" />
             </button>
           ) : (
             <button
-              onClick={handleNext}
-              className="px-6 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm transition-all shadow-md active:scale-95"
+              onClick={handleSubmitTest}
+              className="px-6 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs sm:text-sm transition-all shadow-md active:scale-95 flex items-center space-x-2"
             >
-              {currentIndex + 1 < questions.length ? 'Câu Tiếp Theo →' : 'Xem Kết Quả 🏆'}
+              <Send className="w-4 h-4" />
+              <span>Nộp Bài Làm</span>
             </button>
           )}
         </div>
-
-        {/* Explanation Footer when answered */}
-        {isAnswered && (
-          <div className="mt-5 p-4 rounded-2xl bg-teal-50/70 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 animate-fadeIn text-left">
-            <div className="flex items-center space-x-1.5 text-xs font-bold text-teal-800 dark:text-teal-300 mb-1">
-              <HelpCircle className="w-4 h-4" />
-              <span>Giải thích đáp án điền khuyết:</span>
-            </div>
-            <div className="text-xs sm:text-sm text-gray-900 dark:text-slate-100 leading-relaxed font-medium">
-              <FormattedMathText text={currentQ.explanation || 'Đã hoàn thành lượt kiểm tra điền khuyết.'} />
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Delete Confirmation Modal */}
