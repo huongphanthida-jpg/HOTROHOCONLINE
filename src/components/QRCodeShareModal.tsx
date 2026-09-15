@@ -17,6 +17,7 @@ import {
 
 import { Subject, Question, EducationalGame } from '../types';
 import { encodeExamPayload, encodeGamePayload } from '../utils/sharePayloadUtils';
+import { getGoogleScriptUrl } from '../services/sheetSyncService';
 
 interface QRCodeShareModalProps {
   isOpen: boolean;
@@ -102,39 +103,43 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
   // Full URL embedding entire payload from AI
   const fullPayloadUrl = useMemo(() => {
     const ts = Date.now();
+    const scriptUrl = getGoogleScriptUrl();
+    const suParam = scriptUrl ? `&scriptUrl=${encodeURIComponent(scriptUrl)}` : '';
     if (type === 'exam' && subject) {
       const payload = encodeExamPayload(subject, questions || []);
-      let url = `${resolvedBaseUrl}/?exam=${payload}&id=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`;
+      let url = `${resolvedBaseUrl}/?exam=${payload}&id=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student${suParam}`;
       if (payload) {
         url += `&payload=${payload}`;
       }
       return url;
     } else if (type === 'game' && game) {
       const payload = encodeGamePayload(game);
-      let url = `${resolvedBaseUrl}/play?gameId=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`;
+      let url = `${resolvedBaseUrl}/play?gameId=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student${suParam}`;
       if (payload) {
         url += `&gameData=${payload}&payload=${payload}`;
       }
       return url;
     }
     return type === 'game'
-      ? `${resolvedBaseUrl}/play?gameId=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`
-      : `${resolvedBaseUrl}/?exam=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`;
+      ? `${resolvedBaseUrl}/play?gameId=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student${suParam}`
+      : `${resolvedBaseUrl}/?exam=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student${suParam}`;
   }, [resolvedBaseUrl, type, targetId, subject, questions, game]);
 
   // Clean short URL for Zalo direct 1-tap browser opening (carrying compressed payload in ?d=lz_...)
   const shortShareUrl = useMemo(() => {
     const ts = Date.now();
+    const scriptUrl = getGoogleScriptUrl();
+    const suParam = scriptUrl ? `&scriptUrl=${encodeURIComponent(scriptUrl)}` : '';
     if (type === 'game' && game) {
       const payload = encodeGamePayload(game);
-      return `${resolvedBaseUrl}/play?gameId=${encodeURIComponent(targetId)}&d=${payload}&t=${ts}&_v=${ts}&role=student`;
+      return `${resolvedBaseUrl}/play?gameId=${encodeURIComponent(targetId)}&d=${payload}&t=${ts}&_v=${ts}&role=student${suParam}`;
     } else if (type === 'exam' && subject) {
       const payload = encodeExamPayload(subject, questions || []);
-      return `${resolvedBaseUrl}/?exam=${payload}&id=${encodeURIComponent(targetId)}&payload=${payload}&t=${ts}&_v=${ts}&role=student`;
+      return `${resolvedBaseUrl}/?exam=${payload}&id=${encodeURIComponent(targetId)}&payload=${payload}&t=${ts}&_v=${ts}&role=student${suParam}`;
     }
     return type === 'game'
-      ? `${resolvedBaseUrl}/play?gameId=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`
-      : `${resolvedBaseUrl}/?exam=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`;
+      ? `${resolvedBaseUrl}/play?gameId=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student${suParam}`
+      : `${resolvedBaseUrl}/?exam=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student${suParam}`;
   }, [resolvedBaseUrl, type, targetId, subject, questions, game]);
 
   const shareUrl = useCompactZaloUrl ? shortShareUrl : fullPayloadUrl;

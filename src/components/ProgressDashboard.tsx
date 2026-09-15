@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { ProgressData, SessionRecord, UserRole } from '../types';
 import { BarChart3, TrendingUp, Award, Users, AlertCircle, Search, RefreshCw, CheckCircle2, XCircle, FileSpreadsheet, Eye, Trash2, Gamepad2, GraduationCap, Filter, Trophy } from 'lucide-react';
-import { syncSessionToGoogleSheets, formatTimeSpent } from '../services/sheetSyncService';
+import { syncSessionToGoogleSheets, pullSessionsFromGoogleSheets, formatTimeSpent } from '../services/sheetSyncService';
 
 interface ProgressDashboardProps {
   progress: ProgressData;
@@ -10,6 +10,7 @@ interface ProgressDashboardProps {
   onUpdateSession: (updated: SessionRecord) => void;
   onDeleteSession?: (sessionId: string) => void;
   onClearAllSessions?: () => void;
+  onSessionsReloaded?: (reloadedSessions: SessionRecord[]) => void;
   userRole?: UserRole;
 }
 
@@ -20,12 +21,15 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
   onUpdateSession,
   onDeleteSession,
   onClearAllSessions,
+  onSessionsReloaded,
   userRole = 'teacher',
 }) => {
   const isStudent = userRole === 'student';
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategory, setFilterCategory] = useState<'all' | 'exam' | 'game'>('all');
   const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [isPulling, setIsPulling] = useState(false);
+  const [pullNotice, setPullNotice] = useState<string>('');
   const [sessionToDelete, setSessionToDelete] = useState<SessionRecord | null>(null);
   const [isConfirmClearAllOpen, setIsConfirmClearAllOpen] = useState(false);
 
@@ -78,6 +82,28 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
       alert(res.message);
     } else {
       alert(res.message);
+    }
+  };
+
+  const handleRefreshFromGoogleSheets = async () => {
+    setIsPulling(true);
+    setPullNotice('');
+    try {
+      const res = await pullSessionsFromGoogleSheets();
+      setIsPulling(false);
+      if (res.success && res.sessions && res.sessions.length > 0) {
+        if (onSessionsReloaded) {
+          onSessionsReloaded(res.sessions);
+        } else {
+          res.sessions.forEach((s) => onUpdateSession(s));
+        }
+        setPullNotice(res.message);
+      } else {
+        setPullNotice(res.message || 'Không tìm thấy dữ liệu mới từ Google Sheets.');
+      }
+    } catch (e: any) {
+      setIsPulling(false);
+      setPullNotice('Lỗi kết nối đến Google Sheets. Vui lòng kiểm tra Webhook URL.');
     }
   };
 
@@ -325,6 +351,19 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
               />
             </div>
 
+            {/* Refresh from Google Sheets Button */}
+            <button
+              type="button"
+              onClick={handleRefreshFromGoogleSheets}
+              disabled={isPulling}
+              className="px-3.5 py-1.5 rounded-xl border border-teal-300 dark:border-teal-700 bg-teal-50 dark:bg-teal-950/50 hover:bg-teal-100 dark:hover:bg-teal-900/60 text-teal-800 dark:text-teal-200 text-xs font-bold flex items-center space-x-1.5 transition-all shadow-2xs active:scale-95 cursor-pointer disabled:opacity-50"
+              title="Tải danh sách kết quả mới nhất từ Google Sheets"
+              id="btn-refresh-from-sheets"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 text-teal-600 dark:text-teal-400 ${isPulling ? 'animate-spin' : ''}`} />
+              <span>{isPulling ? 'Đang tải...' : 'Làm mới từ Google Sheets'}</span>
+            </button>
+
             {/* CSV Export Button */}
             <button
               onClick={handleExportCSV}
@@ -351,6 +390,18 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
             )}
           </div>
         </div>
+
+        {pullNotice && (
+          <div className="px-5 py-2.5 bg-teal-50 dark:bg-teal-950/40 border-b border-teal-100 dark:border-teal-800 text-xs font-semibold text-teal-800 dark:text-teal-200 flex items-center justify-between animate-fadeIn">
+            <span>💡 {pullNotice}</span>
+            <button
+              onClick={() => setPullNotice('')}
+              className="text-teal-600 hover:text-teal-900 font-bold text-xs"
+            >
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* Table data */}
         <div className="overflow-x-auto">
