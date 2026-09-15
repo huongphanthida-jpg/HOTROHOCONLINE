@@ -684,7 +684,7 @@ export interface AppSettings {
   autoSaveIntervalSeconds?: number;
 }
 
-export type GameType = 'quiz' | 'drag_drop' | 'matching';
+export type GameType = 'quiz' | 'drag_drop' | 'matching' | 'fill_blank';
 
 export interface QuizGameQuestion {
   id: string;
@@ -721,6 +721,32 @@ export interface MatchingPair {
   sourceCitation?: string;
 }
 
+export interface FillBlankBlankItem {
+  id: string;
+  correctAnswer: string;
+  acceptableAnswers?: string[];
+  hint?: string;
+}
+
+export interface FillBlankQuestion {
+  id: string;
+  question?: string;
+  content?: string;
+  prompt?: string;
+  text?: string;
+  blanks: FillBlankBlankItem[];
+  options?: string[]; // Word bank for tap/drag selection
+  explanation?: string;
+  sourceCitation?: string;
+  points?: number;
+}
+
+export interface FillBlankGameData {
+  instruction?: string;
+  timePerQuestion?: number;
+  questions: FillBlankQuestion[];
+}
+
 export interface EducationalGame {
   id: string;
   title: string;
@@ -746,6 +772,7 @@ export interface EducationalGame {
     instruction?: string;
     pairs: MatchingPair[];
   };
+  fillBlankData?: FillBlankGameData;
   highScore?: number;
   playCount?: number;
 }
