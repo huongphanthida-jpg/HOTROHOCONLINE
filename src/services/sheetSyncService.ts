@@ -59,7 +59,7 @@ export const validateAppsScriptUrl = (url: string): boolean => {
   }
 };
 
-export const getGoogleScriptUrl = (): string => {
+export function getGoogleScriptUrl(): string {
   try {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -96,7 +96,7 @@ export const getGoogleScriptUrl = (): string => {
     console.warn('Error reading google script url:', e);
   }
   return '';
-};
+}
 
 export const syncSessionToGoogleSheets = async (
   session: SessionRecord | any,
