@@ -11,6 +11,11 @@ import {
   RefreshCw,
   Trash2,
   AlertTriangle,
+  Dna,
+  Globe,
+  Landmark,
+  Cpu,
+  Wrench,
 } from 'lucide-react';
 import { UploadedSourceItem, AISimulationItem } from '../types';
 import { callGeminiAI } from '../services/aiService';
@@ -26,7 +31,7 @@ export const CreateSimulationModal: React.FC<CreateSimulationModalProps> = ({
   onClose,
   onSimulationCreated,
 }) => {
-  const [selectedSubject, setSelectedSubject] = useState<'Vật Lý' | 'Toán Học' | 'Hóa Học'>('Vật Lý');
+  const [selectedSubject, setSelectedSubject] = useState<string>('Vật Lý');
   const [topicTitle, setTopicTitle] = useState('');
   const [promptDescription, setPromptDescription] = useState('');
   const [uploadedSources, setUploadedSources] = useState<UploadedSourceItem[]>([]);
@@ -37,22 +42,47 @@ export const CreateSimulationModal: React.FC<CreateSimulationModalProps> = ({
 
   if (!isOpen) return null;
 
-  // Preset sample prompts
+  // Preset sample prompts covering all subjects
   const samplePrompts = [
+    {
+      subject: 'Sinh Học',
+      title: 'Mô Phỏng Phân Bào (Mitosis/Meiosis) & ADN',
+      desc: 'Mô phỏng chu kỳ tế bào, chuyển động tách nhiễm sắc thể về 2 cực và cấu trúc xoắn kép ADN tương tác.',
+    },
+    {
+      subject: 'Địa Lý',
+      title: 'Chuyển Động Trái Đất & Hiện Tượng 4 Mùa',
+      desc: 'Mô phỏng Trái Đất nghiêng 23.5° quay quanh Mặt Trời, ngày/đêm dài ngắn theo vĩ độ và chu trình nước.',
+    },
+    {
+      subject: 'Lịch Sử',
+      title: 'Sa Bàn Tương Tác Chiến Dịch & Dòng Thời Gian',
+      desc: 'Mô phỏng dòng thời gian sự kiện lịch sử (Timeline) và sa bàn di chuyển lực lượng chiến dịch.',
+    },
+    {
+      subject: 'Tin Học',
+      title: 'Cổng Logic (AND, OR, NOT) & Bảng Chân Lý',
+      desc: 'Mô phỏng các cổng logic số, công tắc HIGH/LOW điều khiển đèn LED và hiển thị bảng chân lý thời gian thực.',
+    },
+    {
+      subject: 'Công Nghệ',
+      title: 'Mạch Điện Cảm Biến & Hệ Thống Tự Động',
+      desc: 'Mô phỏng sơ đồ mạch điện rơ-le điều khiển cảm biến ánh sáng/nhiệt độ bật tắt thiết bị tự động.',
+    },
     {
       subject: 'Hóa Học',
       title: 'Chuẩn độ Axit - Bazơ (HCl & NaOH)',
-      desc: 'Mô phỏng thí nghiệm nhỏ từng giọt dung dịch NaOH vào cốc đựng HCl có chất chỉ thị Phenolphthalein. Có thanh trượt chỉnh nồng độ và nút bấm nhỏ giọt.',
+      desc: 'Mô phỏng thí nghiệm nhỏ từng giọt dung dịch NaOH vào cốc đựng HCl có chất chỉ thị Phenolphthalein.',
     },
     {
       subject: 'Vật Lý',
       title: 'Dao động Sóng cơ & Giao thoa 2 nguồn',
-      desc: 'Mô phỏng 2 nguồn sóng điểm tạo các gợn sóng tròn giao thoa trên mặt nước. Có thanh trượt chỉnh tần số f, biên độ A và khoảng cách 2 nguồn.',
+      desc: 'Mô phỏng 2 nguồn sóng điểm tạo các gợn sóng tròn giao thoa trên mặt nước. Có thanh trượt chỉnh tần số f.',
     },
     {
       subject: 'Toán Học',
       title: 'Đồ thị Hàm số & Tiếp tuyến Động',
-      desc: 'Mô phỏng vẽ đồ thị hàm số bậc 3 y = ax³ + bx² + cx + d và tiếp tuyến chuyển động theo tọa độ điểm x₀ thời gian thực.',
+      desc: 'Mô phỏng vẽ đồ thị hàm số bậc 3 y = ax³ + bx² + cx + d và tiếp tuyến chuyển động theo x₀.',
     },
   ];
 
@@ -172,16 +202,26 @@ Bạn là một chuyên gia lập trình mô phỏng giáo dục và phát tri�
 
 Nhiệm vụ: Dựa vào các tài liệu và văn bản/hình ảnh được tải lên, hãy viết ra MỘT FILE HTML HOÀN CHỈNH (Single File HTML) chứa toàn bộ CSS, HTML và JavaScript để chạy một Thí nghiệm ảo / Mô phỏng học tập tương tác.
 
+HỖ TRỢ ĐẮC LỰC CHO CÁC MÔN HỌC:
+- Sinh học: Mô phỏng chu kỳ tế bào, phân bào (Mitosis/Meiosis), cấu trúc xoắn kép ADN tương tác, hệ tuần hoàn máu, di truyền Men-đen...
+- Địa lý: Mô phỏng Trái Đất quay quanh Mặt Trời & hiện tượng 4 mùa, vĩ độ ngày đêm, chu trình nước trong tự nhiên, chuyển động mảng kiến tạo...
+- Lịch sử: Mô phỏng dòng thời gian sự kiện tương tác (Timeline), sa bàn di chuyển lực lượng quân sự/chiến dịch lịch sử...
+- Tin học: Mô phỏng cổng logic số (AND, OR, NOT, NAND, XOR) & bảng chân lý, bộ chuyển đổi hệ nhị phân, thuật toán sắp xếp trực quan...
+- Công nghệ: Mô phỏng sơ đồ mạch điện rơ-le cảm biến (ánh sáng, nhiệt độ, độ ẩm), điều khiển thiết bị tự động hóa...
+- Vật lý: Con lắc, sóng cơ, giao thoa, quang hình học, điện từ trường...
+- Toán học: Đồ thị hàm số, tiếp tuyến, diện tích hình học, hình không gian tương tác...
+- Hóa học: Phản ứng hóa học, chuẩn độ Axit-Bazơ, mô hình nguyên tử 3D, sự điện phân...
+
 CÁC YÊU CẦU BẮT BUỘC VỀ CODE MÔ PHỎNG:
 1. Giao diện đẹp mắt, hiện đại (dark mode hoặc light mode sắc nét, font chữ sans-serif tiếng Việt).
 2. TẢI THƯ VIỆN BẮT BUỘC TRONG THẺ <head>:
    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
 3. THANH ĐIỀU KHIỂN TƯƠNG TÁC THỜI GIAN THỰC (Interactive Controls UI):
    - Có các thanh trượt <input type="range"> để học sinh tùy chỉnh thông số (Nhiệt độ, Nồng độ, Khối lượng, Vận tốc, Tần số, Chiều dài...).
-   - Có các nút bấm Action: "Chạy mô phỏng", "Tạm dừng", "Đặt lại (Reset)", "Nhiệt độ +", "Thêm giọt hóa chất"...
+   - Có các nút bấm Action: "Chạy mô phỏng", "Tạm dừng", "Đặt lại (Reset)", "Tăng/Giảm tốc độ"...
 4. BẢNG THÔNG SỐ VÀ CÔNG THỨC THỜI GIAN THỰC (HUD/Dashboard):
-   - Hiển thị công thức toán/lý/hóa áp dụng.
-   - Hiển thị các giá trị đại lượng tính toán tức thời (Chu kỳ T, Động năng Ek, Thế năng Et, pH, Nồng độ...).
+   - Hiển thị công thức hoặc quy luật khoa học áp dụng.
+   - Hiển thị các giá trị đại lượng tính toán tức thời.
 5. CHỈ TRẢ VỀ ĐOẠN MÃ CODE HTML HOÀN CHỈNH (bắt đầu bằng <!DOCTYPE html> và kết thúc bằng </html>). KHÔNG ĐƯỢC viết câu chào, lời mở đầu hay bất kỳ văn bản prose tiếng Việt nào bên ngoài code block.
 `;
 
@@ -294,11 +334,16 @@ ${combinedSourceText}
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
               1. Chọn Môn Học Thí Nghiệm:
             </label>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
               {[
                 { id: 'Vật Lý', label: 'Vật Lý', icon: Activity, color: 'text-teal-600' },
                 { id: 'Toán Học', label: 'Toán Học', icon: LineChart, color: 'text-purple-600' },
                 { id: 'Hóa Học', label: 'Hóa Học', icon: Atom, color: 'text-emerald-600' },
+                { id: 'Sinh Học', label: 'Sinh Học', icon: Dna, color: 'text-rose-600' },
+                { id: 'Địa Lý', label: 'Địa Lý', icon: Globe, color: 'text-blue-600' },
+                { id: 'Lịch Sử', label: 'Lịch Sử', icon: Landmark, color: 'text-amber-600' },
+                { id: 'Tin Học', label: 'Tin Học', icon: Cpu, color: 'text-indigo-600' },
+                { id: 'Công Nghệ', label: 'Công Nghệ', icon: Wrench, color: 'text-orange-600' },
               ].map((sub) => {
                 const IconComponent = sub.icon;
                 const isSelected = selectedSubject === sub.id;
@@ -306,14 +351,14 @@ ${combinedSourceText}
                   <button
                     key={sub.id}
                     type="button"
-                    onClick={() => setSelectedSubject(sub.id as any)}
-                    className={`p-3 rounded-2xl border text-center font-bold text-xs transition-all flex items-center justify-center space-x-2 ${
+                    onClick={() => setSelectedSubject(sub.id)}
+                    className={`p-2.5 rounded-xl border text-center font-bold text-xs transition-all flex items-center justify-center space-x-1.5 ${
                       isSelected
                         ? 'bg-teal-600 text-white border-teal-600 shadow-md'
-                        : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-teal-50'
+                        : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-teal-50 dark:hover:bg-slate-800'
                     }`}
                   >
-                    <IconComponent className={`w-4 h-4 ${isSelected ? 'text-white' : sub.color}`} />
+                    <IconComponent className={`w-3.5 h-3.5 ${isSelected ? 'text-white' : sub.color}`} />
                     <span>{sub.label}</span>
                   </button>
                 );

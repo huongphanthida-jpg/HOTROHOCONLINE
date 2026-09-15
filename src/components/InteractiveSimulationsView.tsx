@@ -16,14 +16,17 @@ import {
   Trash2,
   CheckCircle2,
   BookOpen,
-  Code
+  Code,
+  Edit3
 } from 'lucide-react';
 import { AISimulationItem } from '../types';
 import { CreateSimulationModal } from './CreateSimulationModal';
 import { SimulationQRModal } from './SimulationQRModal';
+import { EditSimulationModal } from './EditSimulationModal';
 
 export const InteractiveSimulationsView: React.FC = () => {
   const [activeTab, setActiveTab] = useState<string>('pendulum');
+  const [editingSimulation, setEditingSimulation] = useState<AISimulationItem | null>(null);
 
   // AI Generated Simulations state
   const [aiSimulations, setAiSimulations] = useState<AISimulationItem[]>(() => {
@@ -69,6 +72,11 @@ export const InteractiveSimulationsView: React.FC = () => {
         setActiveTab('pendulum');
       }
     }
+  };
+
+  const handleSaveSimulation = (updatedSim: AISimulationItem) => {
+    setAiSimulations((prev) => prev.map((s) => (s.id === updatedSim.id ? updatedSim : s)));
+    setIframeKey(Date.now());
   };
 
   // --- 1. PHYSICS PENDULUM STATES ---
@@ -432,14 +440,27 @@ export const InteractiveSimulationsView: React.FC = () => {
                 <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />
                 <span className="truncate">{sim.title}</span>
               </div>
-              <button
-                type="button"
-                onClick={(e) => handleDeleteSimulation(sim.id, e)}
-                className="opacity-60 hover:opacity-100 p-0.5 rounded hover:bg-rose-500 hover:text-white transition-all ml-1"
-                title="Xóa mô phỏng này"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+              <div className="flex items-center space-x-1 shrink-0 ml-1">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setEditingSimulation(sim);
+                  }}
+                  className="opacity-60 hover:opacity-100 p-0.5 rounded hover:bg-amber-500 hover:text-white transition-all"
+                  title="Chỉnh sửa nội dung mô phỏng"
+                >
+                  <Edit3 className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => handleDeleteSimulation(sim.id, e)}
+                  className="opacity-60 hover:opacity-100 p-0.5 rounded hover:bg-rose-500 hover:text-white transition-all"
+                  title="Xóa mô phỏng này"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </button>
           </div>
         ))}
@@ -468,6 +489,16 @@ export const InteractiveSimulationsView: React.FC = () => {
 
             {/* Runner Control Toolbar */}
             <div className="flex items-center space-x-2 self-end sm:self-auto flex-wrap gap-y-2">
+              <button
+                type="button"
+                onClick={() => setEditingSimulation(activeAISim)}
+                className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold flex items-center space-x-1.5 transition-colors shadow-xs"
+                title="Chỉnh sửa nội dung mô phỏng"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Chỉnh sửa nội dung</span>
+              </button>
+
               <button
                 type="button"
                 onClick={() => setIframeKey(Date.now())}
@@ -860,6 +891,14 @@ export const InteractiveSimulationsView: React.FC = () => {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSimulationCreated={handleSimulationCreated}
+      />
+
+      {/* --- EDIT SIMULATION MODAL --- */}
+      <EditSimulationModal
+        isOpen={!!editingSimulation}
+        onClose={() => setEditingSimulation(null)}
+        simulation={editingSimulation}
+        onSaveSimulation={handleSaveSimulation}
       />
 
       {/* --- SIMULATION QR SHARE MODAL --- */}
