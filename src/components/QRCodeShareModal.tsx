@@ -11,6 +11,8 @@ import {
   MessageCircle,
   Settings2,
   Globe,
+  Maximize2,
+  AlertTriangle,
 } from 'lucide-react';
 
 import { Subject, Question, EducationalGame } from '../types';
@@ -51,6 +53,7 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
   const [copiedIdCode, setCopiedIdCode] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [showUrlSettings, setShowUrlSettings] = useState(false);
+  const [isEnlargedQrOpen, setIsEnlargedQrOpen] = useState(false);
 
   const handleCopyIdCodeOnly = async () => {
     try {
@@ -79,41 +82,60 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
     return saved;
   });
 
-  // Calculate actual base origin to use (defaults to live domain window.location.origin)
+  // Calculate actual base origin to use (defaults to live Vercel domain if on localhost)
   const resolvedBaseUrl = useMemo(() => {
     if (typeof window !== 'undefined') {
-      const liveUrl = `${window.location.origin}${window.location.pathname}`.replace(/\/+$/, '');
       if (customBaseUrl && customBaseUrl.trim() && !customBaseUrl.includes('ais-pre-')) {
         return customBaseUrl.trim().replace(/\/+$/, '');
       }
+      const liveUrl = `${window.location.origin}${window.location.pathname}`.replace(/\/+$/, '');
+      if (liveUrl.includes('localhost') || liveUrl.includes('127.0.0.1')) {
+        return 'https://hotrohoconline.vercel.app';
+      }
       return liveUrl;
     }
-    return '';
+    return 'https://hotrohoconline.vercel.app';
   }, [customBaseUrl]);
 
   const [useCompactZaloUrl, setUseCompactZaloUrl] = useState<boolean>(false);
 
-  // Full URL embedding entire question set from AI
+  // Full URL embedding entire payload from AI
   const fullPayloadUrl = useMemo(() => {
-    let url = `${resolvedBaseUrl}?${type}=${encodeURIComponent(targetId)}&role=student`;
+    const ts = Date.now();
     if (type === 'exam' && subject) {
       const payload = encodeExamPayload(subject, questions || []);
+      let url = `${resolvedBaseUrl}/quiz?id=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`;
       if (payload) {
         url += `&payload=${payload}`;
       }
+      return url;
     } else if (type === 'game' && game) {
       const payload = encodeGamePayload(game);
+      let url = `${resolvedBaseUrl}/play?gameId=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`;
       if (payload) {
-        url += `&payload=${payload}`;
+        url += `&gameData=${payload}&payload=${payload}`;
       }
+      return url;
     }
-    return url;
+    return type === 'game'
+      ? `${resolvedBaseUrl}/play?gameId=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`
+      : `${resolvedBaseUrl}/quiz?id=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`;
   }, [resolvedBaseUrl, type, targetId, subject, questions, game]);
 
-  // Clean short URL for Zalo direct 1-tap browser opening
+  // Clean short URL for Zalo direct 1-tap browser opening (carrying compressed payload in ?d=lz_...)
   const shortShareUrl = useMemo(() => {
-    return `${resolvedBaseUrl}?${type}=${encodeURIComponent(targetId)}&role=student`;
-  }, [resolvedBaseUrl, type, targetId]);
+    const ts = Date.now();
+    if (type === 'game' && game) {
+      const payload = encodeGamePayload(game);
+      return `${resolvedBaseUrl}/play?gameId=${encodeURIComponent(targetId)}&d=${payload}&t=${ts}&_v=${ts}&role=student`;
+    } else if (type === 'exam' && subject) {
+      const payload = encodeExamPayload(subject, questions || []);
+      return `${resolvedBaseUrl}/quiz?id=${encodeURIComponent(targetId)}&d=${payload}&t=${ts}&_v=${ts}&role=student`;
+    }
+    return type === 'game'
+      ? `${resolvedBaseUrl}/play?gameId=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`
+      : `${resolvedBaseUrl}/quiz?id=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`;
+  }, [resolvedBaseUrl, type, targetId, subject, questions, game]);
 
   const shareUrl = useCompactZaloUrl ? shortShareUrl : fullPayloadUrl;
 
@@ -125,11 +147,11 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
     const generateQR = async (textToRender: string) => {
       try {
         const url = await QRCode.toDataURL(textToRender, {
-          width: 360,
-          margin: 1,
+          width: 600,
+          margin: 2,
           errorCorrectionLevel: 'L',
           color: {
-            dark: type === 'exam' ? '#0f766e' : '#4338ca',
+            dark: type === 'exam' ? '#042f2e' : '#1e1b4b',
             light: '#ffffff',
           },
         });
@@ -137,22 +159,30 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
           setQrDataUrl(url);
         }
       } catch (err) {
-        console.warn('QR code payload too large, rendering clean short URL QR:', err);
-        try {
-          const fallbackUrl = await QRCode.toDataURL(shortShareUrl, {
-            width: 360,
-            margin: 1,
-            errorCorrectionLevel: 'L',
-            color: {
-              dark: type === 'exam' ? '#0f766e' : '#4338ca',
-              light: '#ffffff',
-            },
-          });
-          if (isMounted) {
-            setQrDataUrl(fallbackUrl);
+        console.warn('QR code generation warning:', err);
+        // If full payload URL failed, try compact payload (3 questions) before giving up on payload
+        if (type === 'exam' && subject && questions && textToRender === fullPayloadUrl) {
+          try {
+            const compactPayload = encodeExamPayload(subject, questions, 3);
+            if (compactPayload) {
+              const fallbackUrl = `${resolvedBaseUrl}?${type}=${encodeURIComponent(targetId)}&role=student&payload=${compactPayload}`;
+              const url = await QRCode.toDataURL(fallbackUrl, {
+                width: 600,
+                margin: 2,
+                errorCorrectionLevel: 'L',
+                color: { dark: '#042f2e', light: '#ffffff' },
+              });
+              if (isMounted) {
+                setQrDataUrl(url);
+                return;
+              }
+            }
+          } catch (e2) {
+            console.warn('Compact payload QR failed:', e2);
           }
-        } catch (e2) {
-          console.warn('Fallback QR rendering failed:', e2);
+        }
+        if (textToRender !== shortShareUrl) {
+          generateQR(shortShareUrl);
         }
       }
     };
@@ -162,7 +192,7 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, targetId, shareUrl, shortShareUrl, type]);
+  }, [isOpen, targetId, shareUrl, shortShareUrl, type, fullPayloadUrl, subject, questions, resolvedBaseUrl]);
 
   if (!isOpen) return null;
 
@@ -297,6 +327,12 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
               {metaInfo.questionsCount} câu hỏi
             </span>
           )}
+          {type === 'exam' && (
+            <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-200 font-bold flex items-center space-x-1">
+              <Check className="w-3 h-3 text-emerald-600" />
+              <span>Đã đóng gói 100% câu hỏi AI</span>
+            </span>
+          )}
           {metaInfo?.gameTypeLabel && (
             <span className="px-2.5 py-0.5 rounded-full bg-teal-50 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 font-bold">
               {metaInfo.gameTypeLabel}
@@ -349,9 +385,9 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
                 ? 'bg-teal-600 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
             }`}
-            title="Mã QR nhúng đầy đủ câu hỏi AI (Khuyên dùng - Khớp 100% nội dung)"
+            title="Mã QR đóng gói câu hỏi AI rõ nét (Khuyên dùng - Khớp 100% nội dung)"
           >
-            📦 Đóng Gói Đề AI (Khớp 100%)
+            📦 Đóng Gói Đề AI (Rõ Nét)
           </button>
           <button
             type="button"
@@ -361,35 +397,60 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
                 ? 'bg-teal-600 text-white shadow-xs'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
             }`}
-            title="Mã QR link ngắn Zalo (Mở 1 chạm trên ứng dụng Zalo)"
+            title="Mã QR link ngắn Zalo (Khối ô vuông siêu to - Quét nhanh 0.1s)"
           >
-            ⚡ Link Rút Gọn Zalo
+            ⚡ Link Rút Gọn Zalo (Khối To)
           </button>
         </div>
 
+        {useCompactZaloUrl && (
+          <div className="mb-3 p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-100 text-[11px] font-semibold space-y-1 animate-fadeIn">
+            <div className="flex items-center space-x-1.5 font-extrabold text-amber-800 dark:text-amber-200">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>LƯU Ý KHI DÙNG LINK RÚT GỌN ZALO:</span>
+            </div>
+            <p className="leading-relaxed">
+              Link rút gọn chỉ chứa Mã ID (<code className="font-mono">{targetId}</code>). Để học sinh trên điện thoại khác nhận trọn vẹn 100% câu hỏi vừa tạo từ tài liệu mà không bị về bài thi mặc định, khuyến nghị dùng nút <strong>"📦 Đóng Gói Đề AI (Rõ Nét)"</strong> ở trên!
+            </p>
+          </div>
+        )}
+
         {/* QR Code Presentation Box */}
-        <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/80 flex flex-col items-center justify-center space-y-2">
+        <div className="bg-slate-50 dark:bg-slate-900/60 p-4 rounded-2xl border border-slate-100 dark:border-slate-700/80 flex flex-col items-center justify-center space-y-2.5">
           <div 
             onClick={handleCopyQRImage}
-            className="p-2 bg-white rounded-2xl shadow-sm border border-slate-200/80 dark:border-slate-600 flex items-center justify-center cursor-pointer hover:border-teal-500 dark:hover:border-teal-400 transition-all hover:scale-102 relative group"
+            className="p-2.5 bg-white rounded-2xl shadow-md border-2 border-slate-200/90 dark:border-slate-600 flex items-center justify-center cursor-pointer hover:border-teal-500 dark:hover:border-teal-400 transition-all hover:scale-102 relative group"
             title="Bấm trực tiếp vào khung ảnh để sao chép ảnh Mã QR ngay"
           >
             {qrDataUrl ? (
-              <img src={qrDataUrl} alt="Mã QR Bài Tập" className="w-[220px] h-[220px] object-contain block rounded-xl" />
+              <img src={qrDataUrl} alt="Mã QR Bài Tập" className="w-[260px] h-[260px] object-contain block rounded-xl" />
             ) : (
-              <div className="w-[220px] h-[220px] flex items-center justify-center text-xs text-slate-400 font-bold">
+              <div className="w-[260px] h-[260px] flex items-center justify-center text-xs text-slate-400 font-bold">
                 Đang tạo mã QR...
               </div>
             )}
             {copiedImage && (
-              <div className="absolute inset-0 bg-teal-900/85 backdrop-blur-xs rounded-2xl flex flex-col items-center justify-center text-white text-xs font-extrabold space-y-1 animate-fadeIn">
-                <Check className="w-8 h-8 text-emerald-400" />
-                <span>Đã chép ảnh QR!</span>
+              <div className="absolute inset-0 bg-teal-900/90 backdrop-blur-xs rounded-2xl flex flex-col items-center justify-center text-white text-xs font-extrabold space-y-1 animate-fadeIn">
+                <Check className="w-9 h-9 text-emerald-400" />
+                <span>Đã chép ảnh QR sắc nét!</span>
               </div>
             )}
           </div>
-          <p className="text-[11px] text-center text-slate-500 dark:text-slate-400 max-w-xs">
-            👉 Bấm vào hình QR để <strong>chép ảnh ngay</strong> hoặc nhập Mã ID <strong className="text-teal-600 font-mono">{targetId}</strong>.
+
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => setIsEnlargedQrOpen(true)}
+              className="px-3 py-1.5 rounded-xl bg-teal-50 dark:bg-teal-950/60 hover:bg-teal-100 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 text-xs font-bold transition-all flex items-center space-x-1.5 shadow-2xs"
+              title="Phóng to mã QR toàn màn hình để chiếu lên Tivi/Máy chiếu lớp học"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+              <span>🔍 Phóng To Màn Hình</span>
+            </button>
+          </div>
+
+          <p className="text-[11px] text-center text-slate-500 dark:text-slate-400 max-w-xs leading-tight">
+            👉 Bấm vào hình QR để <strong>chép ảnh ngay</strong> hoặc bấm <strong>Phóng to</strong> để học sinh quét từ xa.
           </p>
         </div>
 
@@ -534,6 +595,58 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
           </p>
         </div>
       </div>
+
+      {/* Fullscreen Enlarge QR Code Modal for TV / Classroom Screen Presentation */}
+      {isEnlargedQrOpen && (
+        <div
+          className="fixed inset-0 z-60 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-fadeIn"
+          onClick={() => setIsEnlargedQrOpen(false)}
+        >
+          <div
+            className="bg-white p-6 sm:p-8 rounded-3xl shadow-2xl max-w-lg w-full flex flex-col items-center justify-center space-y-4 relative border-4 border-teal-500"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setIsEnlargedQrOpen(false)}
+              className="absolute top-4 right-4 p-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold transition-colors"
+              title="Đóng màn hình phóng to"
+            >
+              <X className="w-6 h-6" />
+            </button>
+
+            <div className="text-center space-y-1">
+              <span className="px-3 py-1 rounded-full bg-teal-100 text-teal-800 text-xs font-black uppercase tracking-wider">
+                MÃ QR TRÌNH CHIẾU LỚP HỌC (SIÊU RÕ NÉT)
+              </span>
+              <h3 className="text-lg font-black text-slate-900 line-clamp-1">{title}</h3>
+              <p className="text-xs text-slate-500 font-mono font-bold">Mã ID: {targetId}</p>
+            </div>
+
+            {qrDataUrl && (
+              <div className="p-3 bg-white border-2 border-teal-600 rounded-2xl shadow-xl">
+                <img
+                  src={qrDataUrl}
+                  alt="Mã QR Phóng To"
+                  className="w-[320px] sm:w-[400px] h-[320px] sm:h-[400px] object-contain block rounded-xl"
+                />
+              </div>
+            )}
+
+            <p className="text-xs font-bold text-teal-800 text-center">
+              👉 Mời học sinh giơ camera điện thoại quét mã trên màn hình để làm bài ngay!
+            </p>
+
+            <button
+              type="button"
+              onClick={() => setIsEnlargedQrOpen(false)}
+              className="px-6 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-black shadow-md transition-all"
+            >
+              Thu Nhỏ Lại
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
