@@ -403,13 +403,17 @@ export const CreateExamFromSourceModal: React.FC<CreateExamFromSourceModalProps>
   const handleGenerateExam = async () => {
     // 1. Gather all images
     const imagesToSend = uploadedSources
-      .filter((s) => s.type === 'image' && s.base64Data)
-      .map((s, idx) => ({
-        mimeType: s.mimeType || 'image/jpeg',
-        data: s.base64Data!,
-        title: s.name || `Trang SGK #${idx + 1}`,
-        pageIndex: idx + 1,
-      }));
+      .filter((s) => s.type === 'image' && (s.base64Data || s.dataUrl))
+      .map((s, idx) => {
+        const rawData = s.base64Data || s.dataUrl || '';
+        const cleanData = rawData.replace(/^data:image\/\w+;base64,/, '').trim();
+        return {
+          mimeType: s.mimeType || 'image/jpeg',
+          data: cleanData,
+          title: s.name || `Trang SGK #${idx + 1}`,
+          pageIndex: idx + 1,
+        };
+      });
 
     // 2. Gather all text sections
     const textSections: string[] = [];
