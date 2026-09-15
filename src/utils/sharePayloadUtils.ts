@@ -967,14 +967,26 @@ export function encodeGamePayload(game: EducationalGame): string {
     }
     if (game.quizData && game.quizData.questions && game.quizData.questions.length > 0) {
       compactGame.q = {
-        questions: game.quizData.questions.map((q) => {
+        timePerQuestion: game.quizData.timePerQuestion || 15,
+        questions: game.quizData.questions.map((q: any) => {
+          const qText = String(
+            q.question || q.content || q.questionText || q.text || q.title || q.prompt || ''
+          )
+            .replace(/\s+/g, ' ')
+            .trim();
           const item: any = {
             id: q.id,
-            content: (q.content || '').replace(/\s+/g, ' ').trim(),
-            options: q.options ? q.options.map((o) => String(o).trim()) : [],
+            question: qText,
+            content: qText,
+            options: q.options ? q.options.map((o: any) => String(o).trim()) : [],
             correctAnswer: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
           };
-          if (q.explanation && q.explanation.trim()) item.explanation = q.explanation.trim();
+          if (q.explanation && String(q.explanation).trim()) {
+            item.explanation = String(q.explanation).trim();
+          }
+          if (q.sourceCitation && String(q.sourceCitation).trim()) {
+            item.sourceCitation = String(q.sourceCitation).trim();
+          }
           return item;
         }),
       };
@@ -1035,13 +1047,40 @@ export function decodeGamePayload(payloadStr: string): EducationalGame | null {
     }
 
     if (parsed.i && parsed.t) {
+      let decodedQuizData = parsed.q;
+      if (decodedQuizData && decodedQuizData.questions && Array.isArray(decodedQuizData.questions)) {
+        decodedQuizData = {
+          timePerQuestion: typeof decodedQuizData.timePerQuestion === 'number' ? decodedQuizData.timePerQuestion : 15,
+          questions: decodedQuizData.questions.map((q: any, idx: number) => {
+            const rawText = String(
+              q.question || q.content || q.questionText || q.c || q.text || q.title || ''
+            ).trim();
+            const qText = rawText || `Câu hỏi ${idx + 1}`;
+            return {
+              id: q.id || `q_${idx + 1}`,
+              question: qText,
+              content: qText,
+              questionText: qText,
+              options: Array.isArray(q.options)
+                ? q.options.map(String)
+                : Array.isArray(q.o)
+                ? q.o.map(String)
+                : ['A', 'B', 'C', 'D'],
+              correctAnswer: typeof q.correctAnswer === 'number' ? q.correctAnswer : (typeof q.a === 'number' ? q.a : 0),
+              explanation: q.explanation || q.e || 'Lời giải chi tiết chuẩn SGK',
+              sourceCitation: q.sourceCitation || q.sc,
+            };
+          }),
+        };
+      }
+
       const game: EducationalGame = {
         id: parsed.i,
         title: parsed.t,
         description: parsed.d || '',
         subject: parsed.s || 'Tổng hợp',
         type: parsed.tp || 'quiz',
-        quizData: parsed.q,
+        quizData: decodedQuizData,
         dragDropData: parsed.dd,
         matchingData: parsed.m,
         sourceDocTitle: parsed.st,
