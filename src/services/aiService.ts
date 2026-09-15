@@ -29,6 +29,53 @@ export const AVAILABLE_MODELS = [
 ];
 
 /**
+ * Trích xuất đoạn mã code sạch (loại bỏ markdown wrappers ```html ... ``` và các câu văn chào hỏi đứng trước/sau)
+ */
+export const extractCleanCode = (rawText: string): string => {
+  if (!rawText) return '';
+  let cleaned = rawText.trim();
+
+  // 1. Match khối markdown ```html ... ``` nếu có
+  const codeMatch = cleaned.match(/```(?:html|javascript|p5js)?\s*([\s\S]*?)```/i);
+  if (codeMatch && codeMatch[1]) {
+    cleaned = codeMatch[1].trim();
+  }
+
+  // 2. Loại bỏ câu chào hỏi đứng trước <!DOCTYPE hoặc <html nếu có
+  const htmlStartMatch = cleaned.match(/(<!DOCTYPE[\s\S]*|<html[\s\S]*)/i);
+  if (htmlStartMatch && htmlStartMatch[1]) {
+    cleaned = htmlStartMatch[1].trim();
+  }
+
+  // 3. Xóa bớt phần dính đuôi ``` hoặc văn bản ở sau </html>
+  const htmlEndIdx = cleaned.toLowerCase().lastIndexOf('</html>');
+  if (htmlEndIdx !== -1) {
+    cleaned = cleaned.substring(0, htmlEndIdx + 7).trim();
+  }
+
+  return cleaned;
+};
+
+/**
+ * Làm sạch văn bản mô tả / hướng dẫn từ AI: loại bỏ các câu chào hỏi xã giao, trích dẫn tài liệu thừa
+ */
+export const cleanAiProseText = (rawText: string): string => {
+  if (!rawText) return '';
+  let cleaned = rawText.trim();
+
+  // Loại bỏ toàn bộ khối code ``` ... ``` dính trong văn bản
+  cleaned = cleaned.replace(/```(?:html|javascript|p5js)?[\s\S]*?```/gi, '');
+
+  // Loại bỏ các câu bắt đầu bằng: Chào bạn, Dựa trên tài liệu, Dưới đây là mã nguồn...
+  cleaned = cleaned.replace(/^(?:Chào bạn|Dựa trên hình ảnh|Dựa trên tài liệu|Dưới đây là|Theo tài liệu|Tôi nhận thấy|Chào quý thầy cô)[^.\n]*[.\n]?/gi, '');
+  cleaned = cleaned.replace(/(?:Chào bạn|Dựa trên hình ảnh|Dựa trên tài liệu|Dưới đây là|Theo tài liệu|Tôi nhận thấy|Chào quý thầy cô)[\s\S]*?(?:tôi sẽ|dưới đây là|mô phỏng:?)/gi, '');
+  cleaned = cleaned.replace(/Dưới đây là mã nguồn[\s\S]*$/gi, '');
+  cleaned = cleaned.replace(/```[\s\S]*$/gi, '');
+
+  return cleaned.trim();
+};
+
+/**
  * Gọi Gemini AI qua Direct Client API hoặc Server API Proxy với cơ chế Tự động Fallback Model
  */
 export async function callGeminiAI(params: AICallParams): Promise<{ text: string; usedModel: string }> {
