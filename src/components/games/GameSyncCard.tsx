@@ -238,3 +238,5 @@ export const GameSyncCard: React.FC<GameSyncCardProps> = ({
     </div>
   );
 };
+
+export default GameSyncCard;

@@ -1056,3 +1056,5 @@ export const EditGameModal: React.FC<EditGameModalProps> = ({
     </div>
   );
 };
+
+export default EditGameModal;

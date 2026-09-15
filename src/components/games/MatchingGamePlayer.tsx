@@ -512,3 +512,5 @@ export const MatchingGamePlayer: React.FC<MatchingGamePlayerProps> = ({
     </div>
   );
 };
+
+export default MatchingGamePlayer;

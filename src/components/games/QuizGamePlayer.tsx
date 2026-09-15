@@ -633,3 +633,5 @@ export const QuizGamePlayer: React.FC<QuizGamePlayerProps> = ({
     </div>
   );
 };
+
+export default QuizGamePlayer;

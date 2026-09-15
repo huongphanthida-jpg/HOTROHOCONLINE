@@ -565,3 +565,5 @@ export const CreateGameModal: React.FC<CreateGameModalProps> = ({
     </div>
   );
 };
+
+export default CreateGameModal;

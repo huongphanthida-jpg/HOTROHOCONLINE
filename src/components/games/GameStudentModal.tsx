@@ -359,3 +359,5 @@ export const GameStudentModal: React.FC<GameStudentModalProps> = ({
     </div>
   );
 };
+
+export default GameStudentModal;

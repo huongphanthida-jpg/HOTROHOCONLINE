@@ -747,3 +747,5 @@ export const FillBlankGamePlayer: React.FC<FillBlankGamePlayerProps> = ({
     </div>
   );
 };
+
+export default FillBlankGamePlayer;

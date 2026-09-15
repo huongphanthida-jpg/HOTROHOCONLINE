@@ -926,3 +926,5 @@ export const DragDropGamePlayer: React.FC<DragDropGamePlayerProps> = ({
     </div>
   );
 };
+
+export default DragDropGamePlayer;
