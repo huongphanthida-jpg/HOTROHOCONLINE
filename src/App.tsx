@@ -7,7 +7,6 @@ import {
   SessionRecord, 
   DocumentLearning, 
   AppSettings, 
-  OnlineClass, 
   EducationalGame, 
   UserRole,
   AISimulationItem
@@ -70,11 +69,6 @@ export default function App() {
             }
             return g;
           });
-
-          // Ensure default onlineClasses exist in state
-          if (!parsed.onlineClasses || parsed.onlineClasses.length === 0) {
-            parsed.onlineClasses = INITIAL_DATA.onlineClasses || [];
-          }
         }
         return parsed;
       }
@@ -891,14 +885,6 @@ export default function App() {
     setActiveResult(null);
     setActiveExam(null);
     setCurrentTab('subjects');
-  };
-
-  // Online class database updater
-  const handleUpdateOnlineClasses = (newClasses: OnlineClass[]) => {
-    setAppData((prev) => ({
-      ...prev,
-      onlineClasses: newClasses,
-    }));
   };
 
   // Document saving
