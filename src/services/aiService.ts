@@ -29,6 +29,16 @@ export const AVAILABLE_MODELS = [
 ];
 
 /**
+ * Chỉ thị bắt buộc bám sát 100% nguồn cung cấp (Grounding Rule - Anti-hallucination)
+ */
+export const GROUNDING_RULE_DIRECTIVE = `[NGUYÊN TẮC BẮT BUỘC - TUÂN THỦ 100% NGUỒN CUNG CẤP]:
+1. BẠN CHỈ ĐƯỢC PHÉP SỬ DỤNG DUY NHẤT CÁC THÔNG TIN, DỮ LIỆU, ĐỊNH NGHĨA, ĐỊNH LÝ VÀ SỐ LIỆU XUẤT HIỆN TRONG TÀI LIỆU/HÌNH ẢNH ĐƯỢC CUNG CẤP.
+2. TUYỆT ĐỐI KHÔNG ĐƯỢC TỰ Ý SUY DIỄN, BỔ SUNG KIẾN THỨC NGOẠI LAI HAY LẤY DỮ LIỆU NGOÀI NGUỒN.
+3. NỘI DUNG CÂU HỎI VÀ TẤT CẢ CÁC ĐÁP ÁN (ĐÁP ÁN ĐÚNG LẪN ĐÁP ÁN NHIỄU) PHẢI ĐƯỢC XÂY DỰNG TRỰC TIẾP TỪ NỘI DUNG CỦA TÀI LIỆU/ẢNH GỐC.
+4. NẾU NGUỒN ĐƯA LÊN KHÔNG ĐỦ THÔNG TIN ĐỂ TẠO CÂU HỎI THEO YÊU CẦU, HÃY TẬP TRUNG KHAI THÁC CÁC CHI TIẾT CÓ SẴN TRONG NGUỒN CHỨ TUYỆT ĐỐI KHÔNG TỰ BỊA THÊM CHỦ ĐỀ KHÁC.`;
+
+
+/**
  * Trích xuất đoạn mã code sạch (loại bỏ markdown wrappers ```html ... ``` và các câu văn chào hỏi đứng trước/sau)
  */
 export function extractCleanCode(rawText: string): string {
@@ -244,7 +254,9 @@ export async function summarizeTheoryDocument(
 
   const sourcesSummary = sourceItemsSummary ? `\n\nDanh sách các nguồn được cung cấp:\n${sourceItemsSummary}` : '';
 
-  const prompt = `Bạn là một chuyên gia sư phạm hàng đầu và giáo viên luyện thi quốc gia tại Việt Nam.
+  const prompt = `${GROUNDING_RULE_DIRECTIVE}
+
+Bạn là một chuyên gia sư phạm hàng đầu và giáo viên luyện thi quốc gia tại Việt Nam.
 Hãy phân tích và tổng hợp tài liệu học tập sau đây với tiêu đề "${docTitle}":
 ${sourcesSummary}${imagesInfo}
 
@@ -278,7 +290,7 @@ Nhiệm vụ của bạn:
 
   const { text } = await callGeminiAI({
     prompt,
-    temperature: 0.3,
+    temperature: 0.2,
     images: images && images.length > 0 ? images.map(img => ({ mimeType: img.mimeType, data: img.data })) : undefined,
   });
 
@@ -527,7 +539,9 @@ export async function generateExamFromSource(
     return parts.join('\n');
   })();
 
-  const prompt = `Bạn là Chuyên gia Khảo thí và Trưởng ban Ra đề thi Quốc gia theo chương trình Giáo dục Phổ thông mới (2026-2027) của Việt Nam.
+  const prompt = `${GROUNDING_RULE_DIRECTIVE}
+
+Bạn là Chuyên gia Khảo thí và Trưởng ban Ra đề thi Quốc gia theo chương trình Giáo dục Phổ thông mới (2026-2027) của Việt Nam.
 
 ═══════════════════════════════════════════════════════════════════════
 ĐIỀU KIỆN TIÊN QUYẾT BẮT BUỘC: KẾT HỢP ĐA NGUỒN & KHÔNG TỰ TẠO THÔNG TIN NGOÀI NGUỒN
@@ -586,7 +600,7 @@ Trả về DUY NHẤT một mảng JSON hợp lệ chứa đúng ${count} câu h
     const { text } = await callGeminiAI({
       prompt,
       images,
-      temperature: 0.35,
+      temperature: 0.2,
     });
 
     const cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
@@ -843,7 +857,9 @@ export async function generateEducationalGameFromSources(params: GenerateGamePar
     ? `\nLƯU Ý ĐẶC BIỆT VỀ ĐA NGUỒN: Người dùng đã tải lên ${images.length} ảnh/tài liệu đính kèm.\nHãy đọc, xâu chuỗi và trích xuất kiến thức từ TẤT CẢ các ảnh/tài liệu này.`
     : '';
 
-  const systemInstruction = `Bạn là Chuyên gia Thiết kế Trò Chơi Giáo Dục (Gamification & Instructional Design) xuất sắc theo chuẩn Chương trình Giáo dục Phổ thông 2018.
+  const systemInstruction = `${GROUNDING_RULE_DIRECTIVE}
+
+Bạn là Chuyên gia Thiết kế Trò Chơi Giáo Dục (Gamification & Instructional Design) xuất sắc theo chuẩn Chương trình Giáo dục Phổ thông 2018.
 NHIỆM VỤ CỐT LÕI: Thiết kế trò chơi tương tác giáo dục ("QUIZ", "KÉO THẢ", "GHÉP CẶP", hoặc "ĐIỀN KHUYẾT") từ tài liệu học tập và các ảnh sách giáo khoa được cung cấp.
 
 NGUYÊN TẮC BẤT DI BẤT DỊCH (ZERO-HALLUCINATION):
@@ -1001,7 +1017,7 @@ HÃY ĐẢM BẢO DỮ LIỆU JSON ĐẦY ĐỦ, HỢP LỆ VÀ ĐÚNG CHUẨN.`
       systemInstruction,
       images: formattedImages,
       responseMimeType: 'application/json',
-      temperature: 0.3,
+      temperature: 0.2,
     });
 
     let raw = response.text.trim();
@@ -1475,7 +1491,9 @@ export async function generateSimilarExamFromSource(
   const targetCount = options?.questionCount || 10;
   const images = options?.images || [];
 
-  const prompt = `Bạn là chuyên gia sư phạm và giáo viên ra đề thi quốc gia hàng đầu tại Việt Nam.
+  const prompt = `${GROUNDING_RULE_DIRECTIVE}
+
+Bạn là chuyên gia sư phạm và giáo viên ra đề thi quốc gia hàng đầu tại Việt Nam.
 Nhiệm vụ của bạn: Phân tích kỹ nội dung đề thi gốc được cung cấp bên dưới (bao gồm văn bản và hình ảnh nếu có), bóc tách rõ ràng cấu trúc và sau đó **TẠO RA MỘT BỘ ĐỀ THI MỚI HOÀN TOÀN TƯƠNG TỰ (ĐỀ SONG SONG)**.
 
 YÊU CẦU PHÂN TÍCH VÀ BÓC TÁCH ĐỀ GỐC (CRITICAL MANDATE):
@@ -1518,7 +1536,7 @@ ${fileData.slice(0, 30000)}
   try {
     const { text } = await callGeminiAI({
       prompt,
-      temperature: 0.5,
+      temperature: 0.2,
       images: images.length > 0 ? images.map((img) => ({ mimeType: img.mimeType, data: img.data })) : undefined,
     });
 
@@ -1551,3 +1569,67 @@ ${fileData.slice(0, 30000)}
   // Fallback if AI call fails or output cannot be parsed
   return generateFallbackQuestionsBySubject({ id: `sub-sim-${Date.now()}`, name: subjectName }, targetCount);
 }
+
+export interface GenerateSimulationCodeParams {
+  selectedSubject: string;
+  title: string;
+  combinedSourceText: string;
+  imagesToSend?: { mimeType: string; data: string; title?: string }[];
+}
+
+/**
+ * Hàm sinh mã code HTML5 Canvas / p5.js cho Thí nghiệm ảo từ nguồn tài liệu đưa lên
+ * Tuân thủ tuyệt đối 100% NGUYÊN TẮC BẮT BUỘC - TUÂN THỦ NGUỒN CUNG CẤP & Temperature = 0.2
+ */
+export async function generateSimulationCode(params: GenerateSimulationCodeParams): Promise<string> {
+  const { selectedSubject, title, combinedSourceText, imagesToSend = [] } = params;
+
+  const systemInstruction = `${GROUNDING_RULE_DIRECTIVE}
+
+Bạn là một chuyên gia lập trình mô phỏng giáo dục và phát triển thí nghiệm ảo tương tác bằng HTML5 Canvas và p5.js cho học sinh phổ thông Việt Nam.
+
+Nhiệm vụ: Dựa vào các tài liệu và văn bản/hình ảnh được tải lên, hãy viết ra MỘT FILE HTML HOÀN CHỈNH (Single File HTML) chứa toàn bộ CSS, HTML và JavaScript để chạy một Thí nghiệm ảo / Mô phỏng học tập tương tác.
+
+HỖ TRỢ ĐẮC LỰC CHO CÁC MÔN HỌC:
+- Sinh học: Mô phỏng chu kỳ tế bào, phân bào (Mitosis/Meiosis), cấu trúc xoắn kép ADN tương tác, hệ tuần hoàn máu, di truyền Men-đen...
+- Địa lý: Mô phỏng Trái Đất quay quanh Mặt Trời & hiện tượng 4 mùa, vĩ độ ngày đêm, chu trình nước trong tự nhiên, chuyển động mảng kiến tạo...
+- Lịch sử: Mô phỏng dòng thời gian sự kiện tương tác (Timeline), sa bàn di chuyển lực lượng quân sự/chiến dịch lịch sử...
+- Tin học: Mô phỏng cổng logic số (AND, OR, NOT, NAND, XOR) & bảng chân lý, bộ chuyển đổi hệ nhị phân, thuật toán sắp xếp trực quan...
+- Công nghệ: Mô phỏng sơ đồ mạch điện rơ-le cảm biến (ánh sáng, nhiệt độ, độ ẩm), điều khiển thiết bị tự động hóa...
+- Vật lý: Con lắc, sóng cơ, giao thoa, quang hình học, điện từ trường...
+- Toán học: Đồ thị hàm số, tiếp tuyến, diện tích hình học, hình không gian tương tác...
+- Hóa học: Phản ứng hóa học, chuẩn độ Axit-Bazơ, mô hình nguyên tử 3D, sự điện phân...
+
+CÁC YÊU CẦU BẮT BUỘC VỀ CODE MÔ PHỎNG:
+1. Giao diện đẹp mắt, hiện đại (dark mode hoặc light mode sắc nét, font chữ sans-serif tiếng Việt).
+2. TẢI THƯ VIỆN BẮT BUỘC TRONG THẺ <head>:
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+3. THANH ĐIỀU KHIỂN TƯƠNG TÁC THỜI GIAN THỰC (Interactive Controls UI):
+   - Có các thanh trượt <input type="range"> để học sinh tùy chỉnh thông số (Nhiệt độ, Nồng độ, Khối lượng, Vận tốc, Tần số, Chiều dài...).
+   - Có các nút bấm Action: "Chạy mô phỏng", "Tạm dừng", "Đặt lại (Reset)", "Tăng/Giảm tốc độ"...
+4. BẢNG THÔNG SỐ VÀ CÔNG THỨC THỜI GIAN THỰC (HUD/Dashboard):
+   - Hiển thị công thức hoặc quy luật khoa học áp dụng.
+   - Hiển thị các giá trị đại lượng tính toán tức thời.
+5. CHỈ TRẢ VỀ ĐOẠN MÃ CODE HTML HOÀN CHỈNH (bắt đầu bằng <!DOCTYPE html> và kết thúc bằng </html>). KHÔNG ĐƯỢC viết câu chào, lời mở đầu hay bất kỳ văn bản prose tiếng Việt nào bên ngoài code block.`;
+
+  const userPrompt = `
+Hãy lập trình mã mô phỏng thí nghiệm ảo tương tác bằng HTML5 Canvas / p5.js cho:
+- Môn học: ${selectedSubject}
+- Chủ đề thí nghiệm: ${title}
+- Nội dung tài liệu & Yêu cầu chi tiết:
+${combinedSourceText}
+
+Đảm bảo mã HTML5/JS này đầy đủ, chạy trực tiếp trong iframe và có giao diện điều khiển phong phú.
+`;
+
+  const res = await callGeminiAI({
+    prompt: userPrompt,
+    systemInstruction,
+    temperature: 0.2,
+    maxOutputTokens: 8192,
+    images: imagesToSend.length > 0 ? imagesToSend : undefined,
+  });
+
+  return extractCleanCode(res.text || '');
+}
+
