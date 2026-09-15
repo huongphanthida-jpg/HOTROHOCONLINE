@@ -448,20 +448,23 @@ export const QuizGamePlayer: React.FC<QuizGamePlayerProps> = ({
 
         {/* Question Text */}
         {(() => {
-          const questionText =
-            (currentQ as any)?.questionText ||
-            (currentQ as any)?.question ||
-            (currentQ as any)?.content ||
-            (currentQ as any)?.text ||
-            (currentQ as any)?.title ||
-            (currentQ as any)?.prompt ||
-            (currentQ as any)?.c ||
-            (currentQ as any)?.q ||
-            (currentQ as any)?.name ||
-            (currentQ as any)?.questionContent ||
-            '';
+          const candidateValues = [
+            (currentQ as any)?.question,
+            (currentQ as any)?.questionText,
+            (currentQ as any)?.content,
+            (currentQ as any)?.text,
+            (currentQ as any)?.title,
+            (currentQ as any)?.prompt,
+            (currentQ as any)?.c,
+            (currentQ as any)?.q,
+            (currentQ as any)?.name,
+            (currentQ as any)?.questionContent,
+          ].filter((val) => typeof val === 'string' && val.trim().length > 0);
 
-          const displayText = String(questionText).trim() || `Câu hỏi ${currentIndex + 1} (${game.title})`;
+          const displayText =
+            candidateValues.length > 0
+              ? candidateValues[0].trim()
+              : `Câu hỏi ${currentIndex + 1} (${game.title})`;
 
           return (
             <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-4 sm:p-5 my-4 shadow-xs text-left">
