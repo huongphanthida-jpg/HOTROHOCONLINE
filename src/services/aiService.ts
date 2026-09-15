@@ -31,7 +31,7 @@ export const AVAILABLE_MODELS = [
 /**
  * Trích xuất đoạn mã code sạch (loại bỏ markdown wrappers ```html ... ``` và các câu văn chào hỏi đứng trước/sau)
  */
-export const extractCleanCode = (rawText: string): string => {
+export function extractCleanCode(rawText: string): string {
   if (!rawText) return '';
   let cleaned = rawText.trim();
 
@@ -54,12 +54,12 @@ export const extractCleanCode = (rawText: string): string => {
   }
 
   return cleaned;
-};
+}
 
 /**
  * Làm sạch văn bản mô tả / hướng dẫn từ AI: loại bỏ các câu chào hỏi xã giao, trích dẫn tài liệu thừa
  */
-export const cleanAiProseText = (rawText: string): string => {
+export function cleanAiProseText(rawText: string): string {
   if (!rawText) return '';
   let cleaned = rawText.trim();
 
@@ -73,7 +73,7 @@ export const cleanAiProseText = (rawText: string): string => {
   cleaned = cleaned.replace(/```[\s\S]*$/gi, '');
 
   return cleaned.trim();
-};
+}
 
 /**
  * Gọi Gemini AI qua Direct Client API hoặc Server API Proxy với cơ chế Tự động Fallback Model
