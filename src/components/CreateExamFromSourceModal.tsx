@@ -498,11 +498,28 @@ export const CreateExamFromSourceModal: React.FC<CreateExamFromSourceModalProps>
         sourceItemsSummary,
       });
 
-      if (!questions || questions.length === 0) {
+      if (!questions || !Array.isArray(questions) || questions.length === 0) {
         throw new Error('AI không thể khởi tạo câu hỏi từ nguồn tài liệu này. Vui lòng thử lại!');
       }
 
-      setGeneratedQuestions(questions);
+      const sanitizedQuestions: Question[] = questions.map((q, idx) => ({
+        id: q.id || `q-gen-${Date.now()}-${idx + 1}`,
+        subjectId: '',
+        content: String(q.content || (q as any).question || (q as any).title || (q as any).prompt || `Câu hỏi ${idx + 1}`).trim(),
+        type: q.type || 'multiple_choice',
+        options: Array.isArray(q.options) && q.options.length > 0
+          ? q.options.map((o) => String(o || '').trim())
+          : ['Phương án A', 'Phương án B', 'Phương án C', 'Phương án D'],
+        correctAnswer: typeof q.correctAnswer === 'number' && !isNaN(q.correctAnswer) ? q.correctAnswer : 0,
+        explanation: String(q.explanation || 'Giải thích chi tiết bám sát nội dung bài học.').trim(),
+        points: typeof q.points === 'number' ? q.points : Number((10 / questions.length).toFixed(2)),
+        difficulty: q.difficulty || 'medium',
+        topic: examTitle,
+        expectedShortAnswer: (q as any).expectedShortAnswer || (q as any).sampleAnswer || '',
+        sampleAnswer: (q as any).sampleAnswer || (q as any).expectedShortAnswer || '',
+      }));
+
+      setGeneratedQuestions(sanitizedQuestions);
       setStep('preview');
     } catch (err: any) {
       setErrorMsg(err.message || 'Có lỗi xảy ra trong quá trình AI tạo đề thi.');

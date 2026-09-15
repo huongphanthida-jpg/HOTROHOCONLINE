@@ -104,7 +104,7 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
     const ts = Date.now();
     if (type === 'exam' && subject) {
       const payload = encodeExamPayload(subject, questions || []);
-      let url = `${resolvedBaseUrl}/quiz?id=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`;
+      let url = `${resolvedBaseUrl}/?exam=${payload}&id=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`;
       if (payload) {
         url += `&payload=${payload}`;
       }
@@ -119,7 +119,7 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
     }
     return type === 'game'
       ? `${resolvedBaseUrl}/play?gameId=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`
-      : `${resolvedBaseUrl}/quiz?id=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`;
+      : `${resolvedBaseUrl}/?exam=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`;
   }, [resolvedBaseUrl, type, targetId, subject, questions, game]);
 
   // Clean short URL for Zalo direct 1-tap browser opening (carrying compressed payload in ?d=lz_...)
@@ -130,11 +130,11 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
       return `${resolvedBaseUrl}/play?gameId=${encodeURIComponent(targetId)}&d=${payload}&t=${ts}&_v=${ts}&role=student`;
     } else if (type === 'exam' && subject) {
       const payload = encodeExamPayload(subject, questions || []);
-      return `${resolvedBaseUrl}/quiz?id=${encodeURIComponent(targetId)}&d=${payload}&t=${ts}&_v=${ts}&role=student`;
+      return `${resolvedBaseUrl}/?exam=${payload}&id=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`;
     }
     return type === 'game'
       ? `${resolvedBaseUrl}/play?gameId=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`
-      : `${resolvedBaseUrl}/quiz?id=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`;
+      : `${resolvedBaseUrl}/?exam=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`;
   }, [resolvedBaseUrl, type, targetId, subject, questions, game]);
 
   const shareUrl = useCompactZaloUrl ? shortShareUrl : fullPayloadUrl;
