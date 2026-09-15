@@ -21,7 +21,7 @@ import {
   Copy
 } from 'lucide-react';
 import { Subject, Question, UploadedSourceItem } from '../types';
-import { generateSimilarExamFromSource, generateFallbackQuestionsBySubject } from '../services/aiService';
+import { generateSimilarExamFromSource } from '../services/aiService';
 import { FormattedMathText } from './FormattedMathText';
 
 interface CreateSimilarExamModalProps {
@@ -189,7 +189,9 @@ export const CreateSimilarExamModal: React.FC<CreateSimilarExamModalProps> = ({
       setStep('preview');
     } catch (err: any) {
       console.error('Lỗi tạo đề thi tương tự:', err);
-      setErrorMsg(err.message || 'Đã xảy ra lỗi trong quá trình AI phân tích và tạo đề thi tương tự.');
+      const msg = err.message || 'Đã xảy ra lỗi trong quá trình AI phân tích và tạo đề thi tương tự.';
+      setErrorMsg(msg);
+      alert(`Lỗi tạo đề: ${msg}`);
     } finally {
       setIsGenerating(false);
     }
