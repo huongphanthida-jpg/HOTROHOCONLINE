@@ -21,6 +21,8 @@ import { GameSessionResult } from '../../services/sheetSyncService';
 import { GameSyncCard } from './GameSyncCard';
 import { FormattedMathText } from '../FormattedMathText';
 
+import { GameStudentModal } from './GameStudentModal';
+
 interface FillBlankGamePlayerProps {
   game: EducationalGame;
   studentInfo: StudentInfo;
@@ -69,6 +71,11 @@ export const FillBlankGamePlayer: React.FC<FillBlankGamePlayerProps> = ({
   const [startTime] = useState<number>(Date.now());
   const [totalTimeSpent, setTotalTimeSpent] = useState<number>(0);
 
+  // Student info state & Modal state for missing info before submission
+  const [currentStudentInfo, setCurrentStudentInfo] = useState<StudentInfo>(studentInfo);
+  const [showStudentInfoModal, setShowStudentInfoModal] = useState(false);
+  const [pendingGameFinish, setPendingGameFinish] = useState<{ finalScore: number; finalCorrect: number } | null>(null);
+
   // Sync state for Google Sheets
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
   const [syncMessage, setSyncMessage] = useState<string>('');
@@ -78,7 +85,23 @@ export const FillBlankGamePlayer: React.FC<FillBlankGamePlayerProps> = ({
 
   const currentQ = questions[currentIndex];
 
-  const handleFinishGame = (finalScore: number, finalCorrect: number) => {
+  const handleFinishGame = (finalScore: number, finalCorrect: number, customStudentInfo?: StudentInfo) => {
+    const infoToUse = customStudentInfo || currentStudentInfo;
+
+    const isMissingInfo =
+      !infoToUse?.fullName ||
+      infoToUse.fullName === 'Học sinh' ||
+      infoToUse.fullName === 'Học sinh khách' ||
+      !infoToUse?.className ||
+      infoToUse.className === 'Chưa xếp lớp' ||
+      infoToUse.className === 'Lớp trải nghiệm';
+
+    if (isMissingInfo && !customStudentInfo) {
+      setPendingGameFinish({ finalScore, finalCorrect });
+      setShowStudentInfoModal(true);
+      return;
+    }
+
     setIsGameOver(true);
     soundEffects.playCelebration();
     const duration = Math.max(1, Math.round((Date.now() - startTime) / 1000));
@@ -95,7 +118,7 @@ export const FillBlankGamePlayer: React.FC<FillBlankGamePlayerProps> = ({
       gameTitle: game.title,
       gameType: 'fill_blank',
       subject: game.subject,
-      studentInfo,
+      studentInfo: infoToUse,
       score: score10,
       rawScore: finalScore,
       correctCount: finalCorrect,
@@ -684,20 +707,28 @@ export const FillBlankGamePlayer: React.FC<FillBlankGamePlayerProps> = ({
               >
                 Hủy
               </button>
-              <button
-                onClick={() => {
-                  if (onDeleteGame) onDeleteGame(game.id);
-                  setIsConfirmingDelete(false);
-                  onBack();
-                }}
-                className="px-4 py-2 text-xs font-bold rounded-xl bg-rose-600 text-white"
-              >
-                Xác nhận xóa
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Student Info Modal when finishing fill blank game with missing info */}
+      <GameStudentModal
+        isOpen={showStudentInfoModal}
+        game={game}
+        gameTitle={game.title}
+        subject={game.subject}
+        gameType="fill_blank"
+        initialScriptUrl={initialScriptUrl}
+        onClose={() => {
+          setShowStudentInfoModal(false);
+          if (pendingGameFinish) {
+            handleFinishGame(pendingGameFinish.finalScore, pendingGameFinish.finalCorrect, currentStudentInfo);
+          }
+        }}
+        onStartGame={(info) => {
+          setCurrentStudentInfo(info);
+          setShowStudentInfoModal(false);
+          if (pendingGameFinish) {
+            handleFinishGame(pendingGameFinish.finalScore, pendingGameFinish.finalCorrect, info);
+          }
+        }}
+      />
     </div>
   );
 };

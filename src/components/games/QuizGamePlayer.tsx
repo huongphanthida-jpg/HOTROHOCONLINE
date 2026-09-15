@@ -21,6 +21,8 @@ import { GameSessionResult, syncGameResultToGoogleSheets } from '../../services/
 import { GameSyncCard } from './GameSyncCard';
 import { FormattedMathText } from '../FormattedMathText';
 
+import { GameStudentModal } from './GameStudentModal';
+
 interface QuizGamePlayerProps {
   game: EducationalGame;
   studentInfo: StudentInfo;
@@ -59,6 +61,11 @@ export const QuizGamePlayer: React.FC<QuizGamePlayerProps> = ({
     { questionId: string; selected: number | null; isCorrect: boolean }[]
   >([]);
 
+  // Student info state & Modal state for missing info before submission
+  const [currentStudentInfo, setCurrentStudentInfo] = useState<StudentInfo>(studentInfo);
+  const [showStudentInfoModal, setShowStudentInfoModal] = useState(false);
+  const [pendingQuizFinish, setPendingQuizFinish] = useState<{ finalScore: number; finalCorrect: number } | null>(null);
+
   // Sync state for Google Sheets
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
   const [syncMessage, setSyncMessage] = useState<string>('');
@@ -68,7 +75,24 @@ export const QuizGamePlayer: React.FC<QuizGamePlayerProps> = ({
 
   const currentQ = questions[currentIndex];
 
-  const handleFinishQuiz = (finalScore: number, finalCorrect: number) => {
+  const handleFinishQuiz = (finalScore: number, finalCorrect: number, customStudentInfo?: StudentInfo) => {
+    const infoToUse = customStudentInfo || currentStudentInfo;
+
+    // Check if student info is missing or guest defaults
+    const isMissingInfo =
+      !infoToUse?.fullName ||
+      infoToUse.fullName === 'Học sinh' ||
+      infoToUse.fullName === 'Học sinh khách' ||
+      !infoToUse?.className ||
+      infoToUse.className === 'Chưa xếp lớp' ||
+      infoToUse.className === 'Lớp trải nghiệm';
+
+    if (isMissingInfo && !customStudentInfo) {
+      setPendingQuizFinish({ finalScore, finalCorrect });
+      setShowStudentInfoModal(true);
+      return;
+    }
+
     setIsGameOver(true);
     soundEffects.playCelebration();
     const duration = Math.max(1, Math.round((Date.now() - startTime) / 1000));
@@ -84,7 +108,7 @@ export const QuizGamePlayer: React.FC<QuizGamePlayerProps> = ({
       gameTitle: game.title,
       gameType: 'quiz',
       subject: game.subject,
-      studentInfo,
+      studentInfo: infoToUse,
       score: score10,
       rawScore: finalScore,
       correctCount: finalCorrect,
@@ -579,10 +603,28 @@ export const QuizGamePlayer: React.FC<QuizGamePlayerProps> = ({
               >
                 Xác nhận xóa
               </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Student Info Modal when finishing quiz with missing info */}
+      <GameStudentModal
+        isOpen={showStudentInfoModal}
+        game={game}
+        gameTitle={game.title}
+        subject={game.subject}
+        gameType="quiz"
+        initialScriptUrl={initialScriptUrl}
+        onClose={() => {
+          setShowStudentInfoModal(false);
+          if (pendingQuizFinish) {
+            handleFinishQuiz(pendingQuizFinish.finalScore, pendingQuizFinish.finalCorrect, currentStudentInfo);
+          }
+        }}
+        onStartGame={(info) => {
+          setCurrentStudentInfo(info);
+          setShowStudentInfoModal(false);
+          if (pendingQuizFinish) {
+            handleFinishQuiz(pendingQuizFinish.finalScore, pendingQuizFinish.finalCorrect, info);
+          }
+        }}
+      />
     </div>
   );
 };
