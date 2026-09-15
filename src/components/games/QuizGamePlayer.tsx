@@ -448,28 +448,20 @@ export const QuizGamePlayer: React.FC<QuizGamePlayerProps> = ({
 
         {/* Question Text */}
         {(() => {
-          const candidateValues = [
-            (currentQ as any)?.question,
-            (currentQ as any)?.questionText,
-            (currentQ as any)?.content,
-            (currentQ as any)?.text,
-            (currentQ as any)?.title,
-            (currentQ as any)?.prompt,
-            (currentQ as any)?.c,
-            (currentQ as any)?.q,
-            (currentQ as any)?.name,
-            (currentQ as any)?.questionContent,
-          ].filter((val) => typeof val === 'string' && val.trim().length > 0);
-
-          const displayText =
-            candidateValues.length > 0
-              ? candidateValues[0].trim()
-              : `Câu hỏi ${currentIndex + 1} (${game.title})`;
+          const currentQuestion = currentQ as any;
+          const questionText =
+            currentQuestion?.question ||
+            currentQuestion?.content ||
+            currentQuestion?.prompt ||
+            currentQuestion?.text ||
+            currentQuestion?.questionText ||
+            currentQuestion?.title ||
+            '';
 
           return (
-            <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-4 sm:p-5 my-4 shadow-xs text-left">
-              <div className="text-gray-900 dark:text-slate-100 font-bold text-base md:text-lg leading-relaxed break-words">
-                <FormattedMathText text={displayText} />
+            <div className="w-full bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-4 md:p-6 mb-5 shadow-sm text-left">
+              <div className="text-gray-900 dark:text-slate-100 font-bold text-base md:text-lg leading-relaxed text-left">
+                {questionText ? <FormattedMathText text={questionText} /> : 'Đang tải câu hỏi...'}
               </div>
               {currentQ.sourceCitation && (
                 <div className="inline-flex items-center space-x-1 text-[11px] font-medium text-teal-600 dark:text-teal-400 mt-2 bg-teal-50 dark:bg-teal-950/40 px-2 py-0.5 rounded-md">
