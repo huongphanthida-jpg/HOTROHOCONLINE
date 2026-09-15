@@ -26,6 +26,7 @@ import {
   FolderOpen,
   Edit3,
   Check,
+  ShieldCheck,
 } from 'lucide-react';
 import { Subject, Question, DocumentLearning, UploadedSourceItem } from '../types';
 import { generateExamFromSource } from '../services/aiService';
@@ -293,55 +294,61 @@ export const CreateExamFromSourceModal: React.FC<CreateExamFromSourceModalProps>
     const newItems: UploadedSourceItem[] = [];
     const fileArray = Array.from(files);
 
-    for (let i = 0; i < fileArray.length; i++) {
-      const file = fileArray[i];
-      const isImage = file.type.startsWith('image/');
-      const sizeFormatted = `${(file.size / 1024).toFixed(1)} KB`;
+    try {
+      for (let i = 0; i < fileArray.length; i++) {
+        const file = fileArray[i];
+        const isImage = file.type.startsWith('image/');
+        const sizeFormatted = `${(file.size / 1024).toFixed(1)} KB`;
 
-      if (isImage) {
-        try {
-          const dataUrl = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsDataURL(file);
-          });
-          const base64Data = dataUrl.split(',')[1];
-          newItems.push({
-            id: `src-img-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 6)}`,
-            name: file.name,
-            type: 'image',
-            sizeFormatted,
-            mimeType: file.type || 'image/jpeg',
-            dataUrl,
-            base64Data,
-          });
-        } catch (e) {
-          console.warn('Lỗi đọc ảnh:', file.name, e);
-        }
-      } else {
-        try {
-          const textContent = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = () => resolve(reader.result as string);
-            reader.onerror = reject;
-            reader.readAsText(file);
-          });
-          newItems.push({
-            id: `src-txt-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 6)}`,
-            name: file.name,
-            type: 'text',
-            sizeFormatted,
-            textContent,
-          });
-        } catch (e) {
-          console.warn('Lỗi đọc file văn bản:', file.name, e);
+        if (isImage) {
+          try {
+            const dataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve((reader.result as string) || '');
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+            const base64Data = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+            newItems.push({
+              id: `src-img-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 6)}`,
+              name: file.name,
+              type: 'image',
+              sizeFormatted,
+              mimeType: file.type || 'image/jpeg',
+              dataUrl,
+              base64Data,
+            });
+          } catch (e) {
+            console.warn('Lỗi đọc ảnh:', file.name, e);
+          }
+        } else {
+          try {
+            const textContent = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve((reader.result as string) || '');
+              reader.onerror = reject;
+              reader.readAsText(file);
+            });
+            newItems.push({
+              id: `src-txt-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 6)}`,
+              name: file.name,
+              type: 'text',
+              sizeFormatted,
+              textContent,
+            });
+          } catch (e) {
+            console.warn('Lỗi đọc file văn bản:', file.name, e);
+          }
         }
       }
-    }
 
-    setUploadedSources((prev) => [...prev, ...newItems]);
-    setIsReadingFiles(false);
+      setUploadedSources((prev) => [...prev, ...newItems]);
+    } catch (err: any) {
+      console.error('Lỗi khi đọc danh sách tệp:', err);
+      setErrorMsg('Không thể xử lý một số tệp đã chọn. Vui lòng thử lại!');
+    } finally {
+      setIsReadingFiles(false);
+    }
   };
 
   // Handle file input change (multi-file)

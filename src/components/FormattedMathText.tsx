@@ -64,7 +64,7 @@ export function formatChemAndMathString(raw: string): string {
  * Parses LaTeX math $...$ or \(...\) or fractions \frac{a}{b} and renders formatted HTML
  */
 export const FormattedMathText: React.FC<FormattedMathTextProps> = ({ text, className = '' }) => {
-  if (!text) return null;
+  if (!text || typeof text !== 'string') return null;
 
   // Split text by $...$ or \(...\) or HTML tags
   const parts = text.split(/(\$[^$]+\$|\\\(.*?\\\)|<sub[^>]*>.*?<\/sub>|<sup[^>]*>.*?<\/sup>|<b[^>]*>.*?<\/b>|<i[^>]*>.*?<\/i>)/gi);
