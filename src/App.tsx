@@ -267,10 +267,28 @@ export default function App() {
       return { success: true };
     }
 
-    return {
-      success: false,
-      message: `Không tìm thấy bài tập, đề thi hay trò chơi nào có Mã ID: "${codeInput}". Vui lòng hỏi lại thầy/cô bộ môn.`,
-    };
+    // 4. Fallback for custom subject ID passed by student
+    const fallbackSub: Partial<Subject> = { id: codeInput, name: codeInput };
+    const stype = detectSubjectType(fallbackSub);
+    const cname = extractClassName(fallbackSub);
+    const cleanTitle = `${stype} lớp ${cname} - Đề kiểm tra định kỳ`;
+    const fallbackQs = generateFallbackQuestionsBySubject({ ...fallbackSub, name: cleanTitle });
+
+    setUserRole('student');
+    localStorage.setItem('user_role', 'student');
+    setAppData((prev) => ({
+      ...prev,
+      settings: { ...prev.settings, currentRole: 'student' },
+    }));
+    setIsDirectSingleTaskMode(true);
+    setCurrentTab('subjects');
+    setPendingSubject({
+      name: cleanTitle,
+      id: codeInput,
+      questions: fallbackQs,
+    });
+    setIsStudentModalOpen(true);
+    return { success: true };
   };
 
   // Auto-save effect
@@ -438,7 +456,11 @@ export default function App() {
         }
       }
 
-      const examParam = isPlayRoute ? null : (params.get('exam') || params.get('task') || codeParam);
+      const rawExamParam = params.get('exam') || params.get('task');
+      const directPayload = params.get('payload') || params.get('examData') || params.get('data') || params.get('d');
+      const payloadParam = directPayload || (rawExamParam && rawExamParam.startsWith('lz_') ? rawExamParam : null);
+      const examParam = (rawExamParam && !rawExamParam.startsWith('lz_') ? rawExamParam : null) || codeParam || (rawExamParam ? rawExamParam : null);
+
       const roleParam = params.get('role');
       const simDataParam = params.get('simData') || params.get('sim');
       if (simDataParam) {
@@ -457,12 +479,12 @@ export default function App() {
         }
       }
 
-      if (!examParam && !gameParam && !isPlayRoute && roleParam !== 'student') return;
+      if (!examParam && !payloadParam && !gameParam && !isPlayRoute && roleParam !== 'student') return;
 
       lastProcessedSearchRef.current = combinedUrlKey;
 
       // Automatically establish Student Role when accessing via QR Code or Direct Link
-      if (examParam || gameParam || isPlayRoute || roleParam === 'student') {
+      if (examParam || payloadParam || gameParam || isPlayRoute || roleParam === 'student') {
         setUserRole('student');
         localStorage.setItem('user_role', 'student');
         setAppData((prev) => ({
@@ -471,7 +493,7 @@ export default function App() {
         }));
       }
 
-      if (examParam || gameParam || isPlayRoute) {
+      if (examParam || payloadParam || gameParam || isPlayRoute) {
         setIsDirectSingleTaskMode(true);
         // Force purge previous active exam, results, and session cache to open the newly scanned QR task
         setActiveExam(null);
@@ -521,8 +543,8 @@ export default function App() {
         return;
       }
 
-      // EXAM ROUTE (/quiz or ?id=... or ?exam=...)
-      if (examParam) {
+      // EXAM ROUTE (/quiz or ?id=... or ?exam=... or ?payload=...)
+      if (examParam || payloadParam) {
         // 1. Priority 1: Decode embedded full exam payload directly from QR code URL
         if (payloadParam) {
           const decoded = decodeExamPayload(payloadParam);
@@ -560,9 +582,11 @@ export default function App() {
           }
         }
 
+        const effectiveExamId = examParam || 'exam-shared';
+
         // Check persistent shared questions & subject registry
-        const cachedQsStr = localStorage.getItem('shared_qs_' + examParam);
-        const cachedSubjStr = localStorage.getItem('shared_subj_' + examParam);
+        const cachedQsStr = localStorage.getItem('shared_qs_' + effectiveExamId);
+        const cachedSubjStr = localStorage.getItem('shared_subj_' + effectiveExamId);
         if (cachedQsStr) {
           try {
             const cachedQs = JSON.parse(cachedQsStr);
@@ -571,12 +595,12 @@ export default function App() {
               try { cachedSubj = JSON.parse(cachedSubjStr); } catch {}
             }
             if (Array.isArray(cachedQs) && cachedQs.length > 0) {
-              const detectedStype = detectSubjectType({ id: examParam, name: examParam });
-              const detectedClass = extractClassName({ id: examParam, name: examParam });
+              const detectedStype = detectSubjectType({ id: effectiveExamId, name: effectiveExamId });
+              const detectedClass = extractClassName({ id: effectiveExamId, name: effectiveExamId });
               const displayTitle = cachedSubj?.name || `${detectedStype} lớp ${detectedClass} - Đề kiểm tra định kỳ`;
               setPendingSubject({
                 name: displayTitle,
-                id: examParam,
+                id: effectiveExamId,
                 questions: cachedQs,
               });
               setIsStudentModalOpen(true);
@@ -589,7 +613,7 @@ export default function App() {
         }
 
         // 2. Priority 2: Direct lookup in local appData subjects
-        const targetSub = appData.subjects.find((s) => s.id.toLowerCase() === examParam.toLowerCase());
+        const targetSub = appData.subjects.find((s) => s.id.toLowerCase() === effectiveExamId.toLowerCase());
         if (targetSub) {
           handleSelectSubjectToExam(targetSub);
           setIsStudentModalOpen(true);
@@ -598,7 +622,7 @@ export default function App() {
         }
 
         // Check documents
-        const targetDoc = appData.documents?.find((d) => d.id.toLowerCase() === examParam.toLowerCase());
+        const targetDoc = appData.documents?.find((d) => d.id.toLowerCase() === effectiveExamId.toLowerCase());
         if (targetDoc && targetDoc.generatedQuestions && targetDoc.generatedQuestions.length > 0) {
           handleStartExamFromQuestions(targetDoc.title, targetDoc.generatedQuestions);
           setIsStudentModalOpen(true);
@@ -608,15 +632,15 @@ export default function App() {
 
         // Check matching questions in appData.questions
         const matchingQuestions = appData.questions.filter(
-          (q) => q.subjectId && q.subjectId.toLowerCase() === examParam.toLowerCase()
+          (q) => q.subjectId && q.subjectId.toLowerCase() === effectiveExamId.toLowerCase()
         );
         if (matchingQuestions.length > 0) {
-          const detectedStype = detectSubjectType({ id: examParam, name: examParam });
-          const detectedClass = extractClassName({ id: examParam, name: examParam });
+          const detectedStype = detectSubjectType({ id: effectiveExamId, name: effectiveExamId });
+          const detectedClass = extractClassName({ id: effectiveExamId, name: effectiveExamId });
           const displayTitle = `${detectedStype} lớp ${detectedClass} - Đề kiểm tra định kỳ`;
           setPendingSubject({
             name: displayTitle,
-            id: examParam,
+            id: effectiveExamId,
             questions: matchingQuestions,
           });
           setIsStudentModalOpen(true);
@@ -626,8 +650,8 @@ export default function App() {
 
         // 3. Fallback: Generate realistic subject-aware SGK questions so student always gets a complete 5-question exam matching subject & class
         const fallbackSub: Partial<Subject> = {
-          id: examParam,
-          name: examParam.includes('-') ? `Bài kiểm tra (${examParam})` : examParam,
+          id: effectiveExamId,
+          name: effectiveExamId.includes('-') ? `Bài kiểm tra (${effectiveExamId})` : effectiveExamId,
         };
         const detectedStype = detectSubjectType(fallbackSub);
         const detectedClass = extractClassName(fallbackSub);
@@ -639,7 +663,7 @@ export default function App() {
 
         setPendingSubject({
           name: cleanTitle,
-          id: examParam,
+          id: effectiveExamId,
           questions: fallbackQs,
         });
         setIsStudentModalOpen(true);
