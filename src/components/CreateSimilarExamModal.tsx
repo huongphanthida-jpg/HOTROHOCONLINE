@@ -21,7 +21,7 @@ import {
   Copy
 } from 'lucide-react';
 import { Subject, Question, UploadedSourceItem } from '../types';
-import { generateSimilarExamFromSource } from '../services/aiService';
+import { generateSimilarExamFromSource, generateFallbackQuestionsBySubject } from '../services/aiService';
 import { FormattedMathText } from './FormattedMathText';
 
 interface CreateSimilarExamModalProps {
