@@ -1221,6 +1221,73 @@ III. ĐƯỜNG TIỆM CẬN
         ],
       },
     },
+    {
+      id: 'game-sample-fillblank',
+      title: 'Điền Khuyết: Định Lý Cực Trị & Tiệm Cận SGK 12',
+      description: 'Hoàn thành các mệnh đề định lý bằng cách nhập hoặc bấm chọn từ gợi ý đúng vào vị trí [blank].',
+      subject: 'Toán học 12',
+      type: 'fill_blank',
+      createdAt: '2026-09-10T16:30:00.000Z',
+      sourceDocId: 'doc-sample-1',
+      sourceDocTitle: 'Tóm tắt Đột phá: Đạo hàm & Khảo sát hàm số SGK 12',
+      sourceCitations: ['[Trích SGK Giải Tích 12 - Định lý Cực Trị]'],
+      highScore: 750,
+      playCount: 16,
+      fillBlankData: {
+        instruction: 'Nhập từ thích hợp hoặc chọn thẻ gợi ý bên dưới để hoàn thành vị trí khuyết [blank]!',
+        timePerQuestion: 20,
+        questions: [
+          {
+            id: 'fb-1',
+            question: 'Nếu f\'(x) đổi dấu từ dương sang âm khi x qua x₀ thì x₀ là điểm [blank] của hàm số.',
+            blanks: [
+              {
+                id: 'blank_1',
+                correctAnswer: 'cực đại',
+                acceptableAnswers: ['cuc dai', 'Cực đại'],
+                hint: 'Đỉnh lồi cao nhất của đồ thị',
+              },
+            ],
+            options: ['cực đại', 'cực tiểu', 'uốn', 'tiệm cận'],
+            explanation: 'Đạo hàm đổi dấu (+) sang (-) chứng tỏ hàm số tăng rồi giảm, đạt cực đại tại x₀.',
+            sourceCitation: '[Trích SGK Giải Tích 12 - Trang 14]',
+            points: 100,
+          },
+          {
+            id: 'fb-2',
+            question: 'Nếu f\'(x) đổi dấu từ âm sang dương khi x qua x₀ thì x₀ là điểm [blank] của hàm số.',
+            blanks: [
+              {
+                id: 'blank_1',
+                correctAnswer: 'cực tiểu',
+                acceptableAnswers: ['cuc tieu', 'Cực tiểu'],
+                hint: 'Đáy lõm thấp nhất của đồ thị',
+              },
+            ],
+            options: ['cực tiểu', 'cực đại', 'nghịch biến', 'gián đoạn'],
+            explanation: 'Đạo hàm đổi dấu (-) sang (+) chứng tỏ hàm số giảm rồi tăng, đạt cực tiểu tại x₀.',
+            sourceCitation: '[Trích SGK Giải Tích 12 - Trang 15]',
+            points: 100,
+          },
+          {
+            id: 'fb-3',
+            question: 'Đường thẳng y = y₀ là tiệm cận [blank] của đồ thị hàm số y = f(x) nếu lim(x → +∞) f(x) = y₀.',
+            blanks: [
+              {
+                id: 'blank_1',
+                correctAnswer: 'ngang',
+                acceptableAnswers: ['Ngang'],
+                hint: 'Đường thẳng nằm ngang',
+              },
+            ],
+            options: ['ngang', 'đứng', 'xiên', 'tiếp tuyến'],
+            explanation: 'Giới hạn tại vô cực bằng y₀ cho ta đường tiệm cận ngang y = y₀.',
+            sourceCitation: '[Trích SGK Giải Tích 12 - Trang 28]',
+            points: 100,
+          },
+        ],
+      },
+    },
   ],
   onlineClasses: [
     {
