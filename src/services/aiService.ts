@@ -32,13 +32,13 @@ export const AVAILABLE_MODELS = [
  * Chỉ thị bắt buộc bám sát 100% nguồn cung cấp (Grounding Rule - Anti-hallucination)
  */
 export const GROUNDING_RULE_DIRECTIVE = `[NGUYÊN TẮC BẮT BUỘC - TUÂN THỦ 100% NGUỒN CUNG CẤP]:
-BƯỚC 1 - ĐỌC VÀ BÓC TÁCH (OCR): Đọc kỹ toàn bộ nội dung chữ, bảng biểu, phương trình phản ứng hóa học và các thí nghiệm xuất hiện trực tiếp trong các hình ảnh/tài liệu được cung cấp (ví dụ: Chuyển dịch cân bằng hóa học, Ảnh hưởng của nhiệt độ/nồng độ/áp suất, Cân bằng NO2 <-> N2O4, CH3COONa, Le Chatelier, Fe, Delta H).
+BƯỚC 1 - ĐỌC VÀ BÓC TÁCH (OCR): Đọc kỹ toàn bộ nội dung chữ, bảng biểu, phương trình phản ứng hóa học và các thí nghiệm xuất hiện trực tiếp trong các hình ảnh/tài liệu được cung cấp (ví dụ: Chuyển dịch cân bằng hóa học, Ảnh hưởng của nhiệt độ/nồng độ/áp suất, Cân bằng khí 2NO₂ ⇌ N₂O₄, phản ứng thủy phân CH₃COONa, chất xúc tác Fe, nguyên lý Le Chatelier, ΔH).
 
 BƯỚC 2 - TẠO BỘ CÂU HỎI TRỰC TIẾP TỪ KIẾN THỨC BÓC TÁCH ĐƯỢC:
 - Đặt các câu hỏi trắc nghiệm ĐÚNG NỘI DUNG CHUYÊN MÔN cụ thể về các chất, hiện tượng, thí nghiệm và công thức có trong bài.
-- Câu hỏi phải nhắc trực tiếp đến các chất cụ thể, phương trình cân bằng, hiện tượng màu sắc, nhiệt độ, nồng độ, áp suất, chất xúc tác Fe, nguyên lý Le Chatelier có trong bài.
-- TUYỆT ĐỐI KHÔNG dùng các cụm từ trừu tượng siêu hình như: "kiến thức trọng tâm", "phương án nào diễn đạt đúng bản chất", "theo tài liệu đưa lên", "Xét nội dung trong tài liệu...".
-- Các đáp án A, B, C, D phải là các nhận định khoa học cụ thể về phản ứng hóa học hoặc định lý trong bài (Ví dụ: "Khi ngâm ống nghiệm chứa hỗn hợp khí NO2 và N2O4 vào cốc nước đá, màu đỏ nâu nhạt dần do phản ứng tỏa nhiệt...").
+- Câu hỏi và 4 phương án phải nhắc trực tiếp đến tên các chất cụ thể, phương trình cân bằng, hiện tượng màu sắc, nhiệt độ, nồng độ, áp suất, chất xúc tác Fe, nguyên lý Le Chatelier có trong bài.
+- TUYỆT ĐỐI KHÔNG dùng các cụm từ trừu tượng siêu hình hay câu hỏi tổng quát như: "kiến thức trọng tâm", "phương án nào diễn đạt đúng bản chất", "theo tài liệu đưa lên", "Xét nội dung trong tài liệu...".
+- Các đáp án A, B, C, D phải là các nhận định khoa học cụ thể về phản ứng hóa học hoặc định lý trong bài (Ví dụ: "Khi ngâm ống nghiệm chứa hỗn hợp khí NO2 và N2O4 vào cốc nước đá, màu đỏ nâu nhạt dần do phản ứng thuận là phản ứng tỏa nhiệt...").
 - Đáp án đúng và lời giải phải trích dẫn giải thích khoa học từ nội dung bài học trong ảnh.
 - TUYỆT ĐỐI KHÔNG TỰ Ý SUY DIỄN, BỔ SUNG KIẾN THỨC NGOẠI LAI HAY LẤY DỮ LIỆU NGOÀI NGUỒN.`;
 
@@ -156,15 +156,23 @@ export async function compressBase64Image(
   });
 }
 
+export function getStoredApiKey(): string {
+  return (
+    localStorage.getItem('gemini_api_key') ||
+    localStorage.getItem('tnh_gvcn_gemini_api_key_v1') ||
+    ''
+  ).trim();
+}
+
 /**
  * Gọi Gemini AI qua Direct Client API hoặc Server API Proxy với cơ chế Tự động Fallback Model
  */
 export async function callGeminiAI(params: AICallParams): Promise<{ text: string; usedModel: string }> {
-  const localKey = (localStorage.getItem('gemini_api_key') || '').trim();
+  const localKey = getStoredApiKey();
 
   // Kiểm tra API Key: nếu chưa cấu hình apiKey, báo ngay
-  if (!localKey) {
-    throw new Error('Vui lòng vào Cài Đặt & Kết Nối AI để nhập khóa API Gemini');
+  if (!localKey || localKey.trim() === '') {
+    throw new Error('Bạn chưa nhập mã Khóa API Google Gemini AI. Vui lòng vào Cài Đặt & Kết Nối AI để cấu hình.');
   }
 
   let localModel = localStorage.getItem('selected_model') || 'gemini-3-flash-preview';
@@ -780,133 +788,7 @@ function normalizeQuestionsScoreToTen(questions: Question[]): Question[] {
   return adjusted;
 }
 
-/**
- * Tạo câu hỏi dự phòng chất lượng cao khi ngoại tuyến / mất kết nối
- */
-function generateFallbackExamQuestions(params: {
-  sourceContent: string;
-  subjectName: string;
-  className: string;
-  grade: string;
-  count: number;
-  activeFormats: ('multiple_choice' | 'short_answer' | 'true_false' | 'essay')[];
-  formatCounts?: Partial<Record<'multiple_choice' | 'short_answer' | 'true_false' | 'essay', number>>;
-}): Question[] {
-  const { sourceContent, subjectName, className, grade, count, activeFormats, formatCounts } = params;
-  const fallbackQuestions: Question[] = [];
 
-  const lines = sourceContent
-    .split('\n')
-    .map((l) => l.trim())
-    .filter(
-      (l) =>
-        l.length > 15 &&
-        !l.startsWith('===') &&
-        !l.startsWith('Trang/Ảnh') &&
-        !l.includes('AI BẮT BUỘC') &&
-        !l.includes('DANH MỤC') &&
-        !l.startsWith('(')
-    );
-
-  const basePoint = Number((10 / count).toFixed(2));
-  let runningSum = 0;
-
-  // Xây dựng danh sách định dạng câu hỏi theo đúng formatCounts được chọn
-  const formatList: ('multiple_choice' | 'short_answer' | 'true_false' | 'essay')[] = [];
-  if (formatCounts && Object.keys(formatCounts).length > 0) {
-    const formatKeys: ('multiple_choice' | 'short_answer' | 'true_false' | 'essay')[] = [
-      'multiple_choice',
-      'short_answer',
-      'true_false',
-      'essay',
-    ];
-    for (const fmt of formatKeys) {
-      const c = formatCounts[fmt] || 0;
-      for (let k = 0; k < c; k++) {
-        formatList.push(fmt);
-      }
-    }
-  }
-
-  // Nếu chưa đủ số lượng count, điền thêm từ activeFormats
-  while (formatList.length < count) {
-    formatList.push(activeFormats[formatList.length % activeFormats.length]);
-  }
-
-  for (let i = 0; i < count; i++) {
-    const format = formatList[i] || activeFormats[i % activeFormats.length];
-    const rawRef = lines[i % (lines.length || 1)] || `Kiến thức trọng tâm môn ${subjectName}`;
-    const sourceRef = rawRef.replace(/^[^a-zA-Z0-9À-ỹ]+/, '');
-    const isLast = i === count - 1;
-    const pt = isLast ? Number((10 - runningSum).toFixed(2)) : basePoint;
-    runningSum += basePoint;
-
-    if (format === 'short_answer') {
-      fallbackQuestions.push({
-        id: `ai-src-fb-${Date.now()}-${i + 1}`,
-        subjectId: buildSlugSubjectId(subjectName, className),
-        content: `Câu ${i + 1} (Trả lời ngắn): Dựa trên kiến thức bài học môn ${subjectName}: ${sourceRef.slice(0, 100)}, hãy xác định kết quả hoặc từ khóa chính xác.`,
-        type: 'short_answer',
-        options: [],
-        correctAnswer: 0,
-        expectedShortAnswer: 'Chính xác',
-        sampleAnswer: 'Đáp số ngắn gọn suy ra từ nội dung bài học.',
-        explanation: `Dựa vào lý thuyết trọng tâm môn ${subjectName} lớp ${className}, kết quả được xác định bằng việc phân tích dữ kiện chuẩn SGK.`,
-        difficulty: 'medium',
-        topic: `${subjectName} - Lớp ${className}`,
-        points: pt > 0 ? pt : basePoint,
-      });
-    } else if (format === 'true_false') {
-      fallbackQuestions.push({
-        id: `ai-src-fb-${Date.now()}-${i + 1}`,
-        subjectId: buildSlugSubjectId(subjectName, className),
-        content: `Câu ${i + 1} (Đúng/Sai): Liên quan đến nội dung "${sourceRef.slice(0, 100)}", phát biểu sau đây là ĐÚNG hay SAI?`,
-        type: 'true_false',
-        options: ['Đúng', 'Sai'],
-        correctAnswer: 0,
-        explanation: `Phát biểu này bám sát định nghĩa và quy luật khoa học trong chương trình ${subjectName} lớp ${grade}.`,
-        difficulty: 'easy',
-        topic: `${subjectName} - Lớp ${className}`,
-        points: pt > 0 ? pt : basePoint,
-      });
-    } else if (format === 'essay') {
-      fallbackQuestions.push({
-        id: `ai-src-fb-${Date.now()}-${i + 1}`,
-        subjectId: buildSlugSubjectId(subjectName, className),
-        content: `Câu ${i + 1} (Tự luận): Phân tích và trình bày chi tiết các bước giải bài tập liên quan đến: ${sourceRef.slice(0, 110)}.`,
-        type: 'essay',
-        options: [],
-        correctAnswer: 0,
-        sampleAnswer: `1. Trình bày định nghĩa và công thức áp dụng.\n2. Thực hiện các bước biến đổi logic.\n3. Rút ra kết luận chuẩn xác.`,
-        rubric: `Bước 1: Nêu đúng định nghĩa/công thức (${(pt * 0.3).toFixed(1)}đ). Bước 2: Trình bày các bước giải (${(pt * 0.5).toFixed(1)}đ). Bước 3: Kết luận (${(pt * 0.2).toFixed(1)}đ).`,
-        explanation: `Phương pháp giải tự luận bám sát chương trình GDPT môn ${subjectName} lớp ${className}.`,
-        difficulty: 'hard',
-        topic: `${subjectName} - Lớp ${className}`,
-        points: pt > 0 ? pt : basePoint,
-      });
-    } else {
-      fallbackQuestions.push({
-        id: `ai-src-fb-${Date.now()}-${i + 1}`,
-        subjectId: buildSlugSubjectId(subjectName, className),
-        content: `Câu ${i + 1}: Về kiến thức ${sourceRef.slice(0, 90)}, phương án nào sau đây diễn đạt đúng bản chất khoa học?`,
-        type: 'multiple_choice',
-        options: [
-          `A. Phương án mô tả chính xác quy luật và công thức bài học`,
-          `B. Phương án thiếu điều kiện xác định ban đầu`,
-          `C. Phương án bị nhầm lẫn giữa các hiện tượng tương tự`,
-          `D. Phương án không phù hợp với thực nghiệm khoa học`,
-        ],
-        correctAnswer: 0,
-        explanation: `Phương án A thể hiện đầy đủ và chính xác nhất kiến thức bài học môn ${subjectName}.`,
-        difficulty: 'medium',
-        topic: `${subjectName} - Lớp ${className}`,
-        points: pt > 0 ? pt : basePoint,
-      });
-    }
-  }
-
-  return fallbackQuestions;
-}
 
 /**
  * ====================================================================
@@ -1233,260 +1115,33 @@ HÃY ĐẢM BẢO DỮ LIỆU JSON ĐẦY ĐỦ, HỢP LỆ VÀ ĐÚNG CHUẨN.`
       }
     }
 
+    if (gameType === 'quiz' && (!normalizedQuiz || normalizedQuiz.questions.length === 0)) {
+      throw new Error('AI không sinh được bộ câu hỏi Quiz hợp lệ từ tài liệu này.');
+    }
+    if (gameType === 'drag_drop' && (!normalizedDragDrop || normalizedDragDrop.items.length === 0)) {
+      throw new Error('AI không sinh được các thẻ Kéo Thả hợp lệ từ tài liệu này.');
+    }
+    if (gameType === 'matching' && (!normalizedMatching || normalizedMatching.pairs.length === 0)) {
+      throw new Error('AI không sinh được các cặp Ghép Cặp hợp lệ từ tài liệu này.');
+    }
+    if (gameType === 'fill_blank' && (!normalizedFillBlank || normalizedFillBlank.questions.length === 0)) {
+      throw new Error('AI không sinh được câu hỏi Điền Khuyết hợp lệ từ tài liệu này.');
+    }
+
     return {
       title: parsed.title || `Trò chơi ${gameType.toUpperCase()}: ${docTitle.slice(0, 35)}`,
       description: parsed.description || `Trò chơi học tập tương tác tạo từ tài liệu "${docTitle}"`,
       type: gameType,
-      quizData: normalizedQuiz || (gameType === 'quiz' ? createFallbackGame(docTitle, docContent, 'quiz', subjectName).quizData : undefined),
-      dragDropData: normalizedDragDrop || (gameType === 'drag_drop' ? createFallbackGame(docTitle, docContent, 'drag_drop', subjectName).dragDropData : undefined),
-      matchingData: normalizedMatching || (gameType === 'matching' ? createFallbackGame(docTitle, docContent, 'matching', subjectName).matchingData : undefined),
-      fillBlankData: normalizedFillBlank || (gameType === 'fill_blank' ? createFallbackGame(docTitle, docContent, 'fill_blank', subjectName).fillBlankData : undefined),
+      quizData: normalizedQuiz,
+      dragDropData: normalizedDragDrop,
+      matchingData: normalizedMatching,
+      fillBlankData: normalizedFillBlank,
       sourceCitations: parsed.sourceCitations || ['[Trích xuất từ tài liệu cung cấp]'],
     };
-  } catch (err) {
-    console.warn('AI Game generation parse error or network issue, using robust structured fallback:', err);
-    return createFallbackGame(docTitle, docContent, gameType, subjectName);
+  } catch (err: any) {
+    console.error('Lỗi khi sinh trò chơi bằng AI:', err);
+    throw new Error(err?.message || 'Không thể kết nối đến Gemini AI');
   }
-}
-
-function createFallbackGame(
-  docTitle: string,
-  docContent: string,
-  gameType: GameType,
-  subjectName: string
-): {
-  title: string;
-  description: string;
-  type: GameType;
-  quizData?: {
-    timePerQuestion: number;
-    questions: QuizGameQuestion[];
-  };
-  dragDropData?: {
-    instruction: string;
-    categories: DragDropCategory[];
-    items: DragDropItem[];
-  };
-  matchingData?: {
-    instruction: string;
-    pairs: MatchingPair[];
-  };
-  fillBlankData?: {
-    instruction: string;
-    timePerQuestion: number;
-    questions: FillBlankQuestion[];
-  };
-  sourceCitations?: string[];
-} {
-  const cleanSnippet = docContent.replace(/[\n\r]+/g, ' ').trim().slice(0, 300);
-
-  if (gameType === 'fill_blank') {
-    return {
-      title: `Thử Thách Điền Khuyết: ${docTitle.slice(0, 30)}`,
-      description: `Điền từ hoặc công thức chính xác vào chỗ khuyết trích từ tài liệu "${docTitle}"`,
-      type: 'fill_blank',
-      sourceCitations: ['[Trích xuất từ nội dung tài liệu tải lên]'],
-      fillBlankData: {
-        instruction: 'Nhập từ thích hợp hoặc chọn từ gợi ý để hoàn thành chỗ khuyết [blank]!',
-        timePerQuestion: 20,
-        questions: [
-          {
-            id: 'fb-fallback-1',
-            question: `Kiến thức trọng tâm từ tài liệu "${docTitle.slice(0, 30)}": Khái niệm cốt lõi bắt buộc phải [blank] trước khi làm bài tập.`,
-            blanks: [
-              {
-                id: 'blank_1',
-                correctAnswer: 'nắm vững',
-                acceptableAnswers: ['nam vung', 'Nắm vững'],
-                hint: 'Hiểu rõ bản chất kiến thức',
-              },
-            ],
-            options: ['nắm vững', 'bỏ qua', 'suy đoán', 'tùy ý'],
-            explanation: 'Nắm vững kiến thức nền tảng luôn là yêu cầu quan trọng hàng đầu.',
-            sourceCitation: '[Trích tài liệu nguồn]',
-            points: 100,
-          },
-        ],
-      },
-    };
-  }
-
-  if (gameType === 'quiz') {
-    return {
-      title: `Đấu Trí Tốc Độ: ${docTitle.slice(0, 30)}`,
-      description: `Thử thách phản xạ trả lời nhanh kiến thức từ tài liệu "${docTitle}"`,
-      type: 'quiz',
-      sourceCitations: ['[Trích xuất từ nội dung tài liệu tải lên]'],
-      quizData: {
-        timePerQuestion: 15,
-        questions: [
-          {
-            id: 'fb-q-1',
-            question: `Theo tài liệu đưa lên: "${cleanSnippet.slice(0, 90)}...", phát biểu nào sau đây là ĐÚNG nhất?`,
-            options: [
-              'Khẳng định đúng theo định nghĩa chuẩn trong tài liệu',
-              'Khẳng định bị thiếu điều kiện tiên quyết',
-              'Khẳng định mâu thuẫn với dữ liệu gốc',
-              'Khẳng định chỉ áp dụng cho trường hợp ngoại lệ',
-            ],
-            correctAnswer: 0,
-            explanation: 'Phương án A hoàn toàn phù hợp với dữ liệu trong tài liệu đã cung cấp.',
-            sourceCitation: '[Trích tài liệu nguồn]',
-            points: 100,
-          },
-          {
-            id: 'fb-q-2',
-            question: `Trong quá trình vận dụng kiến thức từ "${docTitle}", điều kiện cốt lõi cần lưu ý là gì?`,
-            options: [
-              'Nắm chắc các giả thiết và điều kiện biên của định lý',
-              'Chỉ ghi nhớ kết quả mà không cần điều kiện áp dụng',
-              'Bỏ qua dấu của các đại lượng',
-              'Tùy ý thay đổi các hệ số',
-            ],
-            correctAnswer: 0,
-            explanation: 'Điều kiện áp dụng định lý luôn là yêu cầu bắt buộc để giải quyết bài toán chính xác.',
-            sourceCitation: '[Trích tài liệu nguồn]',
-            points: 100,
-          },
-          {
-            id: 'fb-q-3',
-            question: `Mục tiêu trọng tâm của chuyên đề "${docTitle}" giúp học sinh rèn luyện kỹ năng nào?`,
-            options: [
-              'Học vẹt công thức không suy luận',
-              'Hệ thống hóa bản chất kiến thức và rèn luyện phản xạ',
-              'Làm bài chỉ dựa trên suy đoán ngẫu nhiên',
-              'Không kiểm tra lại kết quả tính toán',
-            ],
-            correctAnswer: 1,
-            explanation: 'Hệ thống hóa kiến thức giúp việc nắm bắt bài học đạt hiệu quả cao nhất.',
-            sourceCitation: '[Trích tài liệu nguồn]',
-            points: 100,
-          },
-          {
-            id: 'fb-q-4',
-            question: `Khi áp dụng công thức từ tài liệu vào thực tiễn, bước kiểm tra nào sau đây là quan trọng nhất?`,
-            options: [
-              'So sánh kết quả với miền giá trị xác định',
-              'Kết luận ngay mà không cần đối chiếu điều kiện',
-              'Bỏ qua các bước trung gian',
-              'Chọn đáp án lớn nhất',
-            ],
-            correctAnswer: 0,
-            explanation: 'Luôn phải đối chiếu kết quả tìm được với tập xác định và điều kiện ban đầu.',
-            sourceCitation: '[Trích tài liệu nguồn]',
-            points: 100,
-          },
-        ],
-      },
-    };
-  }
-
-  if (gameType === 'drag_drop') {
-    return {
-      title: `Kéo Thả Phân Loại: ${docTitle.slice(0, 30)}`,
-      description: `Phân loại các khái niệm, điều kiện và tính chất trích từ "${docTitle}"`,
-      type: 'drag_drop',
-      sourceCitations: ['[Trích xuất từ nội dung tài liệu tải lên]'],
-      dragDropData: {
-        instruction: 'Hãy kéo hoặc bấm chọn các thẻ bên dưới để phân loại vào đúng hộp tương ứng!',
-        categories: [
-          {
-            id: 'cat_a',
-            title: 'Khái Niệm & Điều Kiện Đúng',
-            description: 'Các tính chất, định lý bám sát tài liệu',
-            color: 'teal',
-          },
-          {
-            id: 'cat_b',
-            title: 'Sai Lầm & Khẳng Định Chưa Chuẩn',
-            description: 'Các quan niệm nhầm lẫn thường gặp',
-            color: 'rose',
-          },
-        ],
-        items: [
-          {
-            id: 'item_1',
-            text: 'Định nghĩa đúng theo chuẩn dữ kiện tài liệu',
-            categoryId: 'cat_a',
-          },
-          {
-            id: 'item_2',
-            text: 'Áp dụng công thức có đầy đủ điều kiện xác định',
-            categoryId: 'cat_a',
-          },
-          {
-            id: 'item_3',
-            text: 'Thiếu điều kiện tồn tại của biến số',
-            categoryId: 'cat_b',
-          },
-          {
-            id: 'item_4',
-            text: 'Bỏ qua bước đổi dấu của đại lượng',
-            categoryId: 'cat_b',
-          },
-          {
-            id: 'item_5',
-            text: 'Kiểm tra tập xác định trước khi tính toán',
-            categoryId: 'cat_a',
-          },
-          {
-            id: 'item_6',
-            text: 'Nhầm lẫn giữa giá trị cực trị và điểm cực trị',
-            categoryId: 'cat_b',
-          },
-        ],
-      },
-    };
-  }
-
-  // Matching
-  return {
-    title: `Ghép Cặp Kiến Thức: ${docTitle.slice(0, 30)}`,
-    description: `Nối các cặp thuật ngữ với định nghĩa/ý nghĩa tương ứng từ "${docTitle}"`,
-    type: 'matching',
-    sourceCitations: ['[Trích xuất từ nội dung tài liệu tải lên]'],
-    matchingData: {
-      instruction: 'Bấm chọn một thẻ bên cột Thuật ngữ, sau đó bấm chọn thẻ tương ứng bên cột Định nghĩa để ghép cặp!',
-      pairs: [
-        {
-          id: 'p1',
-          term: 'Tập xác định (TXD)',
-          definition: 'Tập hợp tất cả các giá trị của x làm cho biểu thức có nghĩa',
-          sourceCitation: '[Trích SGK]',
-        },
-        {
-          id: 'p2',
-          term: 'Điều kiện cần có cực trị',
-          definition: 'Đạo hàm f\'(x₀) bằng 0 hoặc không xác định tại x₀',
-          sourceCitation: '[Trích SGK]',
-        },
-        {
-          id: 'p3',
-          term: 'Đồ thị đồng biến',
-          definition: 'Đường cong luôn có hướng đi lên từ trái sang phải',
-          sourceCitation: '[Trích SGK]',
-        },
-        {
-          id: 'p4',
-          term: 'Đồ thị nghịch biến',
-          definition: 'Đường cong luôn có hướng đi xuống từ trái sang phải',
-          sourceCitation: '[Trích SGK]',
-        },
-        {
-          id: 'p5',
-          term: 'Điểm cực đại',
-          definition: 'Điểm mà tại đó đạo hàm f\'(x) đổi dấu từ dương sang âm',
-          sourceCitation: '[Trích SGK]',
-        },
-        {
-          id: 'p6',
-          term: 'Điểm cực tiểu',
-          definition: 'Điểm mà tại đó đạo hàm f\'(x) đổi dấu từ âm sang dương',
-          sourceCitation: '[Trích SGK]',
-        },
-      ],
-    },
-  };
 }
 
 /**
@@ -1537,38 +1192,7 @@ Hãy đánh giá và trả về kết quả định dạng JSON thuần túy (kh
   }
 }
 
-/**
- * Khai báo và export hàm tạo câu hỏi dự phòng (fallback) khi AI gặp sự cố hoặc JSON không đọc được
- */
-export const generateFallbackQuestionsBySubject = (
-  subjectInput: string | { id?: string; name?: string } = 'Chung',
-  count: number = 5
-): any[] => {
-  const subjectName = typeof subjectInput === 'string' ? subjectInput : subjectInput?.name || 'Chung';
-  const subjectId = typeof subjectInput === 'object' ? subjectInput?.id || `sub_${Date.now()}` : `sub_${Date.now()}`;
 
-  return Array.from({ length: count }, (_, i) => {
-    const qContent = `Câu hỏi khảo thí mẫu số ${i + 1} môn ${subjectName}: Khái niệm hoặc công thức cốt lõi nào sau đây là chính xác theo chuẩn SGK mới?`;
-    return {
-      id: `fallback_q_${Date.now()}_${i + 1}`,
-      subjectId,
-      content: qContent,
-      questionText: qContent,
-      question: qContent,
-      options: [
-        'A. Phương án đúng theo định nghĩa chuẩn SGK 2026-2027',
-        'B. Khái niệm chưa đầy đủ điều kiện tiên quyết',
-        'C. Định nghĩa bị nhầm lẫn với trường hợp tương tự',
-        'D. Phương án dành riêng cho trường hợp đặc biệt'
-      ],
-      correctAnswer: 0,
-      explanation: 'Lời giải chi tiết chuẩn SGK đang được cập nhật.',
-      type: 'multiple_choice',
-      difficulty: 'medium',
-      topic: subjectName
-    };
-  });
-};
 
 /**
  * Phân tích đề gốc (Word / PDF / Ảnh) và tạo ra bộ đề thi mới HOÀN TOÀN TƯƠNG TỰ
