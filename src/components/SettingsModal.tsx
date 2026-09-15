@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Settings, Database, RefreshCw, CheckCircle2, AlertCircle, Globe, ShieldCheck } from 'lucide-react';
 import {
   AppData,
@@ -18,6 +18,8 @@ import {
   encodeSimulationPayload,
   decodeSimulationPayload,
 } from '../services/sheetSyncService';
+
+export const GEMINI_API_KEY_STORAGE = 'GEMINI_AI_API_KEY';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -49,9 +51,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const [scriptUrl, setScriptUrl] = useState(
     appSettings?.googleAppsScriptUrl || googleSheetConfig?.sheetUrl || ''
   );
-  const [geminiApiKey, setGeminiApiKey] = useState(appSettings?.geminiApiKey || '');
+  const [geminiApiKey, setGeminiApiKey] = useState('');
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      const savedKey = localStorage.getItem('GEMINI_AI_API_KEY') || localStorage.getItem('gemini_api_key') || appSettings?.geminiApiKey || '';
+      setGeminiApiKey(savedKey);
+      setScriptUrl(appSettings?.googleAppsScriptUrl || googleSheetConfig?.sheetUrl || '');
+    }
+  }, [isOpen, appSettings, googleSheetConfig]);
 
   if (!isOpen) return null;
 
@@ -61,16 +71,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       return;
     }
 
+    const cleanKey = geminiApiKey.trim();
+    localStorage.setItem('GEMINI_AI_API_KEY', cleanKey);
+    localStorage.setItem('gemini_api_key', cleanKey);
+
     const updatedSettings: AppSettings = {
       ...appSettings,
       googleAppsScriptUrl: scriptUrl.trim(),
-      geminiApiKey: geminiApiKey.trim(),
+      geminiApiKey: cleanKey,
     };
 
     if (onSaveSettings) {
       onSaveSettings(updatedSettings);
     }
 
+    alert('Đã lưu mã API thành công!');
     setStatusMsg({ type: 'success', text: 'Lưu cài đặt hệ thống thành công!' });
     setTimeout(() => {
       onClose();
@@ -215,7 +230,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <input
               type="password"
               value={geminiApiKey}
-              onChange={(e) => setGeminiApiKey(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setGeminiApiKey(val);
+                localStorage.setItem('GEMINI_AI_API_KEY', val.trim());
+              }}
               placeholder="AIzaSy..."
               className="w-full text-xs font-mono p-2.5 rounded-lg border border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-[#003366] bg-white"
             />
