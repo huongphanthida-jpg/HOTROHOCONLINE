@@ -285,6 +285,43 @@ export const CreateExamFromSourceModal: React.FC<CreateExamFromSourceModalProps>
     setExamTitle(`${selectedSubjectType} lớp ${cls} - Đề kiểm tra định kỳ`);
   };
 
+  // Hàm nén ảnh canvas tự động khi người dùng chọn/tải ảnh lên (nén maxDim=1280, JPEG 0.75 -> 150KB-300KB)
+  const compressImageToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (e) => {
+        const img = new Image();
+        img.src = e.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxDim = 1280; // Giới hạn chiều dài/rộng tối đa
+          let width = img.width;
+          let height = img.height;
+          if (width > height && width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+          }
+          // Xuất JPEG 0.75 để dung lượng mỗi ảnh chỉ còn khoảng 150KB-300KB
+          resolve(canvas.toDataURL('image/jpeg', 0.75));
+        };
+        img.onerror = reject;
+      };
+      reader.onerror = reject;
+    });
+  };
+
   // Process multiple files (images, documents) and append to uploadedSources
   const processFiles = async (files: FileList | File[]) => {
     if (!files || files.length === 0) return;
@@ -298,28 +335,25 @@ export const CreateExamFromSourceModal: React.FC<CreateExamFromSourceModalProps>
       for (let i = 0; i < fileArray.length; i++) {
         const file = fileArray[i];
         const isImage = file.type.startsWith('image/');
-        const sizeFormatted = `${(file.size / 1024).toFixed(1)} KB`;
 
         if (isImage) {
           try {
-            const dataUrl = await new Promise<string>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.onload = () => resolve((reader.result as string) || '');
-              reader.onerror = reject;
-              reader.readAsDataURL(file);
-            });
+            const dataUrl = await compressImageToBase64(file);
             const base64Data = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+            const approxKb = Math.round((base64Data.length * 0.75) / 1024);
+            const sizeFormatted = `${approxKb} KB (Nén từ ${(file.size / 1024).toFixed(0)} KB)`;
+
             newItems.push({
               id: `src-img-${Date.now()}-${i}-${Math.random().toString(36).substr(2, 6)}`,
               name: file.name,
               type: 'image',
               sizeFormatted,
-              mimeType: file.type || 'image/jpeg',
+              mimeType: 'image/jpeg',
               dataUrl,
               base64Data,
             });
           } catch (e) {
-            console.warn('Lỗi đọc ảnh:', file.name, e);
+            console.warn('Lỗi nén/đọc ảnh:', file.name, e);
           }
         } else {
           try {
