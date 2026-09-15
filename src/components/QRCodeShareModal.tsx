@@ -130,7 +130,7 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
       return `${resolvedBaseUrl}/play?gameId=${encodeURIComponent(targetId)}&d=${payload}&t=${ts}&_v=${ts}&role=student`;
     } else if (type === 'exam' && subject) {
       const payload = encodeExamPayload(subject, questions || []);
-      return `${resolvedBaseUrl}/?exam=${payload}&id=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`;
+      return `${resolvedBaseUrl}/?exam=${payload}&id=${encodeURIComponent(targetId)}&payload=${payload}&t=${ts}&_v=${ts}&role=student`;
     }
     return type === 'game'
       ? `${resolvedBaseUrl}/play?gameId=${encodeURIComponent(targetId)}&t=${ts}&_v=${ts}&role=student`
