@@ -13,7 +13,7 @@ import {
 } from './types';
 import { INITIAL_DATA } from './data/initialData';
 import Sidebar, { NavigationTab } from './components/Sidebar';
-import FeatureHeader from './components/FeatureHeader';
+import {FeatureHeader} from './components/FeatureHeader';
 import SubjectCardsView from './components/SubjectCardsView';
 import StudentInfoModal from './components/StudentInfoModal';
 import ExamView from './components/ExamView';
