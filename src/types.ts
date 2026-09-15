@@ -781,11 +781,17 @@ export interface AISimulationItem {
   id: string;
   title: string;
   subject: string;
-  scenario: string;
-  prompt: string;
+  scenario?: string;
+  description?: string;
+  prompt?: string;
+  code?: string;
+  objectives?: string;
+  instructions?: string;
+  explanation?: string;
   parameters?: Record<string, any>;
   results?: any;
   createdAt?: string;
+  sourceDocTitle?: string;
 }
 
 export interface AppData {
