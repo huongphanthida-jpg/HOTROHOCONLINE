@@ -715,3 +715,6 @@ export const CreateSimilarExamModal: React.FC<CreateSimilarExamModalProps> = ({
     </div>
   );
 };
+
+export default CreateSimilarExamModal;
+
