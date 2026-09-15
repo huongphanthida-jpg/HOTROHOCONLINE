@@ -449,15 +449,24 @@ export const QuizGamePlayer: React.FC<QuizGamePlayerProps> = ({
         {/* Question Text */}
         {(() => {
           const questionText =
+            (currentQ as any)?.questionText ||
             (currentQ as any)?.question ||
             (currentQ as any)?.content ||
+            (currentQ as any)?.text ||
             (currentQ as any)?.title ||
             (currentQ as any)?.prompt ||
+            (currentQ as any)?.c ||
+            (currentQ as any)?.q ||
+            (currentQ as any)?.name ||
+            (currentQ as any)?.questionContent ||
             '';
+
+          const displayText = String(questionText).trim() || `Câu hỏi ${currentIndex + 1} (${game.title})`;
+
           return (
-            <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-4 my-4 shadow-xs">
-              <div className="text-gray-900 dark:text-slate-100 font-semibold text-base md:text-lg leading-relaxed">
-                <FormattedMathText text={questionText} />
+            <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-4 sm:p-5 my-4 shadow-xs text-left">
+              <div className="text-gray-900 dark:text-slate-100 font-bold text-base md:text-lg leading-relaxed break-words">
+                <FormattedMathText text={displayText} />
               </div>
               {currentQ.sourceCitation && (
                 <div className="inline-flex items-center space-x-1 text-[11px] font-medium text-teal-600 dark:text-teal-400 mt-2 bg-teal-50 dark:bg-teal-950/40 px-2 py-0.5 rounded-md">
@@ -471,12 +480,15 @@ export const QuizGamePlayer: React.FC<QuizGamePlayerProps> = ({
 
         {/* Options List */}
         <div className="grid grid-cols-1 gap-3 mt-6">
-          {currentQ.options.map((option, idx) => {
+          {(currentQ.options && currentQ.options.length > 0
+            ? currentQ.options
+            : ['Phương án A', 'Phương án B', 'Phương án C', 'Phương án D']
+          ).map((option, idx) => {
             const rawOpt = String(option || '');
             const cleanOpt = rawOpt.replace(/^[A-D][.:\)\s]\s*/i, '').trim();
 
             let buttonStyle =
-              'bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-gray-900 dark:text-slate-100';
+              'bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-gray-900 dark:text-slate-800';
 
             if (isAnswered) {
               if (idx === currentQ.correctAnswer) {
@@ -498,11 +510,11 @@ export const QuizGamePlayer: React.FC<QuizGamePlayerProps> = ({
                 disabled={isAnswered}
                 className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between transition-all duration-200 ${buttonStyle} active:scale-[0.99]`}
               >
-                <div className="flex items-center space-x-3 min-w-0">
-                  <span className="w-7 h-7 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 flex items-center justify-center text-xs font-black text-gray-900 dark:text-slate-100 shrink-0">
+                <div className="flex items-center space-x-3 min-w-0 flex-1 text-left">
+                  <span className="w-8 h-8 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 flex items-center justify-center text-sm font-black text-gray-900 dark:text-slate-100 shrink-0">
                     {String.fromCharCode(65 + idx)}
                   </span>
-                  <span className="text-sm sm:text-base font-semibold text-gray-900 dark:text-slate-100 leading-snug">
+                  <span className="text-base font-medium text-gray-900 dark:text-slate-100 leading-snug text-left flex-1 break-words">
                     <FormattedMathText text={cleanOpt} />
                   </span>
                 </div>
