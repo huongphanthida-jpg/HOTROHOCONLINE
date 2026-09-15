@@ -1491,6 +1491,22 @@ export default function App() {
                   onUpdateSession={handleUpdateSession}
                   onDeleteSession={handleDeleteSession}
                   onClearAllSessions={handleClearAllSessions}
+                  onSessionsReloaded={(reloadedSessions) => {
+                    setAppData((prev) => {
+                      const mergedMap = new Map<string, SessionRecord>();
+                      reloadedSessions.forEach((s) => mergedMap.set(s.id, s));
+                      prev.sessions.forEach((s) => {
+                        if (!mergedMap.has(s.id)) {
+                          mergedMap.set(s.id, s);
+                        }
+                      });
+                      const mergedList = Array.from(mergedMap.values());
+                      return {
+                        ...prev,
+                        sessions: mergedList,
+                      };
+                    });
+                  }}
                   userRole={userRole}
                 />
               )}
