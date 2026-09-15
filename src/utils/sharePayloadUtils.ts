@@ -927,6 +927,33 @@ export function decodeExamPayload(payloadStr: string): { subject: Subject; quest
   }
 }
 
+export function decodeSharePayload(payloadStr: string): any {
+  if (!payloadStr) return null;
+  try {
+    const examData = decodeExamPayload(payloadStr);
+    if (examData && examData.subject && examData.questions && examData.questions.length > 0) {
+      return {
+        type: 'exam',
+        examId: examData.subject.id,
+        examData: examData,
+        title: examData.subject.name,
+      };
+    }
+    const gameData = decodeGamePayload(payloadStr);
+    if (gameData && gameData.id) {
+      return {
+        type: 'game',
+        gameId: gameData.id,
+        gameData: gameData,
+        title: gameData.title,
+      };
+    }
+  } catch (e) {
+    console.warn('Error in decodeSharePayload:', e);
+  }
+  return null;
+}
+
 export function encodeGamePayload(game: EducationalGame): string {
   try {
     const compactGame: any = {
