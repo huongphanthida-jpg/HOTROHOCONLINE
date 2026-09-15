@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import { UserRole } from '../types';
 
-export type NavigationTab = 'subjects' | 'online_classes' | 'documents' | 'games' | 'simulations' | 'progress' | 'tutor';
+export type NavigationTab = 'subjects' | 'documents' | 'games' | 'simulations' | 'progress' | 'tutor';
 
 interface SidebarProps {
   currentTab: NavigationTab;
@@ -73,14 +73,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           description: 'Luyện đề trắc nghiệm chuẩn SGK',
           icon: BookOpen,
           badge: 'SGK',
-        },
-        {
-          id: 'online_classes' as NavigationTab,
-          label: 'Lớp Học Trực Tuyến',
-          description: 'Link phòng Meet/Zoom & Sheets',
-          icon: Tv,
-          badge: 'Database',
-          isSpecial: true,
         },
         {
           id: 'documents' as NavigationTab,
