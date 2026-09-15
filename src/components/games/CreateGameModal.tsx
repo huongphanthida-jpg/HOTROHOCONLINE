@@ -60,58 +60,88 @@ export const CreateGameModal: React.FC<CreateGameModalProps> = ({
 
   if (!isOpen) return null;
 
+  const compressImageToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (e) => {
+        const img = new Image();
+        img.src = e.target?.result as string;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const maxDim = 1280;
+          let width = img.width;
+          let height = img.height;
+          if (width > height && width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+          }
+          resolve(canvas.toDataURL('image/jpeg', 0.75));
+        };
+        img.onerror = reject;
+      };
+      reader.onerror = reject;
+    });
+  };
+
   // File upload handler
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    Array.from(files).forEach((file: File) => {
+    for (const file of Array.from(files)) {
       const isImg = file.type.startsWith('image/');
-      const reader = new FileReader();
 
-      reader.onload = (ev) => {
-        const result = ev.target?.result as string;
-        if (isImg) {
-          const base64 = result.split(',')[1];
+      if (isImg) {
+        try {
+          const dataUrl = await compressImageToBase64(file);
+          const base64 = dataUrl.includes(',') ? dataUrl.split(',')[1] : dataUrl;
+          const approxKb = Math.round((base64.length * 0.75) / 1024);
           setUploadedFiles((prev) => [
             ...prev,
             {
               id: `src-img-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
               name: file.name,
               type: 'image',
-              sizeFormatted: `${(file.size / 1024).toFixed(1)} KB`,
-              mimeType: file.type,
-              dataUrl: result,
+              sizeFormatted: `${approxKb} KB (Nén từ ${(file.size / 1024).toFixed(0)} KB)`,
+              mimeType: 'image/jpeg',
+              dataUrl,
               base64Data: base64,
             },
           ]);
-        } else {
-          // Read as text
-          const textReader = new FileReader();
-          textReader.onload = (txtEv) => {
-            const txt = (txtEv.target?.result as string) || '';
-            setCustomContent((prev) => (prev ? `${prev}\n\n[Từ file ${file.name}]:\n${txt}` : txt));
-            setUploadedFiles((prev) => [
-              ...prev,
-              {
-                id: `src-doc-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
-                name: file.name,
-                type: 'document',
-                sizeFormatted: `${(file.size / 1024).toFixed(1)} KB`,
-                textContent: txt,
-              },
-            ]);
-          };
-          textReader.readAsText(file);
+        } catch (err) {
+          console.warn('Lỗi nén/đọc ảnh:', file.name, err);
         }
-      };
-
-      if (isImg) {
-        reader.readAsDataURL(file);
       } else {
-        reader.readAsText(file);
+        const textReader = new FileReader();
+        textReader.onload = (txtEv) => {
+          const txt = (txtEv.target?.result as string) || '';
+          setCustomContent((prev) => (prev ? `${prev}\n\n[Từ file ${file.name}]:\n${txt}` : txt));
+          setUploadedFiles((prev) => [
+            ...prev,
+            {
+              id: `src-doc-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+              name: file.name,
+              type: 'document',
+              sizeFormatted: `${(file.size / 1024).toFixed(1)} KB`,
+              textContent: txt,
+            },
+          ]);
+        };
+        textReader.readAsText(file);
       }
-    });
+    }
   };
 
   const handleGenerate = async () => {
@@ -194,7 +224,9 @@ export const CreateGameModal: React.FC<CreateGameModalProps> = ({
       onClose();
     } catch (err: any) {
       console.error('Failed to generate game:', err);
-      setErrorMsg(err.message || 'Không thể tạo trò chơi lúc này. Vui lòng thử lại.');
+      const msg = err.message || 'Không thể tạo trò chơi lúc này. Vui lòng kiểm tra lại API Key hoặc kết nối!';
+      setErrorMsg(msg);
+      alert(`Lỗi tạo đề: ${msg}`);
     } finally {
       setIsGenerating(false);
     }
