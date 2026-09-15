@@ -22,7 +22,7 @@ import {
   CheckCircle2,
 } from 'lucide-react';
 import { UploadedSourceItem, AISimulationItem } from '../types';
-import { callGeminiAI } from '../services/aiService';
+import { generateSimulationCode, extractCleanCode, cleanAiProseText } from '../services/aiService';
 
 /**
  * Trích xuất đoạn mã code sạch (loại bỏ markdown wrappers ```html ... ``` và các câu văn chào hỏi đứng trước/sau)
@@ -249,55 +249,13 @@ export const CreateSimulationModal: React.FC<CreateSimulationModalProps> = ({
     setErrorMsg('');
     setGenerationStepText('AI đang đọc tài liệu và lập trình mã mô phỏng p5.js/HTML5 Canvas...');
 
-    const systemInstruction = `
-Bạn là một chuyên gia lập trình mô phỏng giáo dục và phát triển thí nghiệm ảo tương tác bằng HTML5 Canvas và p5.js cho học sinh phổ thông Việt Nam.
-
-Nhiệm vụ: Dựa vào các tài liệu và văn bản/hình ảnh được tải lên, hãy viết ra MỘT FILE HTML HOÀN CHỈNH (Single File HTML) chứa toàn bộ CSS, HTML và JavaScript để chạy một Thí nghiệm ảo / Mô phỏng học tập tương tác.
-
-HỖ TRỢ ĐẮC LỰC CHO CÁC MÔN HỌC:
-- Sinh học: Mô phỏng chu kỳ tế bào, phân bào (Mitosis/Meiosis), cấu trúc xoắn kép ADN tương tác, hệ tuần hoàn máu, di truyền Men-đen...
-- Địa lý: Mô phỏng Trái Đất quay quanh Mặt Trời & hiện tượng 4 mùa, vĩ độ ngày đêm, chu trình nước trong tự nhiên, chuyển động mảng kiến tạo...
-- Lịch sử: Mô phỏng dòng thời gian sự kiện tương tác (Timeline), sa bàn di chuyển lực lượng quân sự/chiến dịch lịch sử...
-- Tin học: Mô phỏng cổng logic số (AND, OR, NOT, NAND, XOR) & bảng chân lý, bộ chuyển đổi hệ nhị phân, thuật toán sắp xếp trực quan...
-- Công nghệ: Mô phỏng sơ đồ mạch điện rơ-le cảm biến (ánh sáng, nhiệt độ, độ ẩm), điều khiển thiết bị tự động hóa...
-- Vật lý: Con lắc, sóng cơ, giao thoa, quang hình học, điện từ trường...
-- Toán học: Đồ thị hàm số, tiếp tuyến, diện tích hình học, hình không gian tương tác...
-- Hóa học: Phản ứng hóa học, chuẩn độ Axit-Bazơ, mô hình nguyên tử 3D, sự điện phân...
-
-CÁC YÊU CẦU BẮT BUỘC VỀ CODE MÔ PHỎNG:
-1. Giao diện đẹp mắt, hiện đại (dark mode hoặc light mode sắc nét, font chữ sans-serif tiếng Việt).
-2. TẢI THƯ VIỆN BẮT BUỘC TRONG THẺ <head>:
-   <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
-3. THANH ĐIỀU KHIỂN TƯƠNG TÁC THỜI GIAN THỰC (Interactive Controls UI):
-   - Có các thanh trượt <input type="range"> để học sinh tùy chỉnh thông số (Nhiệt độ, Nồng độ, Khối lượng, Vận tốc, Tần số, Chiều dài...).
-   - Có các nút bấm Action: "Chạy mô phỏng", "Tạm dừng", "Đặt lại (Reset)", "Tăng/Giảm tốc độ"...
-4. BẢNG THÔNG SỐ VÀ CÔNG THỨC THỜI GIAN THỰC (HUD/Dashboard):
-   - Hiển thị công thức hoặc quy luật khoa học áp dụng.
-   - Hiển thị các giá trị đại lượng tính toán tức thời.
-5. CHỈ TRẢ VỀ ĐOẠN MÃ CODE HTML HOÀN CHỈNH (bắt đầu bằng <!DOCTYPE html> và kết thúc bằng </html>). KHÔNG ĐƯỢC viết câu chào, lời mở đầu hay bất kỳ văn bản prose tiếng Việt nào bên ngoài code block.
-`;
-
-    const userPrompt = `
-Hãy lập trình mã mô phỏng thí nghiệm ảo tương tác bằng HTML5 Canvas / p5.js cho:
-- Môn học: ${selectedSubject}
-- Chủ đề thí nghiệm: ${title}
-- Nội dung tài liệu & Yêu cầu chi tiết:
-${combinedSourceText}
-
-Đảm bảo mã HTML5/JS này đầy đủ, chạy trực tiếp trong iframe và có giao diện điều khiển phong phú.
-`;
-
     try {
-      const res = await callGeminiAI({
-        prompt: userPrompt,
-        systemInstruction,
-        temperature: 0.5,
-        maxOutputTokens: 8192,
-        images: imagesToSend.length > 0 ? imagesToSend : undefined,
+      let cleanedCode = await generateSimulationCode({
+        selectedSubject,
+        title,
+        combinedSourceText,
+        imagesToSend,
       });
-
-      let rawResponseText = res.text || '';
-      let cleanedCode = extractCleanCode(rawResponseText);
 
       if (!cleanedCode.toLowerCase().includes('<html') && !cleanedCode.toLowerCase().includes('<!doctype')) {
         // Fallback wrap in HTML document if AI output snippet
