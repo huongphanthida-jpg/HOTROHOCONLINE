@@ -29,7 +29,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { Subject, Question, DocumentLearning, UploadedSourceItem } from '../types';
-import { generateExamFromSource } from '../services/aiService';
+import { generateExamFromSource, generateFallbackQuestionsBySubject } from '../services/aiService';
 import { buildSlugSubjectId } from '../utils/sharePayloadUtils';
 import { FormattedMathText } from './FormattedMathText';
 
