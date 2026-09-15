@@ -2178,3 +2178,6 @@ export const CreateExamFromSourceModal: React.FC<CreateExamFromSourceModalProps>
     </div>
   );
 };
+
+export default CreateExamFromSourceModal;
+
