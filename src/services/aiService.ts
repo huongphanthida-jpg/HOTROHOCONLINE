@@ -1377,8 +1377,41 @@ Hãy đánh giá và trả về kết quả định dạng JSON thuần túy (kh
 }
 
 /**
+ * Khai báo và export hàm tạo câu hỏi dự phòng (fallback) khi AI gặp sự cố hoặc JSON không đọc được
+ */
+export const generateFallbackQuestionsBySubject = (
+  subjectInput: string | { id?: string; name?: string } = 'Chung',
+  count: number = 5
+): any[] => {
+  const subjectName = typeof subjectInput === 'string' ? subjectInput : subjectInput?.name || 'Chung';
+  const subjectId = typeof subjectInput === 'object' ? subjectInput?.id || `sub_${Date.now()}` : `sub_${Date.now()}`;
+
+  return Array.from({ length: count }, (_, i) => {
+    const qContent = `Câu hỏi khảo thí mẫu số ${i + 1} môn ${subjectName}: Khái niệm hoặc công thức cốt lõi nào sau đây là chính xác theo chuẩn SGK mới?`;
+    return {
+      id: `fallback_q_${Date.now()}_${i + 1}`,
+      subjectId,
+      content: qContent,
+      questionText: qContent,
+      question: qContent,
+      options: [
+        'A. Phương án đúng theo định nghĩa chuẩn SGK 2026-2027',
+        'B. Khái niệm chưa đầy đủ điều kiện tiên quyết',
+        'C. Định nghĩa bị nhầm lẫn với trường hợp tương tự',
+        'D. Phương án dành riêng cho trường hợp đặc biệt'
+      ],
+      correctAnswer: 0,
+      explanation: 'Lời giải chi tiết chuẩn SGK đang được cập nhật.',
+      type: 'multiple_choice',
+      difficulty: 'medium',
+      topic: subjectName
+    };
+  });
+};
+
+/**
  * Phân tích đề gốc (Word / PDF / Ảnh) và tạo ra bộ đề thi mới HOÀN TOÀN TƯƠNG TỰ
- * Giữ nguyên ma trận kiến thức, cấu trúc, tỷ lệ dạng bài và văn phong ra đề
+ * Bóc tách chi tiết: Nội dung, Phương án, Đáp án đúng (tự giải nếu thiếu), Lời giải
  */
 export async function generateSimilarExamFromSource(
   fileData: string,
@@ -1396,40 +1429,40 @@ export async function generateSimilarExamFromSource(
   const images = options?.images || [];
 
   const prompt = `Bạn là chuyên gia sư phạm và giáo viên ra đề thi quốc gia hàng đầu tại Việt Nam.
-Nhiệm vụ của bạn: Phân tích kỹ nội dung đề thi gốc được cung cấp bên dưới (bao gồm văn bản và hình ảnh nếu có), sau đó **TẠO RA MỘT ĐỀ THI MỚI HOÀN TOÀN TƯƠNG TỰ**.
+Nhiệm vụ của bạn: Phân tích kỹ nội dung đề thi gốc được cung cấp bên dưới (bao gồm văn bản và hình ảnh nếu có), bóc tách rõ ràng cấu trúc và sau đó **TẠO RA MỘT BỘ ĐỀ THI MỚI HOÀN TOÀN TƯƠNG TỰ (ĐỀ SONG SONG)**.
 
-YÊU CẦU CHI TIẾT (MANDATORY REQUIREMENTS):
-1. PHÂN TÍCH ĐỀ GỐC:
-   - Xác định chính xác ma trận kiến thức, các chủ đề/dạng bài xuất hiện trong đề gốc.
-   - Phân bổ mức độ nhận thức tương tự đề gốc (Nhận biết, Thông hiểu, Vận dụng, Vận dụng cao).
-   - Xác định phong cách diễn đạt và văn phong ra đề của giáo viên trong đề gốc.
+YÊU CẦU PHÂN TÍCH VÀ BÓC TÁCH ĐỀ GỐC (CRITICAL MANDATE):
+1. NỘI DUNG CÂU HỎI (question/content):
+   - Giữ nguyên ký hiệu hóa học, các thuật ngữ chuyên ngành và công thức Toán/Lý/Hóa dưới dạng ký hiệu LaTeX chuẩn ($..$).
+   - Nhận diện các dạng bài trắc nghiệm 4 phương án (A, B, C, D) hoặc câu Đúng/Sai có nhiều mệnh đề (a, b, c, d).
+2. DANH SÁCH ĐÁP ÁN (options):
+   - Bóc tách riêng rẽ từng phương án lựa chọn ["A. ...", "B. ...", "C. ...", "D. ..."].
+3. ĐÁP ÁN ĐÚNG (correctAnswer):
+   - Xác định chỉ số phương án đúng (0 cho A, 1 cho B, 2 cho C, 3 cho D).
+   - NẾU ĐỀ GỐC CHƯA CÓ ĐÁP ÁN, AI PHẢI TỰ ĐỘNG GIẢI VÀ ĐIỀN ĐÁP ÁN CHÍNH XÁC.
+4. LỜI GIẢI CHI TIẾT (explanation):
+   - Tự động biên soạn hướng dẫn giải từng bước chi tiết chuẩn SGK cho tất cả các câu hỏi.
 
-2. TẠO ĐỀ THI TƯƠNG TỰ MỚI 100%:
-   - Tạo chính xác ${targetCount} câu hỏi thi tương tự.
-   - GIỮ NGUYÊN cấu trúc ma trận, phân bổ dạng bài và mức độ khó từ đề gốc.
-   - THAY ĐỔI TOÀN BỘ số liệu, ngữ cảnh, hình ảnh diễn đạt, đáp án để tạo ra bộ đề song song hoàn toàn mới.
-   - Đảm bảo tính chính xác khoa học, chuẩn kiến thức SGK mới.
-   - Công thức Toán/Lý/Hóa/Sinh PHẢI giữ nguyên ký hiệu LaTeX chuẩn (ví dụ: $y = x^3 - 3x + 1$, $\\int_0^1 x dx$, $H_2SO_4$).
+YÊU CẦU TẠO ĐỀ THI SONG SONG MỚI 100%:
+- Tạo đúng ${targetCount} câu hỏi thi mới song song.
+- GIỮ NGUYÊN ma trận kiến thức, tỷ lệ câu nhận biết/thông hiểu/vận dụng, dạng thức câu hỏi và văn phong ra đề của giáo viên.
+- ĐỔI MỚI TOÀN BỘ số liệu, ngữ cảnh, hình ảnh diễn đạt để làm thành đề mới hoàn toàn.
 
-3. ĐỊNH DẠNG HỢP LỆ VÀ CÁC DẠNG CÂU HỎI HỖ TRỢ:
-   - Trắc nghiệm 4 lựa chọn (multiple_choice): "options" gồm 4 phương án ["A. ...", "B. ...", "C. ...", "D. ..."], "correctAnswer" từ 0 đến 3.
-   - Trắc nghiệm Đúng / Sai (true_false): "options": ["Đúng", "Sai"], "correctAnswer": 0 (Đúng) hoặc 1 (SAI).
-   - Trả lời ngắn (short_answer): "options": [], "expectedShortAnswer": "đáp số ngắn gọn".
-
-4. ĐỊNH DẠNG TRẢ VỀ:
-   Trả về CHỈ duy nhất 1 mảng JSON chuẩn (không kèm văn bản tự do hay markdown \`\`\`json ở bên ngoài):
-   [
-     {
-       "id": "q_sim_1",
-       "content": "Nội dung câu hỏi 1 tương tự...",
-       "type": "multiple_choice",
-       "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
-       "correctAnswer": 0,
-       "explanation": "Lời giải chi tiết...",
-       "difficulty": "medium",
-       "topic": "Chủ đề 1"
-     }
-   ]
+ĐỊNH DẠNG TRẢ VỀ:
+Trả về CHỈ duy nhất 1 mảng JSON chuẩn (không kèm markdown \`\`\`json ở ngoài):
+[
+  {
+    "id": "q_sim_1",
+    "question": "Nội dung câu hỏi 1 tương tự...",
+    "content": "Nội dung câu hỏi 1 tương tự...",
+    "type": "multiple_choice",
+    "options": ["A. ...", "B. ...", "C. ...", "D. ..."],
+    "correctAnswer": 0,
+    "explanation": "Lời giải chi tiết từng bước...",
+    "difficulty": "medium",
+    "topic": "${subjectName}"
+  }
+]
 
 --- NỘI DUNG ĐỀ GỐC CẦN PHÂN TÍCH VÀ TẠO ĐỀ TƯƠNG TỰ ---
 ${fileData.slice(0, 30000)}
@@ -1446,19 +1479,23 @@ ${fileData.slice(0, 30000)}
     const parsed = JSON.parse(cleaned);
 
     if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed.map((q: any, idx: number) => ({
-        id: q.id || `q-sim-${Date.now()}-${idx}`,
-        subjectId: '',
-        content: q.content || q.question || q.questionText || `Câu ${idx + 1}`,
-        questionText: q.content || q.question || q.questionText || `Câu ${idx + 1}`,
-        type: (q.type as any) || 'multiple_choice',
-        options: Array.isArray(q.options) && q.options.length > 0 ? q.options : ['A. Đúng', 'B. Sai'],
-        correctAnswer: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
-        expectedShortAnswer: q.expectedShortAnswer || q.sampleAnswer || '',
-        explanation: q.explanation || 'Lời giải chi tiết chuẩn SGK.',
-        difficulty: q.difficulty || 'medium',
-        topic: q.topic || subjectName,
-      }));
+      return parsed.map((q: any, idx: number) => {
+        const qText = q.content || q.question || q.questionText || `Câu ${idx + 1}`;
+        return {
+          id: q.id || `q-sim-${Date.now()}-${idx}`,
+          subjectId: '',
+          content: qText,
+          questionText: qText,
+          question: qText,
+          type: (q.type as any) || 'multiple_choice',
+          options: Array.isArray(q.options) && q.options.length > 0 ? q.options : ['A. Phương án A', 'B. Phương án B', 'C. Phương án C', 'D. Phương án D'],
+          correctAnswer: typeof q.correctAnswer === 'number' ? q.correctAnswer : 0,
+          expectedShortAnswer: q.expectedShortAnswer || q.sampleAnswer || '',
+          explanation: q.explanation || 'Lời giải chi tiết chuẩn SGK.',
+          difficulty: q.difficulty || 'medium',
+          topic: q.topic || subjectName,
+        };
+      });
     }
   } catch (err) {
     console.warn('generateSimilarExamFromSource AI call failed, generating safe fallback exam:', err);
