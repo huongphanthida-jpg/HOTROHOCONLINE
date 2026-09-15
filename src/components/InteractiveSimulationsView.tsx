@@ -10,13 +10,66 @@ import {
   Sparkles, 
   Sliders, 
   Info,
-  Zap,
+  Maximize2,
+  Share2,
+  Plus,
+  Trash2,
   CheckCircle2,
-  BookOpen
+  BookOpen,
+  Code
 } from 'lucide-react';
+import { AISimulationItem } from '../types';
+import { CreateSimulationModal } from './CreateSimulationModal';
+import { SimulationQRModal } from './SimulationQRModal';
 
 export const InteractiveSimulationsView: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'pendulum' | 'math_graph' | 'atom'>('pendulum');
+  const [activeTab, setActiveTab] = useState<string>('pendulum');
+
+  // AI Generated Simulations state
+  const [aiSimulations, setAiSimulations] = useState<AISimulationItem[]>(() => {
+    try {
+      const saved = localStorage.getItem('eduexam_ai_simulations');
+      if (saved) {
+        return JSON.parse(saved);
+      }
+    } catch (e) {
+      console.warn('Lỗi đọc danh sách mô phỏng AI:', e);
+    }
+    return [];
+  });
+
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [qrModalSimulation, setQrModalSimulation] = useState<AISimulationItem | null>(null);
+
+  // Active AI simulation iframe ref & key for forcing reload
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [iframeKey, setIframeKey] = useState<number>(Date.now());
+  const [isPausedIframe, setIsPausedIframe] = useState<boolean>(false);
+
+  // Save AI simulations to LocalStorage whenever updated
+  useEffect(() => {
+    try {
+      localStorage.setItem('eduexam_ai_simulations', JSON.stringify(aiSimulations));
+    } catch (e) {
+      console.warn('Lỗi lưu danh sách mô phỏng AI:', e);
+    }
+  }, [aiSimulations]);
+
+  const handleSimulationCreated = (newSim: AISimulationItem) => {
+    setAiSimulations((prev) => [newSim, ...prev]);
+    setActiveTab(newSim.id);
+    setIframeKey(Date.now());
+  };
+
+  const handleDeleteSimulation = (simId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (confirm('Bạn có chắc chắn muốn xóa mô phỏng thí nghiệm AI này?')) {
+      setAiSimulations((prev) => prev.filter((s) => s.id !== simId));
+      if (activeTab === simId) {
+        setActiveTab('pendulum');
+      }
+    }
+  };
 
   // --- 1. PHYSICS PENDULUM STATES ---
   const [length, setLength] = useState<number>(1.5); // meters
@@ -284,65 +337,185 @@ export const InteractiveSimulationsView: React.FC = () => {
   const periodT = (2 * Math.PI * Math.sqrt(length / gravity)).toFixed(2);
   const frequencyF = (1 / parseFloat(periodT)).toFixed(2);
 
+  // Active AI Simulation if selected
+  const activeAISim = aiSimulations.find((s) => s.id === activeTab);
+
+  const handleFullscreenIframe = () => {
+    if (iframeRef.current) {
+      if (iframeRef.current.requestFullscreen) {
+        iframeRef.current.requestFullscreen();
+      }
+    }
+  };
+
   return (
     <div className="space-y-6 pb-12">
-      {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-teal-800 via-teal-700 to-emerald-600 p-6 md:p-8 text-white shadow-xl shadow-teal-800/10">
-        <div className="relative z-10 space-y-2 max-w-2xl">
-          <span className="px-3 py-1 rounded-full text-xs font-extrabold uppercase bg-white/20 backdrop-blur-md text-teal-100 tracking-wider">
-            PHÒNG THÍ NGHIỆM ẢO P5.JS
-          </span>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            Mô Phỏng Học Tập Tương Tác
-          </h1>
-          <p className="text-teal-100 text-xs sm:text-sm leading-relaxed">
-            Trực quan hóa công thức Toán học, thí nghiệm Vật lý dao động cơ và mô hình cấu trúc nguyên tử Hóa học 3D thời gian thực.
-          </p>
+      {/* Header Banner with Prominent AI Upload Button */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-teal-900 via-teal-800 to-emerald-700 p-6 md:p-8 text-white shadow-xl shadow-teal-900/10">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <span className="px-3 py-1 rounded-full text-xs font-extrabold uppercase bg-white/20 backdrop-blur-md text-teal-100 tracking-wider">
+              PHÒNG THÍ NGHIỆM ẢO P5.JS &amp; AI
+            </span>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+              Mô Phỏng Thí Nghiệm Ảo Tương Tác
+            </h1>
+            <p className="text-teal-100 text-xs sm:text-sm leading-relaxed">
+              Trực quan hóa công thức Toán học, thí nghiệm Vật lý dao động cơ, mô hình Hóa học 3D thời gian thực và tự động tạo mô phỏng mới từ tài liệu SGK bằng AI.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsCreateModalOpen(true)}
+            className="px-6 py-3.5 rounded-2xl bg-gradient-to-r from-amber-400 to-emerald-400 hover:from-amber-300 hover:to-emerald-300 text-teal-950 font-black text-xs sm:text-sm shadow-xl hover:shadow-2xl transition-all transform hover:-translate-y-0.5 flex items-center justify-center space-x-2 shrink-0 border border-white/30"
+          >
+            <Sparkles className="w-5 h-5 text-teal-950 animate-bounce" />
+            <span>+ Tải Tài Liệu &amp; Tạo Mô Phỏng Bằng AI</span>
+          </button>
         </div>
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex items-center space-x-2 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs">
+      <div className="flex items-center space-x-2 bg-white dark:bg-slate-900 p-1.5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs overflow-x-auto">
         <button
           onClick={() => setActiveTab('pendulum')}
-          className={`flex-1 flex items-center justify-center space-x-2 py-2.5 rounded-xl text-xs font-bold transition-all ${
+          className={`flex-1 min-w-[160px] flex items-center justify-center space-x-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
             activeTab === 'pendulum'
               ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-md'
               : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
           }`}
         >
           <Activity className="w-4 h-4" />
-          <span>Vật Lý: Dao Động Con Lắc</span>
+          <span>Vật Lý: Con Lắc Đơn</span>
         </button>
 
         <button
           onClick={() => setActiveTab('math_graph')}
-          className={`flex-1 flex items-center justify-center space-x-2 py-2.5 rounded-xl text-xs font-bold transition-all ${
+          className={`flex-1 min-w-[160px] flex items-center justify-center space-x-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
             activeTab === 'math_graph'
               ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-md'
               : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
           }`}
         >
           <LineChart className="w-4 h-4" />
-          <span>Toán Học: Khảo Sát Đồ Thị & Tiếp Tuyến</span>
+          <span>Toán: Đồ Thị Hàm Số</span>
         </button>
 
         <button
           onClick={() => setActiveTab('atom')}
-          className={`flex-1 flex items-center justify-center space-x-2 py-2.5 rounded-xl text-xs font-bold transition-all ${
+          className={`flex-1 min-w-[160px] flex items-center justify-center space-x-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
             activeTab === 'atom'
               ? 'bg-gradient-to-r from-teal-600 to-emerald-600 text-white shadow-md'
               : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'
           }`}
         >
           <Atom className="w-4 h-4" />
-          <span>Hóa Học: Cấu Trúc Nguyên Tử</span>
+          <span>Hóa: Cấu Trúc Nguyên Tử</span>
         </button>
+
+        {/* AI Generated Simulations list in tabs */}
+        {aiSimulations.map((sim) => (
+          <div key={sim.id} className="relative group flex items-center">
+            <button
+              onClick={() => {
+                setActiveTab(sim.id);
+                setIframeKey(Date.now());
+              }}
+              className={`flex-1 min-w-[180px] flex items-center justify-between space-x-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all border ${
+                activeTab === sim.id
+                  ? 'bg-gradient-to-r from-purple-600 to-teal-600 text-white border-purple-500 shadow-md'
+                  : 'bg-purple-50/60 dark:bg-purple-950/40 text-purple-900 dark:text-purple-200 border-purple-200 dark:border-purple-800 hover:bg-purple-100'
+              }`}
+            >
+              <div className="flex items-center space-x-1.5 truncate">
+                <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                <span className="truncate">{sim.title}</span>
+              </div>
+              <button
+                type="button"
+                onClick={(e) => handleDeleteSimulation(sim.id, e)}
+                className="opacity-60 hover:opacity-100 p-0.5 rounded hover:bg-rose-500 hover:text-white transition-all ml-1"
+                title="Xóa mô phỏng này"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </button>
+          </div>
+        ))}
       </div>
+
+      {/* --- AI GENERATED SIMULATION VIEW (SANDBOXED IFRAME RUNNER) --- */}
+      {activeAISim && (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-lg space-y-4 animate-fadeIn">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 pb-3">
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2">
+                <span className="px-2.5 py-0.5 rounded-full bg-purple-600 text-white font-extrabold text-[10px]">
+                  Mô phỏng AI p5.js
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300 font-bold text-[10px]">
+                  {activeAISim.subject}
+                </span>
+              </div>
+              <h3 className="font-extrabold text-base text-slate-800 dark:text-white">
+                {activeAISim.title}
+              </h3>
+              {activeAISim.description && (
+                <p className="text-xs text-slate-500 dark:text-slate-400">{activeAISim.description}</p>
+              )}
+            </div>
+
+            {/* Runner Control Toolbar */}
+            <div className="flex items-center space-x-2 self-end sm:self-auto flex-wrap gap-y-2">
+              <button
+                type="button"
+                onClick={() => setIframeKey(Date.now())}
+                className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 text-xs font-bold flex items-center space-x-1.5 transition-colors"
+                title="Chạy lại mô phỏng"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                <span>Chạy lại</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleFullscreenIframe}
+                className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 text-xs font-bold flex items-center space-x-1.5 transition-colors"
+                title="Toàn màn hình"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+                <span>Toàn màn hình</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setQrModalSimulation(activeAISim)}
+                className="px-3.5 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold flex items-center space-x-1.5 transition-colors shadow-md"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span>Xuất Mã QR / Link Thí Nghiệm</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Sandboxed iframe Runner */}
+          <div className="relative rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-slate-950 shadow-inner">
+            <iframe
+              key={iframeKey}
+              ref={iframeRef}
+              title={activeAISim.title}
+              srcDoc={activeAISim.code}
+              sandbox="allow-scripts allow-same-origin allow-modals"
+              className="w-full h-[540px] border-0 bg-slate-950"
+            />
+          </div>
+        </div>
+      )}
 
       {/* --- TAB 1: PENDULUM SIMULATION --- */}
       {activeTab === 'pendulum' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn">
           {/* Canvas Box */}
           <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xs space-y-4 flex flex-col justify-between">
             <div className="flex items-center justify-between">
@@ -467,12 +640,12 @@ export const InteractiveSimulationsView: React.FC = () => {
 
       {/* --- TAB 2: MATH GRAPH SIMULATION --- */}
       {activeTab === 'math_graph' && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-fadeIn">
           <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-5 shadow-xs space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-sm text-slate-800 dark:text-white flex items-center space-x-2">
                 <LineChart className="w-4 h-4 text-teal-600" />
-                <span>Đồ Thị Hàm Số & Tiếp Tuyến Đạo Hàm tại Point x₀</span>
+                <span>Đồ Thị Hàm Số &amp; Tiếp Tuyến Đạo Hàm tại Point x₀</span>
               </h3>
               <span className="text-xs font-mono bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300 px-2.5 py-1 rounded-lg">
                 x₀ = {hoverX.toFixed(1)}
@@ -581,12 +754,12 @@ export const InteractiveSimulationsView: React.FC = () => {
 
       {/* --- TAB 3: CHEMISTRY ATOM SIMULATION --- */}
       {activeTab === 'atom' && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-6">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-xs space-y-6 animate-fadeIn">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-4">
             <div>
               <h3 className="font-bold text-base text-slate-800 dark:text-white flex items-center space-x-2">
                 <Atom className="w-5 h-5 text-teal-600" />
-                <span>Mô Hình Nguyên Tử Bohr & Cấu Hình Electron</span>
+                <span>Mô Hình Nguyên Tử Bohr &amp; Cấu Hình Electron</span>
               </h3>
               <p className="text-xs text-slate-500">Chọn nguyên tố hóa học để trực quan hóa lớp vỏ Electron trong không gian.</p>
             </div>
@@ -681,6 +854,20 @@ export const InteractiveSimulationsView: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* --- CREATE SIMULATION MODAL --- */}
+      <CreateSimulationModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSimulationCreated={handleSimulationCreated}
+      />
+
+      {/* --- SIMULATION QR SHARE MODAL --- */}
+      <SimulationQRModal
+        isOpen={!!qrModalSimulation}
+        onClose={() => setQrModalSimulation(null)}
+        simulation={qrModalSimulation}
+      />
     </div>
   );
 };
