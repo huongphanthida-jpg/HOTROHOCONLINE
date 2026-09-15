@@ -1660,12 +1660,11 @@ ${fileData.slice(0, 30000)}
         };
       });
     }
-  } catch (err) {
-    console.warn('generateSimilarExamFromSource AI call failed, generating safe fallback exam:', err);
+    throw new Error('AI không trả về kết quả đề thi song song hợp lệ.');
+  } catch (err: any) {
+    console.error('generateSimilarExamFromSource AI call failed:', err);
+    throw new Error(err.message || 'Không thể tạo đề thi tương tự bằng AI. Vui lòng kiểm tra lại API Key hoặc file đính kèm!');
   }
-
-  // Fallback if AI call fails or output cannot be parsed
-  return generateFallbackQuestionsBySubject({ id: `sub-sim-${Date.now()}`, name: subjectName }, targetCount);
 }
 
 export interface GenerateSimulationCodeParams {
