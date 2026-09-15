@@ -19,6 +19,7 @@ import { EducationalGame, QuizGameQuestion, StudentInfo } from '../../types';
 import { soundEffects } from '../../utils/soundEffects';
 import { GameSessionResult, syncGameResultToGoogleSheets } from '../../services/sheetSyncService';
 import { GameSyncCard } from './GameSyncCard';
+import { FormattedMathText } from '../FormattedMathText';
 
 interface QuizGamePlayerProps {
   game: EducationalGame;
@@ -446,30 +447,47 @@ export const QuizGamePlayer: React.FC<QuizGamePlayerProps> = ({
         </div>
 
         {/* Question Text */}
-        <div className="my-4">
-          <h3 className="text-lg sm:text-xl font-bold text-slate-800 dark:text-white leading-relaxed">
-            {currentQ.question}
-          </h3>
-          {currentQ.sourceCitation && (
-            <div className="inline-flex items-center space-x-1 text-[11px] font-medium text-teal-600 dark:text-teal-400 mt-2 bg-teal-50 dark:bg-teal-950/40 px-2 py-0.5 rounded-md">
-              <BookOpen className="w-3 h-3" />
-              <span>{currentQ.sourceCitation}</span>
+        {(() => {
+          const questionText =
+            (currentQ as any)?.question ||
+            (currentQ as any)?.content ||
+            (currentQ as any)?.title ||
+            (currentQ as any)?.prompt ||
+            '';
+          return (
+            <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700/80 rounded-2xl p-4 my-4 shadow-xs">
+              <div className="text-gray-900 dark:text-slate-100 font-semibold text-base md:text-lg leading-relaxed">
+                <FormattedMathText text={questionText} />
+              </div>
+              {currentQ.sourceCitation && (
+                <div className="inline-flex items-center space-x-1 text-[11px] font-medium text-teal-600 dark:text-teal-400 mt-2 bg-teal-50 dark:bg-teal-950/40 px-2 py-0.5 rounded-md">
+                  <BookOpen className="w-3 h-3" />
+                  <span>{currentQ.sourceCitation}</span>
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          );
+        })()}
 
         {/* Options List */}
         <div className="grid grid-cols-1 gap-3 mt-6">
           {currentQ.options.map((option, idx) => {
-            let buttonStyle = 'bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-100';
+            const rawOpt = String(option || '');
+            const cleanOpt = rawOpt.replace(/^[A-D][.:\)\s]\s*/i, '').trim();
+
+            let buttonStyle =
+              'bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 border-slate-200 dark:border-slate-700 text-gray-900 dark:text-slate-100';
 
             if (isAnswered) {
               if (idx === currentQ.correctAnswer) {
-                buttonStyle = 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-500 text-emerald-800 dark:text-emerald-200 font-bold ring-2 ring-emerald-500/20';
+                buttonStyle =
+                  'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-500 text-emerald-900 dark:text-emerald-200 font-bold ring-2 ring-emerald-500/20';
               } else if (selectedOption === idx) {
-                buttonStyle = 'bg-rose-50 dark:bg-rose-950/50 border-rose-500 text-rose-800 dark:text-rose-200 ring-2 ring-rose-500/20';
+                buttonStyle =
+                  'bg-rose-50 dark:bg-rose-950/50 border-rose-500 text-rose-900 dark:text-rose-200 ring-2 ring-rose-500/20';
               } else {
-                buttonStyle = 'opacity-50 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500';
+                buttonStyle =
+                  'opacity-50 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500';
               }
             }
 
@@ -480,11 +498,13 @@ export const QuizGamePlayer: React.FC<QuizGamePlayerProps> = ({
                 disabled={isAnswered}
                 className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between transition-all duration-200 ${buttonStyle} active:scale-[0.99]`}
               >
-                <div className="flex items-center space-x-3">
-                  <span className="w-7 h-7 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 flex items-center justify-center text-xs font-black shrink-0">
+                <div className="flex items-center space-x-3 min-w-0">
+                  <span className="w-7 h-7 rounded-xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 flex items-center justify-center text-xs font-black text-gray-900 dark:text-slate-100 shrink-0">
                     {String.fromCharCode(65 + idx)}
                   </span>
-                  <span className="text-sm sm:text-base font-medium">{option}</span>
+                  <span className="text-sm sm:text-base font-semibold text-gray-900 dark:text-slate-100 leading-snug">
+                    <FormattedMathText text={cleanOpt} />
+                  </span>
                 </div>
 
                 {isAnswered && idx === currentQ.correctAnswer && (
@@ -505,9 +525,9 @@ export const QuizGamePlayer: React.FC<QuizGamePlayerProps> = ({
               <HelpCircle className="w-4 h-4" />
               <span>Giải thích chuẩn tài liệu:</span>
             </div>
-            <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
-              {currentQ.explanation}
-            </p>
+            <div className="text-xs sm:text-sm text-gray-900 dark:text-slate-100 leading-relaxed font-medium">
+              <FormattedMathText text={currentQ.explanation || ''} />
+            </div>
 
             <div className="mt-4 flex justify-end">
               <button
