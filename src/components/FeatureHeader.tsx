@@ -48,13 +48,6 @@ export const FeatureHeader: React.FC<FeatureHeaderProps> = ({
           badge: 'Chuẩn 1đ/câu',
           badgeColor: 'bg-teal-100 dark:bg-teal-900/50 text-teal-700 dark:text-teal-300',
         };
-      case 'online_classes':
-        return {
-          title: 'Danh Sách Lớp Học Trực Tuyến & Phòng Học',
-          category: 'Phân Hiệu 1: Cơ Sở Dữ Liệu Lớp Học',
-          badge: 'Google Sheets',
-          badgeColor: 'bg-emerald-100 dark:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300',
-        };
       case 'documents':
         return {
           title: 'Học Lý Thuyết & Biên Soạn Đề AI',
@@ -217,3 +210,6 @@ export const FeatureHeader: React.FC<FeatureHeaderProps> = ({
     </header>
   );
 };
+
+export default FeatureHeader;
+

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Question, StudentInfo, SessionRecord, QuestionResult } from '../types';
 import { Clock, Flag, CheckCircle, ArrowLeft, ArrowRight, Send, AlertTriangle, HelpCircle, Hash, FileText, CheckCircle2, Award } from 'lucide-react';
 import { soundEffects } from '../utils/soundEffects';
+import { FormattedMathText } from './FormattedMathText';
 
 interface ExamViewProps {
   subjectName: string;
@@ -315,7 +316,7 @@ export const ExamView: React.FC<ExamViewProps> = ({
 
             {/* Question Content */}
             <div className="text-base sm:text-lg font-medium text-slate-800 dark:text-slate-100 leading-relaxed mb-6 whitespace-pre-wrap break-words overflow-wrap-anywhere h-auto min-h-min">
-              {currentQ.content}
+              <FormattedMathText text={currentQ.content} />
             </div>
 
             {/* Question Type & Options List */}
@@ -470,7 +471,7 @@ export const ExamView: React.FC<ExamViewProps> = ({
                         {optionLetter}
                       </div>
                       <span className="text-sm sm:text-base font-normal flex-1 leading-relaxed break-words whitespace-pre-wrap overflow-wrap-anywhere">
-                        {opt.replace(/^[A-D]\.\s*/, '')}
+                        <FormattedMathText text={opt.replace(/^[A-D]\.\s*/, '')} />
                       </span>
                     </button>
                   );
@@ -641,3 +642,6 @@ export const ExamView: React.FC<ExamViewProps> = ({
     </div>
   );
 };
+
+export default ExamView;
+

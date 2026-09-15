@@ -185,3 +185,6 @@ export const StudentInfoModal: React.FC<StudentInfoModalProps> = ({
     </div>
   );
 };
+
+export default StudentInfoModal;
+

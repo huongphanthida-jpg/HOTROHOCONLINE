@@ -172,3 +172,6 @@ function renderLatexMath(math: string): React.ReactNode {
 
   return <span>{formatted}</span>;
 }
+
+export default FormattedMathText;
+

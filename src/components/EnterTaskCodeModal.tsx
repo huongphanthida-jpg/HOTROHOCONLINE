@@ -171,3 +171,6 @@ export const EnterTaskCodeModal: React.FC<EnterTaskCodeModalProps> = ({
     </div>
   );
 };
+
+export default EnterTaskCodeModal;
+

@@ -507,3 +507,6 @@ export const PPTPreviewModal: React.FC<PPTPreviewModalProps> = ({
     </div>
   );
 };
+
+export default PPTPreviewModal;
+

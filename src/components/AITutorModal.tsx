@@ -213,3 +213,6 @@ Em có bất kỳ thắc mắc nào về định lý, công thức, bài tập S
     </div>
   );
 };
+
+export default AITutorModal;
+

@@ -441,3 +441,6 @@ export const ExamResultView: React.FC<ExamResultViewProps> = ({
     </div>
   );
 };
+
+export default ExamResultView;
+

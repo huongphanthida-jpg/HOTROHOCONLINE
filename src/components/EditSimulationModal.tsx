@@ -293,3 +293,6 @@ export const EditSimulationModal: React.FC<EditSimulationModalProps> = ({
     </div>
   );
 };
+
+export default EditSimulationModal;
+

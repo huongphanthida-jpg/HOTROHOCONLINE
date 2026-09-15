@@ -533,3 +533,6 @@ export const EditDocumentModal: React.FC<EditDocumentModalProps> = ({
     </div>
   );
 };
+
+export default EditDocumentModal;
+
