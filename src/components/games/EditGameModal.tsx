@@ -1025,7 +1025,8 @@ export const EditGameModal: React.FC<EditGameModalProps> = ({
                             </div>
                           </div>
                         </div>
-                      ))}
+                      );
+                    })}
                     </div>
                   </div>
                 </div>
