@@ -103,22 +103,3 @@ export const pullFullAppDataFromGoogleSheets = async (
     return { success: false, message: err.message || 'Lỗi kết nối với Google Apps Script.' };
   }
 };
-export const pushFullAppDataToGoogleSheets = async (data?: any): Promise<boolean> => {
-  try {
-    console.log("Pushing full app data to Google Sheets...", data);
-    return true;
-  } catch (error) {
-    console.error("Error pushing full app data:", error);
-    return false;
-  }
-};
-
-export const pullFullAppDataFromGoogleSheets = async (): Promise<any> => {
-  try {
-    console.log("Pulling full app data from Google Sheets...");
-    return null;
-  } catch (error) {
-    console.error("Error pulling full app data:", error);
-    return null;
-  }
-};
