@@ -26,6 +26,7 @@ import { GameSessionResult } from '../services/sheetSyncService';
 import { QuizGamePlayer } from './games/QuizGamePlayer';
 import { DragDropGamePlayer } from './games/DragDropGamePlayer';
 import { MatchingGamePlayer } from './games/MatchingGamePlayer';
+import { FillBlankGamePlayer } from './games/FillBlankGamePlayer';
 import { CreateGameModal } from './games/CreateGameModal';
 import { EditGameModal } from './games/EditGameModal';
 import { GameStudentModal } from './games/GameStudentModal';
@@ -236,6 +237,22 @@ export const EducationalGamesView: React.FC<EducationalGamesViewProps> = ({
           }}
         />
       );
+    } else if (activeGame.type === 'fill_blank') {
+      return (
+        <FillBlankGamePlayer
+          game={activeGame}
+          studentInfo={currentStudentInfo}
+          initialScriptUrl={scriptUrl}
+          onBack={() => setActiveGameId(null)}
+          onUpdateHighScore={handleHighScore}
+          onGameCompleted={onRecordGameSession}
+          onDeleteGame={(id) => {
+            if (onDeleteGame) onDeleteGame(id);
+            setActiveGameId(null);
+            showToast('Đã xóa trò chơi thành công!');
+          }}
+        />
+      );
     }
   }
 
@@ -401,6 +418,17 @@ export const EducationalGamesView: React.FC<EducationalGamesViewProps> = ({
             <Gamepad2 className="w-3.5 h-3.5 text-teal-300" />
             <span>GHÉP CẶP ({games.filter((g) => g.type === 'matching').length})</span>
           </button>
+          <button
+            onClick={() => setFilterType('fill_blank')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 ${
+              filterType === 'fill_blank'
+                ? 'bg-emerald-700 text-white shadow-xs'
+                : 'bg-slate-100 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-200'
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-emerald-300" />
+            <span>ĐIỀN KHUYẾT ({games.filter((g) => g.type === 'fill_blank').length})</span>
+          </button>
         </div>
 
         {/* Search Box & Actions */}
@@ -500,6 +528,13 @@ export const EducationalGamesView: React.FC<EducationalGamesViewProps> = ({
                 bg: 'bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border-teal-200 dark:border-teal-800',
                 icon: Gamepad2,
                 countText: `${game.matchingData?.pairs?.length || 0} cặp tương ứng`,
+              };
+            } else if (game.type === 'fill_blank') {
+              badgeInfo = {
+                label: 'ĐIỀN KHUYẾT',
+                bg: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+                icon: Sparkles,
+                countText: `${game.fillBlankData?.questions?.length || 0} vị trí khuyết`,
               };
             }
 
@@ -789,7 +824,9 @@ export const EducationalGamesView: React.FC<EducationalGamesViewProps> = ({
                 ? 'QUIZ Tốc Độ'
                 : qrGame.type === 'drag_drop'
                 ? 'Kéo Thả Phân Loại'
-                : 'Ghép Cặp Thuật Ngữ',
+                : qrGame.type === 'matching'
+                ? 'Ghép Cặp Thuật Ngữ'
+                : 'Thử Thách Điền Khuyết',
           }}
         />
       )}
