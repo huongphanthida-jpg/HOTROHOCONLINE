@@ -910,3 +910,5 @@ export const InteractiveSimulationsView: React.FC = () => {
     </div>
   );
 };
+
+export default InteractiveSimulationsView;

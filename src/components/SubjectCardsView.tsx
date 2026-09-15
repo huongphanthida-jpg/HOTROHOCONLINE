@@ -1140,3 +1140,5 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
   );
 };
 
+export default SubjectCardsView;
+

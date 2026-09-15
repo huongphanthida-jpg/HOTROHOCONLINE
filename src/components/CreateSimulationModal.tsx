@@ -641,3 +641,5 @@ export const CreateSimulationModal: React.FC<CreateSimulationModalProps> = ({
     </div>
   );
 };
+
+export default CreateSimulationModal;

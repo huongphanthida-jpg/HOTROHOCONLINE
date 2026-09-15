@@ -655,3 +655,5 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
     </div>
   );
 };
+
+export default QRCodeShareModal;

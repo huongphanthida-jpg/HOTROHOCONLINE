@@ -637,3 +637,5 @@ export const ProgressDashboard: React.FC<ProgressDashboardProps> = ({
     </div>
   );
 };
+
+export default ProgressDashboard;

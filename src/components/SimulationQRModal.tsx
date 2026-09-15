@@ -263,3 +263,5 @@ export const SimulationQRModal: React.FC<SimulationQRModalProps> = ({
     </div>
   );
 };
+
+export default SimulationQRModal;

@@ -1896,3 +1896,5 @@ export const DocumentLearningView: React.FC<DocumentLearningViewProps> = ({
     </div>
   );
 };
+
+export default DocumentLearningView;

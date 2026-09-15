@@ -783,3 +783,5 @@ export const OnlineClassesView: React.FC<OnlineClassesViewProps> = ({
     </div>
   );
 };
+
+export default OnlineClassesView;

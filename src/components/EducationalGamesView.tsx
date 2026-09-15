@@ -833,3 +833,5 @@ export const EducationalGamesView: React.FC<EducationalGamesViewProps> = ({
     </div>
   );
 };
+
+export default EducationalGamesView;

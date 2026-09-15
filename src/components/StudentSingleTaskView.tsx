@@ -136,3 +136,5 @@ export const StudentSingleTaskView: React.FC<StudentSingleTaskViewProps> = ({
     </div>
   );
 };
+
+export default StudentSingleTaskView;
