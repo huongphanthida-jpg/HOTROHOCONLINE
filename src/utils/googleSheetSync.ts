@@ -638,7 +638,10 @@ function generateDefaultOnlineClassesFromSheet(_rows: any[]): OnlineClass[] {
 
 export {
   validateAppsScriptUrl,
+  getGoogleScriptUrl,
   syncSessionToGoogleSheets,
+  syncGameResultToGoogleSheets,
+  pullSessionsFromGoogleSheets,
   pushFullAppDataToGoogleSheets,
   pullFullAppDataFromGoogleSheets,
 } from '../services/sheetSyncService';
