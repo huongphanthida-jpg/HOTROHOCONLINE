@@ -27,7 +27,7 @@ import { AITutorModal } from './components/AITutorModal';
 import { SettingsModal } from './components/SettingsModal';
 import { EnterTaskCodeModal } from './components/EnterTaskCodeModal';
 import { StudentSingleTaskView } from './components/StudentSingleTaskView';
-import { decodeExamPayload, decodeGamePayload, decodeSimulationPayload, generateFallbackQuestionsBySubject, detectSubjectType, extractClassName, extractGrade } from './utils/sharePayloadUtils';
+import { decodeExamPayload, decodeGamePayload, decodeSimulationPayload, decodeSharePayload, generateFallbackQuestionsBySubject, detectSubjectType, extractClassName, extractGrade } from './utils/sharePayloadUtils';
 import { soundEffects } from './utils/soundEffects';
 import { GameSessionResult, syncSessionToGoogleSheets, syncGameResultToGoogleSheets, pushFullAppDataToGoogleSheets } from './services/sheetSyncService';
 import { Lock, AlertCircle, X, ShieldCheck, User } from 'lucide-react';
@@ -438,7 +438,7 @@ export default function App() {
         }
       }
 
-      const examParam = isPlayRoute ? null : (params.get('exam') || codeParam);
+      const examParam = isPlayRoute ? null : (params.get('exam') || params.get('task') || codeParam);
       const roleParam = params.get('role');
       const simDataParam = params.get('simData') || params.get('sim');
       if (simDataParam) {
