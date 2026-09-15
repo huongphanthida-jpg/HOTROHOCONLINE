@@ -18,7 +18,8 @@ import {
   Check,
   QrCode,
   Key,
-  Copy
+  Copy,
+  Edit3
 } from 'lucide-react';
 import { EducationalGame, GameType, DocumentLearning, StudentInfo, UserRole } from '../types';
 import { GameSessionResult } from '../services/sheetSyncService';
@@ -26,6 +27,7 @@ import { QuizGamePlayer } from './games/QuizGamePlayer';
 import { DragDropGamePlayer } from './games/DragDropGamePlayer';
 import { MatchingGamePlayer } from './games/MatchingGamePlayer';
 import { CreateGameModal } from './games/CreateGameModal';
+import { EditGameModal } from './games/EditGameModal';
 import { GameStudentModal } from './games/GameStudentModal';
 import { QRCodeShareModal } from './QRCodeShareModal';
 
@@ -62,6 +64,7 @@ export const EducationalGamesView: React.FC<EducationalGamesViewProps> = ({
   const [filterType, setFilterType] = useState<GameType | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [gameToEdit, setGameToEdit] = useState<EducationalGame | null>(null);
   const [gameToDelete, setGameToDelete] = useState<EducationalGame | null>(null);
   const [qrGame, setQrGame] = useState<EducationalGame | null>(null);
   const [isConfirmingClearAll, setIsConfirmingClearAll] = useState(false);
@@ -594,6 +597,24 @@ export const EducationalGamesView: React.FC<EducationalGamesViewProps> = ({
                       <QrCode className="w-4 h-4" />
                     </button>
 
+                    {/* Edit Game Button for Teachers */}
+                    {userRole !== 'student' && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setGameToEdit(game);
+                        }}
+                        className="px-3 py-2 text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/50 hover:bg-teal-600 hover:text-white dark:hover:bg-teal-600 dark:hover:text-white border border-teal-200 dark:border-teal-800 rounded-xl transition-all shadow-2xs active:scale-95 flex items-center space-x-1 text-xs font-bold shrink-0"
+                        title={`Chỉnh sửa nội dung trò chơi "${game.title}"`}
+                        aria-label={`Chỉnh sửa trò chơi ${game.title}`}
+                        id={`btn-edit-game-${game.id}`}
+                      >
+                        <Edit3 className="w-3.5 h-3.5 shrink-0" />
+                        <span>Sửa</span>
+                      </button>
+                    )}
+
                     {onDeleteGame && userRole !== 'student' && (
                       <button
                         type="button"
@@ -718,6 +739,20 @@ export const EducationalGamesView: React.FC<EducationalGamesViewProps> = ({
           setQrGame(newGame);
         }}
       />
+
+      {/* Modal for editing an existing game */}
+      {gameToEdit && (
+        <EditGameModal
+          isOpen={Boolean(gameToEdit)}
+          onClose={() => setGameToEdit(null)}
+          game={gameToEdit}
+          onSaveGame={(updatedGame) => {
+            onSaveGame(updatedGame);
+            setGameToEdit(null);
+            showToast(`Đã cập nhật nội dung trò chơi "${updatedGame.title}" thành công!`);
+          }}
+        />
+      )}
 
       {/* Mandatory Student Information Modal before Playing Game */}
       {isStudentModalOpen && (
