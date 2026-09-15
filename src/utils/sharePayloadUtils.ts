@@ -997,6 +997,9 @@ export function encodeGamePayload(game: EducationalGame): string {
     if (game.matchingData) {
       compactGame.m = game.matchingData;
     }
+    if (game.fillBlankData) {
+      compactGame.fb = game.fillBlankData;
+    }
     if (game.sourceDocTitle) {
       compactGame.st = game.sourceDocTitle;
     }
@@ -1083,6 +1086,7 @@ export function decodeGamePayload(payloadStr: string): EducationalGame | null {
         quizData: decodedQuizData,
         dragDropData: parsed.dd,
         matchingData: parsed.m,
+        fillBlankData: parsed.fb || parsed.fillBlankData,
         sourceDocTitle: parsed.st,
         playCount: 0,
         createdAt: new Date().toISOString(),
