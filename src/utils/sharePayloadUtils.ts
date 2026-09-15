@@ -1,4 +1,5 @@
 import { Subject, Question, EducationalGame, AISimulationItem } from '../types';
+import { getGoogleScriptUrl } from '../services/sheetSyncService';
 
 function toBase64Url(str: string): string {
   try {
@@ -804,6 +805,7 @@ export function encodeExamPayload(subject: Subject, questions: Question[]): stri
     const className = extractClassName(subject);
     const grade = extractGrade(subject);
     const subjectType = detectSubjectType(subject);
+    const scriptUrl = getGoogleScriptUrl();
 
     const minified: any = {
       i: subject.id,
@@ -811,6 +813,7 @@ export function encodeExamPayload(subject: Subject, questions: Question[]): stri
       c: className,
       g: grade,
       st: subjectType,
+      su: scriptUrl || undefined,
       q: listToEncode.map((q) => {
         const rawContent = q.content || '';
         const cleanContent = rawContent
@@ -888,6 +891,12 @@ export function decodeExamPayload(payloadStr: string): { subject: Subject; quest
 
     if (!data || !data.q || !Array.isArray(data.q) || data.q.length === 0) return null;
 
+    if (data.su && typeof data.su === 'string' && data.su.startsWith('http')) {
+      try {
+        localStorage.setItem('google_script_url', data.su);
+      } catch {}
+    }
+
     const subjectId = data.i || `sub-shared-${Date.now()}`;
     const subjectName = data.n || 'Đề thi trắc nghiệm chia sẻ';
     const questions: Question[] = data.q.map((q: any, idx: number) => ({
@@ -907,7 +916,7 @@ export function decodeExamPayload(payloadStr: string): { subject: Subject; quest
     const subjectGrade = data.g || extractGrade({ name: subjectName, id: subjectId, className: subjectClassName });
     const subjectType = data.st || detectSubjectType({ name: subjectName, id: subjectId });
 
-    const subject: Subject = {
+    const subject: Subject & { scriptUrl?: string } = {
       id: subjectId,
       name: subjectName,
       description: data.d || `Đề thi trắc nghiệm chia sẻ trực tiếp (Lớp ${subjectClassName})`,
@@ -918,6 +927,7 @@ export function decodeExamPayload(payloadStr: string): { subject: Subject; quest
       icon: 'fa-solid fa-file-signature',
       color: 'from-teal-600 to-emerald-600',
       source: 'teacher_custom',
+      scriptUrl: data.su,
     };
 
     return { subject, questions };
@@ -956,11 +966,13 @@ export function decodeSharePayload(payloadStr: string): any {
 
 export function encodeGamePayload(game: EducationalGame): string {
   try {
+    const scriptUrl = getGoogleScriptUrl();
     const compactGame: any = {
       i: game.id,
       t: game.title,
       s: game.subject,
       tp: game.type,
+      su: scriptUrl || undefined,
     };
     if (game.description && game.description.trim()) {
       compactGame.d = game.description.trim();
@@ -1044,6 +1056,12 @@ export function decodeGamePayload(payloadStr: string): EducationalGame | null {
     }
 
     if (!parsed) return null;
+
+    if (parsed.su && typeof parsed.su === 'string' && parsed.su.startsWith('http')) {
+      try {
+        localStorage.setItem('google_script_url', parsed.su);
+      } catch {}
+    }
 
     if (parsed.id && parsed.title) {
       return parsed as EducationalGame;
