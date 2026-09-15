@@ -17,7 +17,7 @@ import {
   Check,
   AlertCircle
 } from 'lucide-react';
-import { EducationalGame, QuizGameQuestion, DragDropCategory, DragDropItem, MatchingPair } from '../../types';
+import { EducationalGame, QuizGameQuestion, DragDropCategory, DragDropItem, MatchingPair, FillBlankQuestion } from '../../types';
 import { FormattedMathText } from '../FormattedMathText';
 
 interface EditGameModalProps {
@@ -42,7 +42,7 @@ export const EditGameModal: React.FC<EditGameModalProps> = ({
 
   // Quiz State
   const [timePerQuestion, setTimePerQuestion] = useState<number>(
-    game.quizData?.timePerQuestion || 15
+    game.quizData?.timePerQuestion || game.fillBlankData?.timePerQuestion || 15
   );
   const [quizQuestions, setQuizQuestions] = useState<QuizGameQuestion[]>(() => {
     if (game.quizData?.questions && game.quizData.questions.length > 0) {
@@ -71,6 +71,11 @@ export const EditGameModal: React.FC<EditGameModalProps> = ({
   // Matching State
   const [matchingPairs, setMatchingPairs] = useState<MatchingPair[]>(
     game.matchingData?.pairs || []
+  );
+
+  // Fill Blank State
+  const [fillBlankQuestions, setFillBlankQuestions] = useState<FillBlankQuestion[]>(
+    game.fillBlankData?.questions || []
   );
 
   const [activeTab, setActiveTab] = useState<'editor' | 'preview'>('editor');
@@ -104,6 +109,7 @@ export const EditGameModal: React.FC<EditGameModalProps> = ({
       setDragCategories(game.dragDropData?.categories || []);
       setDragItems(game.dragDropData?.items || []);
       setMatchingPairs(game.matchingData?.pairs || []);
+      setFillBlankQuestions(game.fillBlankData?.questions || []);
       setErrorMessage(null);
     }
   }, [game]);
@@ -201,6 +207,28 @@ export const EditGameModal: React.FC<EditGameModalProps> = ({
     setMatchingPairs((prev) => prev.filter((p) => p.id !== pairId));
   };
 
+  // Fill Blank Actions
+  const handleAddFillBlankQuestion = () => {
+    const newFB: FillBlankQuestion = {
+      id: `fb-edit-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      question: `Nội dung chứa từ khuyết [blank]`,
+      blanks: [
+        {
+          id: 'blank_1',
+          correctAnswer: 'đáp án đúng',
+          hint: 'Gợi ý từ khuyết',
+        },
+      ],
+      options: ['đáp án đúng', 'từ nhiễu 1', 'từ nhiễu 2'],
+      explanation: '',
+    };
+    setFillBlankQuestions((prev) => [...prev, newFB]);
+  };
+
+  const handleDeleteFillBlankQuestion = (fbId: string) => {
+    setFillBlankQuestions((prev) => prev.filter((q) => q.id !== fbId));
+  };
+
   // Save Handler
   const handleSave = () => {
     if (!title.trim()) {
@@ -220,6 +248,11 @@ export const EditGameModal: React.FC<EditGameModalProps> = ({
 
     if (game.type === 'matching' && matchingPairs.length === 0) {
       setErrorMessage('Trò chơi Ghép cặp phải có ít nhất 1 cặp thuật ngữ!');
+      return;
+    }
+
+    if (game.type === 'fill_blank' && fillBlankQuestions.length === 0) {
+      setErrorMessage('Trò chơi Điền khuyết phải có ít nhất 1 câu hỏi!');
       return;
     }
 
@@ -248,6 +281,11 @@ export const EditGameModal: React.FC<EditGameModalProps> = ({
         instruction: game.matchingData?.instruction || '',
         pairs: matchingPairs,
       } : game.matchingData,
+      fillBlankData: game.type === 'fill_blank' ? {
+        instruction: game.fillBlankData?.instruction || '',
+        timePerQuestion,
+        questions: fillBlankQuestions,
+      } : game.fillBlankData,
     };
 
     onSaveGame(updatedGame);
@@ -461,6 +499,27 @@ export const EditGameModal: React.FC<EditGameModalProps> = ({
                         <div>
                           <span className="font-bold text-teal-800 dark:text-teal-300">Định nghĩa: </span>
                           <FormattedMathText text={p.definition} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {game.type === 'fill_blank' && (
+                <div className="space-y-3">
+                  <div className="font-bold text-xs text-slate-700 dark:text-slate-300">
+                    Danh sách {fillBlankQuestions.length} câu điền khuyết xem trước:
+                  </div>
+                  <div className="space-y-3">
+                    {fillBlankQuestions.map((q, idx) => (
+                      <div key={q.id} className="p-4 rounded-2xl border border-teal-200 dark:border-teal-800 bg-teal-50/30 dark:bg-teal-950/30 space-y-2 text-xs">
+                        <div className="font-bold text-teal-900 dark:text-teal-300">Câu khuyết #{idx + 1}:</div>
+                        <div className="text-sm font-medium text-slate-800 dark:text-slate-100">
+                          <FormattedMathText text={q.question || (q as any).content || ''} />
+                        </div>
+                        <div className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                          Đáp án đúng: {q.blanks?.map((b) => b.correctAnswer).join(', ')}
                         </div>
                       </div>
                     ))}
@@ -854,6 +913,120 @@ export const EditGameModal: React.FC<EditGameModalProps> = ({
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* FILL BLANK EDITING */}
+              {game.type === 'fill_blank' && (
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Sparkles className="w-4 h-4 text-emerald-600" />
+                      <h4 className="text-xs sm:text-sm font-black text-slate-800 dark:text-white uppercase tracking-wider">
+                        Danh Sách Câu Hỏi Điền Khuyết ({fillBlankQuestions.length} câu)
+                      </h4>
+                    </div>
+
+                    <button
+                      onClick={handleAddFillBlankQuestion}
+                      className="px-3 py-1.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold transition-all flex items-center space-x-1"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Thêm câu điền khuyết</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {fillBlankQuestions.map((q, fbIdx) => {
+                      const qText = q.question || (q as any).content || '';
+                      const firstBlank = q.blanks?.[0] || { id: 'blank_1', correctAnswer: '' };
+                      return (
+                        <div
+                          key={q.id}
+                          className="p-4 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3 relative"
+                        >
+                          <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-700/60 pb-2">
+                            <span className="text-xs font-bold text-teal-600 dark:text-teal-400">
+                              Câu điền khuyết #{fbIdx + 1}
+                            </span>
+                            <button
+                              onClick={() => handleDeleteFillBlankQuestion(q.id)}
+                              className="text-rose-500 hover:text-rose-700 text-xs font-bold flex items-center space-x-1"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Xóa câu này</span>
+                            </button>
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                              Nội dung đoạn văn (Dùng ký hiệu [blank] hoặc ___ cho vị trí khuyết):
+                            </label>
+                            <textarea
+                              rows={2}
+                              value={qText}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setFillBlankQuestions((prev) =>
+                                  prev.map((item) => (item.id === q.id ? { ...item, question: val } : item))
+                                );
+                              }}
+                              placeholder="Ví dụ: Định lý SGK: Đạo hàm đổi dấu (+) sang (-) chứng tỏ hàm số đạt [blank] tại x0..."
+                              className="w-full px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                                Đáp án chính xác cho chỗ khuyết:
+                              </label>
+                              <input
+                                type="text"
+                                value={firstBlank.correctAnswer || ''}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setFillBlankQuestions((prev) =>
+                                    prev.map((item) => {
+                                      if (item.id !== q.id) return item;
+                                      const newBlanks = [...(item.blanks || [])];
+                                      if (newBlanks.length === 0) {
+                                        newBlanks.push({ id: 'blank_1', correctAnswer: val });
+                                      } else {
+                                        newBlanks[0] = { ...newBlanks[0], correctAnswer: val };
+                                      }
+                                      return { ...item, blanks: newBlanks };
+                                    })
+                                  );
+                                }}
+                                placeholder="Ví dụ: cực đại..."
+                                className="w-full px-3 py-1.5 text-xs font-bold rounded-xl border border-slate-200 dark:border-slate-700 bg-emerald-50/50 dark:bg-emerald-950/30 text-emerald-800 dark:text-emerald-200"
+                              />
+                            </div>
+
+                            <div>
+                              <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                                Gợi ý từ (Ngân hàng từ phân cách bằng dấu phẩy):
+                              </label>
+                              <input
+                                type="text"
+                                value={(q.options || []).join(', ')}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  const opts = val.split(',').map((s) => s.trim()).filter(Boolean);
+                                  setFillBlankQuestions((prev) =>
+                                    prev.map((item) => (item.id === q.id ? { ...item, options: opts } : item))
+                                  );
+                                }}
+                                placeholder="cực đại, cực tiểu, uốn, tiệm cận..."
+                                className="w-full px-3 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900/50"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}

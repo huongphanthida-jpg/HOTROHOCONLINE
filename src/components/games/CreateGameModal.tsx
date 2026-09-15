@@ -173,6 +173,7 @@ export const CreateGameModal: React.FC<CreateGameModalProps> = ({
         quizData: generated.quizData,
         dragDropData: generated.dragDropData,
         matchingData: generated.matchingData,
+        fillBlankData: generated.fillBlankData,
         highScore: 0,
         playCount: 0,
       };
@@ -201,7 +202,7 @@ export const CreateGameModal: React.FC<CreateGameModalProps> = ({
                 Tạo Trò Chơi Mới Bằng AI
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Tự động tạo Quiz, Kéo thả & Ghép cặp chuẩn 100% tài liệu SGK
+                Tự động tạo Quiz, Kéo thả, Ghép cặp & Điền khuyết chuẩn 100% tài liệu SGK
               </p>
             </div>
           </div>
@@ -226,28 +227,28 @@ export const CreateGameModal: React.FC<CreateGameModalProps> = ({
             <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-2">
               1. Chọn Định Dạng Trò Chơi Cần Tạo
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {/* QUIZ */}
               <button
                 type="button"
                 onClick={() => setGameType('quiz')}
-                className={`p-4 rounded-2xl border text-left transition-all relative ${
+                className={`p-3 sm:p-4 rounded-2xl border text-left transition-all relative ${
                   gameType === 'quiz'
                     ? 'border-teal-500 bg-teal-50/70 dark:bg-teal-950/40 ring-2 ring-teal-500/20'
                     : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800'
                 }`}
               >
                 {gameType === 'quiz' && (
-                  <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-teal-500 text-white flex items-center justify-center">
-                    <Check className="w-3 h-3" />
+                  <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-teal-500 text-white flex items-center justify-center text-[10px]">
+                    <Check className="w-2.5 h-2.5" />
                   </div>
                 )}
-                <div className="w-8 h-8 rounded-xl bg-teal-100 dark:bg-teal-900/50 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-2">
-                  <Zap className="w-4 h-4" />
+                <div className="w-7 h-7 rounded-xl bg-teal-100 dark:bg-teal-900/50 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-2">
+                  <Zap className="w-3.5 h-3.5" />
                 </div>
-                <div className="text-sm font-black text-slate-800 dark:text-white">QUIZ Tốc Độ</div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-tight">
-                  Đấu trí trắc nghiệm 15s, điểm combo streak
+                <div className="text-xs sm:text-sm font-black text-slate-800 dark:text-white">QUIZ Tốc Độ</div>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-tight">
+                  Trắc nghiệm 15s
                 </p>
               </button>
 
@@ -255,23 +256,23 @@ export const CreateGameModal: React.FC<CreateGameModalProps> = ({
               <button
                 type="button"
                 onClick={() => setGameType('drag_drop')}
-                className={`p-4 rounded-2xl border text-left transition-all relative ${
+                className={`p-3 sm:p-4 rounded-2xl border text-left transition-all relative ${
                   gameType === 'drag_drop'
                     ? 'border-indigo-500 bg-indigo-50/70 dark:bg-indigo-950/40 ring-2 ring-indigo-500/20'
                     : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800'
                 }`}
               >
                 {gameType === 'drag_drop' && (
-                  <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-indigo-500 text-white flex items-center justify-center">
-                    <Check className="w-3 h-3" />
+                  <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-indigo-500 text-white flex items-center justify-center text-[10px]">
+                    <Check className="w-2.5 h-2.5" />
                   </div>
                 )}
-                <div className="w-8 h-8 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-2">
-                  <Layers className="w-4 h-4" />
+                <div className="w-7 h-7 rounded-xl bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-2">
+                  <Layers className="w-3.5 h-3.5" />
                 </div>
-                <div className="text-sm font-black text-slate-800 dark:text-white">KÉO THẢ</div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-tight">
-                  Phân loại khái niệm & mệnh đề vào các hộp
+                <div className="text-xs sm:text-sm font-black text-slate-800 dark:text-white">KÉO THẢ</div>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-tight">
+                  Phân loại khái niệm
                 </p>
               </button>
 
@@ -279,23 +280,47 @@ export const CreateGameModal: React.FC<CreateGameModalProps> = ({
               <button
                 type="button"
                 onClick={() => setGameType('matching')}
-                className={`p-4 rounded-2xl border text-left transition-all relative ${
+                className={`p-3 sm:p-4 rounded-2xl border text-left transition-all relative ${
                   gameType === 'matching'
                     ? 'border-amber-500 bg-amber-50/70 dark:bg-amber-950/40 ring-2 ring-amber-500/20'
                     : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800'
                 }`}
               >
                 {gameType === 'matching' && (
-                  <div className="absolute top-3 right-3 w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center">
-                    <Check className="w-3 h-3" />
+                  <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-amber-500 text-white flex items-center justify-center text-[10px]">
+                    <Check className="w-2.5 h-2.5" />
                   </div>
                 )}
-                <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-2">
-                  <Gamepad2 className="w-4 h-4" />
+                <div className="w-7 h-7 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-2">
+                  <Gamepad2 className="w-3.5 h-3.5" />
                 </div>
-                <div className="text-sm font-black text-slate-800 dark:text-white">GHÉP CẶP</div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 leading-tight">
-                  Nối thuật ngữ, công thức với định nghĩa SGK
+                <div className="text-xs sm:text-sm font-black text-slate-800 dark:text-white">GHÉP CẶP</div>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-tight">
+                  Nối thuật ngữ
+                </p>
+              </button>
+
+              {/* ĐIỀN KHUYẾT */}
+              <button
+                type="button"
+                onClick={() => setGameType('fill_blank')}
+                className={`p-3 sm:p-4 rounded-2xl border text-left transition-all relative ${
+                  gameType === 'fill_blank'
+                    ? 'border-teal-500 bg-teal-50/70 dark:bg-teal-950/40 ring-2 ring-teal-500/20'
+                    : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 bg-white dark:bg-slate-800'
+                }`}
+              >
+                {gameType === 'fill_blank' && (
+                  <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-teal-500 text-white flex items-center justify-center text-[10px]">
+                    <Check className="w-2.5 h-2.5" />
+                  </div>
+                )}
+                <div className="w-7 h-7 rounded-xl bg-teal-100 dark:bg-teal-900/50 text-teal-600 dark:text-teal-400 flex items-center justify-center mb-2">
+                  <Sparkles className="w-3.5 h-3.5" />
+                </div>
+                <div className="text-xs sm:text-sm font-black text-slate-800 dark:text-white">ĐIỀN KHUYẾT</div>
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-1 leading-tight">
+                  Hoàn thành vị trí [blank]
                 </p>
               </button>
             </div>

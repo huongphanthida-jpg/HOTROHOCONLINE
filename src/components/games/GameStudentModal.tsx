@@ -13,7 +13,8 @@ import {
   Link2, 
   Settings2,
   Zap,
-  Layers
+  Layers,
+  Sparkles
 } from 'lucide-react';
 
 interface GameStudentModalProps {
@@ -136,7 +137,8 @@ export const GameStudentModal: React.FC<GameStudentModalProps> = ({
     quiz: { label: 'QUIZ Trắc Nghiệm Tốc Độ', icon: Zap, color: 'from-amber-500 to-orange-600' },
     drag_drop: { label: 'KÉO THẢ Phân Loại Khái Niệm', icon: Layers, color: 'from-indigo-600 to-teal-600' },
     matching: { label: 'GHÉP CẶP Thuật Ngữ & Định Nghĩa', icon: Gamepad2, color: 'from-teal-600 to-emerald-600' },
-  }[resolvedType as 'quiz' | 'drag_drop' | 'matching'] || { label: 'Trò Chơi Học Tập', icon: Gamepad2, color: 'from-teal-600 to-indigo-600' };
+    fill_blank: { label: 'ĐIỀN KHUYẾT Hoàn Thành Vị Trí', icon: Sparkles, color: 'from-emerald-600 to-teal-700' },
+  }[resolvedType as 'quiz' | 'drag_drop' | 'matching' | 'fill_blank'] || { label: 'Trò Chơi Học Tập', icon: Gamepad2, color: 'from-teal-600 to-indigo-600' };
 
   const TypeIcon = gameTypeInfo.icon;
   const isSheetConnected = Boolean(scriptUrl && scriptUrl.trim().startsWith('http'));
