@@ -684,14 +684,70 @@ export interface AppSettings {
   autoSaveIntervalSeconds?: number;
 }
 
+export type GameType = 'quiz' | 'drag_drop' | 'matching';
+
+export interface QuizGameQuestion {
+  id: string;
+  question?: string;
+  content?: string;
+  prompt?: string;
+  text?: string;
+  questionText?: string;
+  options: string[];
+  correctAnswer: number;
+  explanation?: string;
+  points?: number;
+  sourceCitation?: string;
+}
+
+export interface DragDropCategory {
+  id: string;
+  title: string;
+  description?: string;
+  color?: string;
+}
+
+export interface DragDropItem {
+  id: string;
+  categoryId: string;
+  content?: string;
+  text?: string;
+}
+
+export interface MatchingPair {
+  id: string;
+  term: string;
+  definition: string;
+  sourceCitation?: string;
+}
+
 export interface EducationalGame {
   id: string;
   title: string;
   subject: string;
   description: string;
-  gameType: 'quiz' | 'flashcard' | 'matching' | 'wheel';
-  questions: Question[];
+  type: GameType;
+  gameType?: string;
+  questions?: Question[];
   createdAt?: string;
+  sourceDocId?: string;
+  sourceDocTitle?: string;
+  sourceCitations?: string[];
+  quizData?: {
+    questions: QuizGameQuestion[];
+    timePerQuestion?: number;
+  };
+  dragDropData?: {
+    instruction?: string;
+    categories: DragDropCategory[];
+    items: DragDropItem[];
+  };
+  matchingData?: {
+    instruction?: string;
+    pairs: MatchingPair[];
+  };
+  highScore?: number;
+  playCount?: number;
 }
 
 export interface AISimulationItem {
