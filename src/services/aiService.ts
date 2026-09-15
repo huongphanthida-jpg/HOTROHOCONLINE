@@ -32,12 +32,13 @@ export const AVAILABLE_MODELS = [
  * Chỉ thị bắt buộc bám sát 100% nguồn cung cấp (Grounding Rule - Anti-hallucination)
  */
 export const GROUNDING_RULE_DIRECTIVE = `[NGUYÊN TẮC BẮT BUỘC - TUÂN THỦ 100% NGUỒN CUNG CẤP]:
-BƯỚC 1 - ĐỌC VÀ BÓC TÁCH (OCR): Đọc toàn bộ nội dung chữ, bảng biểu, phương trình phản ứng hóa học và các thí nghiệm xuất hiện trực tiếp trong các hình ảnh được cung cấp (ví dụ: Chuyển dịch cân bằng hóa học, Ảnh hưởng của nhiệt độ/nồng độ/áp suất, Cân bằng NO2 <-> N2O4, CH3COONa, Le Chatelier, Fe, Delta H).
+BƯỚC 1 - ĐỌC VÀ BÓC TÁCH (OCR): Đọc kỹ toàn bộ nội dung chữ, bảng biểu, phương trình phản ứng hóa học và các thí nghiệm xuất hiện trực tiếp trong các hình ảnh/tài liệu được cung cấp (ví dụ: Chuyển dịch cân bằng hóa học, Ảnh hưởng của nhiệt độ/nồng độ/áp suất, Cân bằng NO2 <-> N2O4, CH3COONa, Le Chatelier, Fe, Delta H).
 
 BƯỚC 2 - TẠO BỘ CÂU HỎI TRỰC TIẾP TỪ KIẾN THỨC BÓC TÁCH ĐƯỢC:
-- Đặt câu hỏi cụ thể về các chất, hiện tượng, thí nghiệm và công thức có trong ảnh.
-- TUYỆT ĐỐI KHÔNG đặt các câu hỏi siêu hình (meta-question) như: "Xét nội dung trong tài liệu...", "Khẳng định nào đúng theo định nghĩa trên...", "Theo tài liệu đưa lên: ...".
-- Câu hỏi và 4 phương án phải chứa trực tiếp tên chất, phương trình hoặc câu kết luận khoa học (Ví dụ: "Khi ngâm ống nghiệm chứa hỗn hợp khí NO2 và N2O4 vào cốc nước đá, màu của ống nghiệm biến đổi như thế nào?").
+- Đặt các câu hỏi trắc nghiệm ĐÚNG NỘI DUNG CHUYÊN MÔN cụ thể về các chất, hiện tượng, thí nghiệm và công thức có trong bài.
+- Câu hỏi phải nhắc trực tiếp đến các chất cụ thể, phương trình cân bằng, hiện tượng màu sắc, nhiệt độ, nồng độ, áp suất, chất xúc tác Fe, nguyên lý Le Chatelier có trong bài.
+- TUYỆT ĐỐI KHÔNG dùng các cụm từ trừu tượng siêu hình như: "kiến thức trọng tâm", "phương án nào diễn đạt đúng bản chất", "theo tài liệu đưa lên", "Xét nội dung trong tài liệu...".
+- Các đáp án A, B, C, D phải là các nhận định khoa học cụ thể về phản ứng hóa học hoặc định lý trong bài (Ví dụ: "Khi ngâm ống nghiệm chứa hỗn hợp khí NO2 và N2O4 vào cốc nước đá, màu đỏ nâu nhạt dần do phản ứng tỏa nhiệt...").
 - Đáp án đúng và lời giải phải trích dẫn giải thích khoa học từ nội dung bài học trong ảnh.
 - TUYỆT ĐỐI KHÔNG TỰ Ý SUY DIỄN, BỔ SUNG KIẾN THỨC NGOẠI LAI HAY LẤY DỮ LIỆU NGOÀI NGUỒN.`;
 
@@ -90,12 +91,83 @@ export function cleanAiProseText(rawText: string): string {
 }
 
 /**
+ * Nén ảnh Base64 bằng HTML Canvas trước khi gửi Gemini API (tối đa maxWidth = 1280px, quality = 0.8)
+ * Giảm dung lượng payload gửi API, ngăn ngừa lỗi 400 Payload Too Large hoặc sập API khi gửi nhiều trang SGK
+ */
+export async function compressBase64Image(
+  base64Str: string,
+  mimeType: string = 'image/jpeg',
+  maxWidth: number = 1280,
+  quality: number = 0.8
+): Promise<string> {
+  if (typeof window === 'undefined' || !base64Str) {
+    return (base64Str || '').replace(/^data:image\/\w+;base64,/, '').trim();
+  }
+
+  const cleanBase64 = base64Str.replace(/^data:image\/\w+;base64,/, '').trim();
+  const fullDataUrl = cleanBase64.startsWith('data:') ? cleanBase64 : `data:${mimeType};base64,${cleanBase64}`;
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      try {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth || height > maxWidth) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxWidth) / height);
+            height = maxWidth;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(cleanBase64);
+          return;
+        }
+
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, width, height);
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        const compressedCleanBase64 = compressedDataUrl.replace(/^data:image\/\w+;base64,/, '').trim();
+        resolve(compressedCleanBase64 || cleanBase64);
+      } catch (e) {
+        console.warn('Compress canvas failed, using original base64:', e);
+        resolve(cleanBase64);
+      }
+    };
+
+    img.onerror = () => {
+      resolve(cleanBase64);
+    };
+
+    img.src = fullDataUrl;
+  });
+}
+
+/**
  * Gọi Gemini AI qua Direct Client API hoặc Server API Proxy với cơ chế Tự động Fallback Model
  */
 export async function callGeminiAI(params: AICallParams): Promise<{ text: string; usedModel: string }> {
   const localKey = (localStorage.getItem('gemini_api_key') || '').trim();
-  let localModel = localStorage.getItem('selected_model') || 'gemini-3-flash-preview';
 
+  // Kiểm tra API Key: nếu chưa cấu hình apiKey, báo ngay
+  if (!localKey) {
+    throw new Error('Vui lòng vào Cài Đặt & Kết Nối AI để nhập khóa API Gemini');
+  }
+
+  let localModel = localStorage.getItem('selected_model') || 'gemini-3-flash-preview';
   let model = params.model || localModel;
 
   const candidateModels = Array.from(
@@ -109,27 +181,40 @@ export async function callGeminiAI(params: AICallParams): Promise<{ text: string
     ])
   );
 
-  // 1. Direct Google Gemini API call if user has localKey
-  if (localKey && localKey.length > 0) {
-    const parts: any[] = [];
-    if (params.images && params.images.length > 0) {
-      for (const img of params.images) {
-        const cleanBase64 = (img.data || '').replace(/^data:image\/\w+;base64,/, '').trim();
-        if (cleanBase64) {
-          parts.push({
-            inline_data: {
-              mime_type: img.mimeType || 'image/jpeg',
-              data: cleanBase64,
-            },
-          });
-        }
+  // 1. Nén và bóc tách dữ liệu ảnh chuẩn cho Gemini Multimodal
+  const imageParts: any[] = [];
+  if (params.images && params.images.length > 0) {
+    for (const img of params.images) {
+      const compressedBase64 = await compressBase64Image(img.data, img.mimeType || 'image/jpeg', 1280, 0.8);
+      if (compressedBase64) {
+        imageParts.push({
+          inline_data: {
+            mime_type: 'image/jpeg',
+            data: compressedBase64,
+          },
+          inlineData: {
+            mimeType: 'image/jpeg',
+            data: compressedBase64,
+          },
+        });
       }
     }
-    if (params.prompt) {
-      parts.push({ text: params.prompt });
-    }
+  }
 
-    const contentsPayload = parts.length === 1 && params.prompt ? [{ parts: [{ text: params.prompt }] }] : [{ parts }];
+  const parts: any[] = [...imageParts];
+  if (params.prompt) {
+    parts.push({ text: params.prompt });
+  }
+
+  const contentsPayload = [
+    {
+      role: 'user',
+      parts,
+    },
+  ];
+
+  // Direct Google Gemini API call if user has localKey
+  if (localKey && localKey.length > 0) {
 
     let lastErrorMessage = '';
 
@@ -667,20 +752,11 @@ Trả về DUY NHẤT một mảng JSON hợp lệ chứa đúng ${count} câu h
       // Điều hòa điểm số để đảm bảo tổng điểm chính xác 10.0
       return normalizeQuestionsScoreToTen(parsedQuestions);
     }
-  } catch (err) {
-    console.warn('Gemini API call failed or parsing error, generating fallback tailored questions:', err);
+    throw new Error('AI không trả về danh sách câu hỏi hợp lệ. Vui lòng kiểm tra lại API Key hoặc kích thước file ảnh đính kèm.');
+  } catch (err: any) {
+    console.error('Lỗi khi gọi AI tạo đề thi:', err);
+    throw new Error(err.message || 'Không thể tạo đề thi bằng AI. Vui lòng kiểm tra lại Gemini API Key hoặc dung lượng ảnh!');
   }
-
-  // Fallback thông minh đảm bảo bám sát nguồn tài liệu và thang điểm 10
-  return generateFallbackExamQuestions({
-    sourceContent,
-    subjectName,
-    className,
-    grade,
-    count,
-    activeFormats,
-    formatCounts,
-  });
 }
 
 /**
