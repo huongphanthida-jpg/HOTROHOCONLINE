@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Subject, ProgressData, Question, DocumentLearning, UserRole } from '../types';
 import { CreateExamFromSourceModal } from './CreateExamFromSourceModal';
+import { CreateSimilarExamModal } from './CreateSimilarExamModal';
 import { QRCodeShareModal } from './QRCodeShareModal';
 import {
   BookOpen,
@@ -82,6 +83,7 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
   const [qrQuestions, setQrQuestions] = useState<Question[]>([]);
   const [isConfirmClearAllOpen, setIsConfirmClearAllOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isSimilarModalOpen, setIsSimilarModalOpen] = useState(false);
   const [syncSuccessToast, setSyncSuccessToast] = useState(false);
   const [copiedIdMap, setCopiedIdMap] = useState<Record<string, boolean>>({});
 
@@ -412,6 +414,20 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
                 className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white text-xs focus:outline-none focus:ring-2 focus:ring-teal-500 shadow-2xs"
               />
             </div>
+
+            {/* Similar Exam Generator Button */}
+            {!isStudent && onAddSubject && (
+              <button
+                type="button"
+                onClick={() => setIsSimilarModalOpen(true)}
+                className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs font-semibold flex items-center space-x-1.5 shadow-sm transition-all shrink-0 active:scale-95"
+                id="btn-create-similar-exam"
+                title="Tải file Word/PDF/Ảnh đề thi gốc để AI phân tích và tạo bộ đề mới tương tự"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                <span>Tạo Đề Tương Tự Từ File/Ảnh</span>
+              </button>
+            )}
 
             {/* Add Subject Button */}
             {!isStudent && onAddSubject && (
@@ -920,6 +936,23 @@ export const SubjectCardsView: React.FC<SubjectCardsViewProps> = ({
         onClose={() => setIsAddModalOpen(false)}
         availableClasses={availableClasses}
         existingDocuments={documents}
+        onCreateExam={(newSub, generatedQuestions) => {
+          if (onAddSubject) {
+            onAddSubject(newSub, generatedQuestions);
+          }
+          setSyncSuccessToast(true);
+          setTimeout(() => setSyncSuccessToast(false), 4000);
+          // Automatically open QR share modal for teacher to share to Zalo right away!
+          setQrSubject(newSub);
+          setQrQuestions(generatedQuestions || []);
+        }}
+      />
+
+      {/* MODAL: AI Similar Exam Generator from Original Source File/Image */}
+      <CreateSimilarExamModal
+        isOpen={isSimilarModalOpen}
+        onClose={() => setIsSimilarModalOpen(false)}
+        availableClasses={availableClasses}
         onCreateExam={(newSub, generatedQuestions) => {
           if (onAddSubject) {
             onAddSubject(newSub, generatedQuestions);
