@@ -4,6 +4,26 @@ import { AppData, SessionRecord, AISimulationItem } from '../types';
  * Service to validate Apps Script URLs and sync full application data with Google Sheets.
  */
 
+export interface GameSessionResult {
+  gameId: string;
+  gameTitle: string;
+  gameType: string;
+  studentId?: string;
+  studentName?: string;
+  score: number;
+  totalQuestions: number;
+  timeSpent: number;
+  completedAt: string;
+  details?: any;
+}
+
+export const formatTimeSpent = (seconds: number | undefined): string => {
+  if (!seconds || seconds <= 0) return '00:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+};
+
 export const encodeSimulationPayload = (payload: AISimulationItem | Record<string, any>): string => {
   try {
     const jsonStr = JSON.stringify(payload);
@@ -61,6 +81,27 @@ export const syncSessionToGoogleSheets = async (
   }
 };
 
+export const syncGameResultToGoogleSheets = async (
+  result: GameSessionResult | any,
+  scriptUrl?: string
+): Promise<boolean> => {
+  if (!scriptUrl || !validateAppsScriptUrl(scriptUrl)) {
+    return false;
+  }
+  try {
+    const response = await fetch(scriptUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ action: 'syncGameResult', result }),
+    });
+    const resData = await response.json();
+    return resData.status === 'success' || resData.success === true;
+  } catch (err) {
+    console.error('Error syncing game result:', err);
+    return false;
+  }
+};
+
 export const pushFullAppDataToGoogleSheets = async (
   appData: AppData | any,
   scriptUrl?: string
@@ -103,3 +144,31 @@ export const pullFullAppDataFromGoogleSheets = async (
     return { success: false, message: err.message || 'Lỗi kết nối với Google Apps Script.' };
   }
 };
+
+export const fetchOnlineClassesFromGoogleSheets = async (
+  scriptUrl?: string
+): Promise<{ success: boolean; data?: any[]; message?: string }> => {
+  if (!scriptUrl || !validateAppsScriptUrl(scriptUrl)) {
+    return { success: false, message: 'URL Apps Script không hợp lệ.' };
+  }
+  try {
+    const response = await fetch(`${scriptUrl}?action=getOnlineClasses`);
+    const result = await response.json();
+    if ((result.status === 'success' || result.success === true) && result.data) {
+      return { success: true, data: result.data };
+    }
+    return { success: false, message: result.message || 'Không thể lấy dữ liệu lớp học online.' };
+  } catch (err: any) {
+    console.error('Error fetching online classes:', err);
+    return { success: false, message: err.message || 'Lỗi kết nối với Google Apps Script.' };
+  }
+};
+
+export const APPS_SCRIPT_SAMPLE_CODE = `
+// Mã mẫu Google Apps Script hỗ trợ ứng dụng
+function doPost(e) {
+  var data = JSON.parse(e.postData.contents);
+  return ContentService.createTextOutput(JSON.stringify({ status: 'success' }))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+`;
