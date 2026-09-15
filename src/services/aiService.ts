@@ -156,23 +156,34 @@ export async function compressBase64Image(
   });
 }
 
+export const GEMINI_API_KEY_STORAGE = 'GEMINI_AI_API_KEY';
+
+export const getGeminiApiKey = (): string => {
+  const savedKey = localStorage.getItem('GEMINI_AI_API_KEY');
+  if (savedKey && savedKey.trim() !== '') {
+    return savedKey.trim();
+  }
+  const oldKey = localStorage.getItem('gemini_api_key') || localStorage.getItem('tnh_gvcn_gemini_api_key_v1');
+  if (oldKey && oldKey.trim() !== '') {
+    return oldKey.trim();
+  }
+  // Dự phòng nếu có cấu hình qua biến môi trường .env
+  return (import.meta.env.VITE_GEMINI_API_KEY || '').trim();
+};
+
 export function getStoredApiKey(): string {
-  return (
-    localStorage.getItem('gemini_api_key') ||
-    localStorage.getItem('tnh_gvcn_gemini_api_key_v1') ||
-    ''
-  ).trim();
+  return getGeminiApiKey();
 }
 
 /**
  * Gọi Gemini AI qua Direct Client API hoặc Server API Proxy với cơ chế Tự động Fallback Model
  */
 export async function callGeminiAI(params: AICallParams): Promise<{ text: string; usedModel: string }> {
-  const localKey = getStoredApiKey();
+  const localKey = getGeminiApiKey();
 
   // Kiểm tra API Key: nếu chưa cấu hình apiKey, báo ngay
   if (!localKey || localKey.trim() === '') {
-    throw new Error('Bạn chưa nhập mã Khóa API Google Gemini AI. Vui lòng vào Cài Đặt & Kết Nối AI để cấu hình.');
+    throw new Error('Chưa tìm thấy mã Gemini API Key. Vui lòng vào Cài đặt để dán khóa API.');
   }
 
   let localModel = localStorage.getItem('selected_model') || 'gemini-3-flash-preview';
