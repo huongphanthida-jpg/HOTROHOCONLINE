@@ -91,6 +91,49 @@ export function cleanAiProseText(rawText: string): string {
 }
 
 /**
+ * Bóc tách và parse JSON an toàn từ chuỗi phản hồi AI, tự động loại bỏ markdown code block và văn bản thừa xung quanh
+ */
+export function cleanAndParseJSON(rawText: string): any {
+  if (!rawText) return null;
+  let cleaned = rawText.trim();
+
+  // Xóa bỏ các thẻ code block ```json hoặc ``` nếu có
+  if (cleaned.startsWith('```json')) {
+    cleaned = cleaned.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+  } else if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '');
+  }
+
+  // Tìm vị trí của mảng JSON [...] hoặc đối tượng JSON {...}
+  const firstArray = cleaned.indexOf('[');
+  const lastArray = cleaned.lastIndexOf(']');
+  const firstObject = cleaned.indexOf('{');
+  const lastObject = cleaned.lastIndexOf('}');
+
+  let firstBracket = -1;
+  let lastBracket = -1;
+
+  if (firstArray !== -1 && lastArray !== -1 && lastArray > firstArray) {
+    if (firstObject !== -1 && firstObject < firstArray && lastObject > lastArray) {
+      firstBracket = firstObject;
+      lastBracket = lastObject;
+    } else {
+      firstBracket = firstArray;
+      lastBracket = lastArray;
+    }
+  } else if (firstObject !== -1 && lastObject !== -1 && lastObject > firstObject) {
+    firstBracket = firstObject;
+    lastBracket = lastObject;
+  }
+
+  if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+    cleaned = cleaned.substring(firstBracket, lastBracket + 1);
+  }
+
+  return JSON.parse(cleaned);
+}
+
+/**
  * Nén ảnh Base64 bằng HTML Canvas trước khi gửi Gemini API (tối đa maxWidth = 1280px, quality = 0.8)
  * Giảm dung lượng payload gửi API, ngăn ngừa lỗi 400 Payload Too Large hoặc sập API khi gửi nhiều trang SGK
  */
@@ -249,7 +292,7 @@ export async function callGeminiAI(params: AICallParams): Promise<{ text: string
               generationConfig: {
                 temperature: params.temperature ?? 0.2,
                 maxOutputTokens: params.maxOutputTokens ?? 4096,
-                responseMimeType: params.responseMimeType,
+                responseMimeType: params.responseMimeType || 'application/json',
               },
             }),
           }
@@ -412,8 +455,7 @@ Nhiệm vụ của bạn:
   });
 
   try {
-    const cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-    return JSON.parse(cleaned);
+    return cleanAndParseJSON(text);
   } catch (e) {
     // Fallback if formatting was non-strict
     return {
@@ -718,10 +760,10 @@ Trả về DUY NHẤT một mảng JSON hợp lệ chứa đúng ${count} câu h
       prompt,
       images,
       temperature: 0.2,
+      responseMimeType: 'application/json',
     });
 
-    const cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-    const rawList = JSON.parse(cleaned);
+    const rawList = cleanAndParseJSON(text);
 
     if (Array.isArray(rawList) && rawList.length > 0) {
       const parsedQuestions: Question[] = rawList.map((item: any, idx: number): Question => {
@@ -1011,14 +1053,7 @@ HÃY ĐẢM BẢO DỮ LIỆU JSON ĐẦY ĐỦ, HỢP LỆ VÀ ĐÚNG CHUẨN.`
       temperature: 0.2,
     });
 
-    let raw = response.text.trim();
-    if (raw.startsWith('```json')) {
-      raw = raw.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-    } else if (raw.startsWith('```')) {
-      raw = raw.replace(/^```\s*/, '').replace(/\s*```$/, '');
-    }
-
-    const parsed = JSON.parse(raw);
+    const parsed = cleanAndParseJSON(response.text);
     
     // Normalize dragDropData
     const rawDragDrop = parsed.dragDropData || parsed.drag_drop_data || parsed.dragDrop || parsed.drag_drop;
@@ -1185,7 +1220,7 @@ Hãy đánh giá và trả về kết quả định dạng JSON thuần túy (kh
       responseMimeType: 'application/json',
     });
 
-    const parsed = JSON.parse(res.text);
+    const parsed = cleanAndParseJSON(res.text);
     return {
       score: parsed.score ?? Math.round(maxPoints * 0.8),
       isCorrect: parsed.isCorrect ?? (parsed.score >= maxPoints / 2),
@@ -1270,11 +1305,11 @@ ${fileData.slice(0, 30000)}
     const { text } = await callGeminiAI({
       prompt,
       temperature: 0.2,
+      responseMimeType: 'application/json',
       images: images.length > 0 ? images.map((img) => ({ mimeType: img.mimeType, data: img.data })) : undefined,
     });
 
-    const cleaned = text.replace(/```json/gi, '').replace(/```/g, '').trim();
-    const parsed = JSON.parse(cleaned);
+    const parsed = cleanAndParseJSON(text);
 
     if (Array.isArray(parsed) && parsed.length > 0) {
       return parsed.map((q: any, idx: number) => {
