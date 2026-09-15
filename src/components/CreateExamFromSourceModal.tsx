@@ -533,7 +533,10 @@ export const CreateExamFromSourceModal: React.FC<CreateExamFromSourceModalProps>
       setGeneratedQuestions(sanitizedQuestions);
       setStep('preview');
     } catch (err: any) {
-      setErrorMsg(err.message || 'Có lỗi xảy ra trong quá trình AI tạo đề thi.');
+      console.error('Lỗi khi gọi AI tạo đề thi:', err);
+      const msg = err.message || 'Có lỗi xảy ra trong quá trình AI tạo đề thi.';
+      setErrorMsg(msg);
+      alert(`Lỗi gọi AI: ${msg}`);
     } finally {
       setIsGenerating(false);
     }
