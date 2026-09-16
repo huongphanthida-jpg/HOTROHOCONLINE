@@ -22,10 +22,11 @@ export interface AICallParams {
 }
 
 export const AVAILABLE_MODELS = [
-  { id: 'gemini-3-flash-preview', name: 'gemini-3-flash-preview (Mặc định - Nhanh & Chuẩn)', tag: 'Mặc định' },
-  { id: 'gemini-3-pro-preview', name: 'gemini-3-pro-preview (Suy luận sâu - Nâng cao)', tag: 'Pro Suy Luận' },
-  { id: 'gemini-2.5-flash', name: 'gemini-2.5-flash (Tự động dự phòng khi lỗi API)', tag: 'Ổn định' },
-  { id: 'gemini-3.1-flash-lite', name: 'gemini-3.1-flash-lite (Siêu tốc & Chịu tải cao)', tag: 'Siêu tốc' },
+  { id: 'gemini-2.5-flash', name: 'gemini-2.5-flash (Mặc định - Nhanh & Multimodal)', tag: 'Mặc định' },
+  { id: 'gemini-2.0-flash', name: 'gemini-2.0-flash (Tốc độ cao & Chịu tải)', tag: 'Siêu tốc' },
+  { id: 'gemini-2.5-pro', name: 'gemini-2.5-pro (Suy luận sâu - Nâng cao)', tag: 'Pro Suy Luận' },
+  { id: 'gemini-1.5-flash', name: 'gemini-1.5-flash (Ổn định & Tiết kiệm Quota)', tag: 'Ổn định' },
+  { id: 'gemini-1.5-pro', name: 'gemini-1.5-pro (Phân tích chuyên sâu)', tag: 'Chuyên sâu' },
 ];
 
 /**
@@ -215,15 +216,15 @@ export async function callGeminiAI(params: AICallParams): Promise<{ text: string
     throw new Error('Chưa tìm thấy mã Gemini API Key. Vui lòng vào Cài đặt để dán khóa API.');
   }
 
-  let localModel = localStorage.getItem('selected_model') || 'gemini-3-flash-preview';
+  let localModel = localStorage.getItem('selected_model') || 'gemini-2.5-flash';
   let model = params.model || localModel;
 
   const candidateModels = Array.from(
     new Set([
       model,
-      'gemini-3-flash-preview',
-      'gemini-3-pro-preview',
       'gemini-2.5-flash',
+      'gemini-2.0-flash',
+      'gemini-2.5-pro',
       'gemini-1.5-flash',
       'gemini-1.5-pro',
     ])
@@ -236,12 +237,8 @@ export async function callGeminiAI(params: AICallParams): Promise<{ text: string
       const compressedBase64 = await compressBase64Image(img.data, img.mimeType || 'image/jpeg', 1280, 0.8);
       if (compressedBase64) {
         imageParts.push({
-          inline_data: {
-            mime_type: 'image/jpeg',
-            data: compressedBase64,
-          },
           inlineData: {
-            mimeType: 'image/jpeg',
+            mimeType: img.mimeType || 'image/jpeg',
             data: compressedBase64,
           },
         });
@@ -304,15 +301,15 @@ export async function callGeminiAI(params: AICallParams): Promise<{ text: string
           } catch {}
 
           if (directRes.status === 401 || directRes.status === 403) {
-            throw new Error('API Key không hợp lệ hoặc đã hết hạn. Vui lòng bấm link màu đỏ trên Header để lấy API Key mới!');
+            throw new Error('API Key không hợp lệ hoặc đã hết hạn. Vui lòng vào Cài đặt để kiểm tra hoặc nhập API Key mới!');
           }
-          
+
           lastErrorMessage = `${candidateModel}: ${errMsg}`;
-          console.warn(`Gemini model ${candidateModel} failed with status ${directRes.status}, trying fallback model...`);
+          console.warn(`Gemini model ${candidateModel} failed with status ${directRes.status}: ${errMsg}, trying fallback model...`);
           // Continue loop to try next candidate model
         }
       } catch (directErr: any) {
-        if (directErr.message && directErr.message.includes('API Key')) {
+        if (directErr.message && (directErr.message.includes('API Key') || directErr.message.includes('401') || directErr.message.includes('403'))) {
           throw directErr;
         }
         lastErrorMessage = directErr.message || String(directErr);
@@ -320,8 +317,11 @@ export async function callGeminiAI(params: AICallParams): Promise<{ text: string
       }
     }
 
-    if (lastErrorMessage && lastErrorMessage.includes('429')) {
-      throw new Error('API Key của bạn đã vượt quá giới hạn lượt gọi (Rate Limit 429). Vui lòng đổi Key khác hoặc thử lại sau.');
+    if (lastErrorMessage) {
+      if (lastErrorMessage.includes('429') || lastErrorMessage.includes('RESOURCE_EXHAUSTED')) {
+        throw new Error('API Key của bạn đã đạt giới hạn lượt gọi (Rate Limit 429). Vui lòng đổi Key khác hoặc thử lại sau vài phút.');
+      }
+      throw new Error(`Lỗi kết nối Gemini API (${lastErrorMessage}). Vui lòng kiểm tra lại mã API Key trong Cài đặt.`);
     }
   }
 
