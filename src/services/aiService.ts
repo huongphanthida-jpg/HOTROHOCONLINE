@@ -93,7 +93,82 @@ export function cleanAiProseText(rawText: string): string {
 }
 
 /**
- * Bóc tách và parse JSON an toàn từ chuỗi phản hồi AI, tự động loại bỏ markdown code block và văn bản thừa xung quanh
+ * Sửa các ký tự xuống dòng chưa được escape trong chuỗi JSON string
+ */
+function fixRawNewlinesInJSONStrings(jsonStr: string): string {
+  let inString = false;
+  let isEscaped = false;
+  let result = '';
+
+  for (let i = 0; i < jsonStr.length; i++) {
+    const char = jsonStr[i];
+
+    if (char === '"' && !isEscaped) {
+      inString = !inString;
+      result += char;
+    } else if (inString && (char === '\n' || char === '\r')) {
+      if (char === '\n') {
+        result += '\\n';
+      }
+    } else if (char === '\\' && !isEscaped) {
+      isEscaped = true;
+      result += char;
+      continue;
+    } else {
+      result += char;
+    }
+    isEscaped = false;
+  }
+  return result;
+}
+
+/**
+ * Tự động đóng các chuỗi quote " và mảng/đối tượng JSON bị ngắt giữa chừng do chạm maxOutputTokens
+ */
+function repairTruncatedJSON(jsonStr: string): string {
+  let inString = false;
+  let isEscaped = false;
+  const stack: string[] = [];
+
+  for (let i = 0; i < jsonStr.length; i++) {
+    const char = jsonStr[i];
+
+    if (char === '\\' && !isEscaped) {
+      isEscaped = true;
+      continue;
+    }
+
+    if (char === '"' && !isEscaped) {
+      inString = !inString;
+    } else if (!inString) {
+      if (char === '{') stack.push('}');
+      else if (char === '[') stack.push(']');
+      else if (char === '}' || char === ']') {
+        if (stack.length > 0 && stack[stack.length - 1] === char) {
+          stack.pop();
+        }
+      }
+    }
+    isEscaped = false;
+  }
+
+  let repaired = jsonStr.trim();
+  if (inString) {
+    repaired += '"';
+  }
+
+  repaired = repaired.replace(/,\s*$/, '');
+
+  while (stack.length > 0) {
+    repaired += stack.pop();
+  }
+
+  return repaired;
+}
+
+/**
+ * Bóc tách và parse JSON an toàn từ chuỗi phản hồi AI, tự động loại bỏ markdown code block,
+ * sửa ký tự xuống dòng chưa escape và khôi phục chuỗi JSON bị ngắt đoạn.
  */
 export function cleanAndParseJSON<T = any>(rawText: string): T {
   if (!rawText) return null as unknown as T;
@@ -116,9 +191,43 @@ export function cleanAndParseJSON<T = any>(rawText: string): T {
     cleaned = cleaned.substring(firstBracket, lastBracket + 1);
   } else if (firstBrace !== -1 && lastBrace !== -1) {
     cleaned = cleaned.substring(firstBrace, lastBrace + 1);
+  } else if (firstBracket !== -1) {
+    cleaned = cleaned.substring(firstBracket);
+  } else if (firstBrace !== -1) {
+    cleaned = cleaned.substring(firstBrace);
   }
 
-  return JSON.parse(cleaned) as T;
+  // Lần 1: Parse trực tiếp
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch (e1) {
+    // Lần 2: Sửa xuống dòng thô chưa escape trong chuỗi string
+    try {
+      const fixedNewlines = fixRawNewlinesInJSONStrings(cleaned);
+      return JSON.parse(fixedNewlines) as T;
+    } catch (e2) {
+      // Lần 3: Sửa xuống dòng + Tự động đóng chuỗi/mảng/đối tượng bị ngắt đoạn
+      try {
+        const fixedNewlines = fixRawNewlinesInJSONStrings(cleaned);
+        const repaired = repairTruncatedJSON(fixedNewlines);
+        return JSON.parse(repaired) as T;
+      } catch (e3) {
+        // Lần 4: Loose JS Object Evaluation Fallback
+        try {
+          const fixedNewlines = fixRawNewlinesInJSONStrings(cleaned);
+          const repaired = repairTruncatedJSON(fixedNewlines);
+          const safeEval = new Function(`"use strict"; return (${repaired});`);
+          const res = safeEval();
+          if (res && typeof res === 'object') return res as T;
+        } catch (e4) {
+          console.error('All JSON parsing attempts failed:', { rawText, e1, e3, e4 });
+          throw new Error('Dữ liệu JSON từ AI chứa ký tự ngắt dòng hoặc bị cắt ngắn. Vui lòng bấm thử lại!');
+        }
+      }
+    }
+  }
+
+  throw new Error('Dữ liệu JSON từ AI không hợp lệ.');
 }
 
 /**
@@ -268,7 +377,7 @@ export async function callGeminiAI(params: AICallParams): Promise<{ text: string
           contents: contentsPayload,
           generationConfig: {
             temperature: params.temperature ?? 0.2,
-            maxOutputTokens: params.maxOutputTokens ?? 4096,
+            maxOutputTokens: params.maxOutputTokens ?? 8192,
           },
         };
 
