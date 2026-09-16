@@ -11,23 +11,23 @@ export interface GeminiModelInfo {
 
 export const GEMINI_MODELS: GeminiModelInfo[] = [
   {
-    id: 'gemini-3-flash-preview',
-    name: 'Gemini 3 Flash Preview',
+    id: 'gemini-1.5-flash',
+    name: 'Gemini 1.5 Flash',
     description: 'Model tốc độ cao, phản hồi nhanh, tối ưu cho tạo đề thi & cố vấn sư phạm hàng ngày (Mặc định).',
     badge: 'Khuyên Dùng (Default)',
     isDefault: true,
   },
   {
-    id: 'gemini-3-pro-preview',
-    name: 'Gemini 3 Pro Preview',
-    description: 'Model tư duy sâu chuyên biệt, thích hợp cho phân tích ma trận đề thi & lập hồ sơ học bạ phức tạp.',
-    badge: 'Tư Duy Sâu',
+    id: 'gemini-2.0-flash',
+    name: 'Gemini 2.0 Flash',
+    description: 'Model đa thức thế hệ mới, xử lý hình ảnh và văn bản siêu tốc.',
+    badge: 'Siêu Tốc',
   },
   {
-    id: 'gemini-2.5-flash',
-    name: 'Gemini 2.5 Flash',
-    description: 'Model ổn định, tiết kiệm dung lượng Quota API và đảm bảo dự phòng khi các model mới bị bận.',
-    badge: 'Dự Phòng Tốt',
+    id: 'gemini-1.5-pro',
+    name: 'Gemini 1.5 Pro',
+    description: 'Model tư duy sâu chuyên biệt, thích hợp cho phân tích ma trận đề thi & lập hồ sơ học bạ phức tạp.',
+    badge: 'Tư Duy Sâu',
   },
 ];
 
@@ -40,7 +40,7 @@ export function saveStoredGeminiApiKey(key: string): void {
 }
 
 export function getStoredGeminiModel(): string {
-  return localStorage.getItem(MODEL_STORAGE_KEY) || 'gemini-3-flash-preview';
+  return localStorage.getItem(MODEL_STORAGE_KEY) || 'gemini-1.5-flash';
 }
 
 export function saveStoredGeminiModel(modelId: string): void {
@@ -49,7 +49,7 @@ export function saveStoredGeminiModel(modelId: string): void {
 
 /**
  * Execute Gemini AI request with automatic multi-model fallback mechanism
- * Order: [Selected Model] -> gemini-3-flash-preview -> gemini-3-pro-preview -> gemini-2.5-flash
+ * Order: [Selected Model] -> gemini-1.5-flash -> gemini-2.0-flash -> gemini-1.5-pro
  */
 export async function executeGeminiWithFallback<T>(
   requestFn: (model: string, apiKey: string) => Promise<T>,
@@ -60,7 +60,7 @@ export async function executeGeminiWithFallback<T>(
   const primaryModel = userModel || getStoredGeminiModel();
 
   const fallbackSequence = Array.from(
-    new Set([primaryModel, 'gemini-3-flash-preview', 'gemini-3-pro-preview', 'gemini-2.5-flash'])
+    new Set([primaryModel, 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'])
   );
 
   let lastError: any = null;
