@@ -144,6 +144,15 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
 
   const shareUrl = useCompactZaloUrl ? shortShareUrl : fullPayloadUrl;
 
+  // Minimal ID-only URL guaranteed to fit in QR Code (< 150 chars)
+  const cleanIdUrl = useMemo(() => {
+    const scriptUrl = getGoogleScriptUrl();
+    const suParam = scriptUrl ? `&scriptUrl=${encodeURIComponent(scriptUrl)}` : '';
+    return type === 'game'
+      ? `${resolvedBaseUrl}/play?gameId=${encodeURIComponent(targetId)}&role=student${suParam}`
+      : `${resolvedBaseUrl}/?exam=${encodeURIComponent(targetId)}&role=student${suParam}`;
+  }, [resolvedBaseUrl, type, targetId]);
+
   useEffect(() => {
     if (!isOpen || !targetId) return;
 
@@ -164,13 +173,13 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
           setQrDataUrl(url);
         }
       } catch (err) {
-        console.warn('QR code generation warning:', err);
-        // If full payload URL failed, try compact payload (3 questions) before giving up on payload
+        console.warn('QR code generation warning, trying fallback:', err);
+        // Step 1: If full payload URL failed for exam, try compact payload (3 questions)
         if (type === 'exam' && subject && questions && textToRender === fullPayloadUrl) {
           try {
             const compactPayload = encodeExamPayload(subject, questions, 3);
             if (compactPayload) {
-              const fallbackUrl = `${resolvedBaseUrl}?${type}=${encodeURIComponent(targetId)}&role=student&payload=${compactPayload}`;
+              const fallbackUrl = `${resolvedBaseUrl}/?exam=${encodeURIComponent(targetId)}&role=student&payload=${compactPayload}`;
               const url = await QRCode.toDataURL(fallbackUrl, {
                 width: 600,
                 margin: 2,
@@ -186,8 +195,31 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
             console.warn('Compact payload QR failed:', e2);
           }
         }
-        if (textToRender !== shortShareUrl) {
+
+        // Step 2: Try shortShareUrl if different
+        if (textToRender !== shortShareUrl && textToRender !== cleanIdUrl) {
           generateQR(shortShareUrl);
+          return;
+        }
+
+        // Step 3 (GUARANTEED FALLBACK): Render clean ID URL (short & clean, 100% fits in QR Code)
+        if (textToRender !== cleanIdUrl) {
+          try {
+            const url = await QRCode.toDataURL(cleanIdUrl, {
+              width: 600,
+              margin: 2,
+              errorCorrectionLevel: 'L',
+              color: {
+                dark: type === 'exam' ? '#042f2e' : '#1e1b4b',
+                light: '#ffffff',
+              },
+            });
+            if (isMounted) {
+              setQrDataUrl(url);
+            }
+          } catch (finalErr) {
+            console.error('Final QR generation fallback failed:', finalErr);
+          }
         }
       }
     };
@@ -197,7 +229,7 @@ export const QRCodeShareModal: React.FC<QRCodeShareModalProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [isOpen, targetId, shareUrl, shortShareUrl, type, fullPayloadUrl, subject, questions, resolvedBaseUrl]);
+  }, [isOpen, targetId, shareUrl, shortShareUrl, cleanIdUrl, type, fullPayloadUrl, subject, questions, resolvedBaseUrl]);
 
   if (!isOpen) return null;
 
