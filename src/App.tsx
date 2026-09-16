@@ -13,7 +13,7 @@ import {
 } from './types';
 import { INITIAL_DATA } from './data/initialData';
 import Sidebar, { NavigationTab } from './components/Sidebar';
-import {FeatureHeader} from './components/FeatureHeader';
+import FeatureHeader from './components/FeatureHeader';
 import SubjectCardsView from './components/SubjectCardsView';
 import StudentInfoModal from './components/StudentInfoModal';
 import ExamView from './components/ExamView';
@@ -40,9 +40,11 @@ export default function App() {
         const parsed = JSON.parse(saved);
         if (
           parsed.settings?.selectedModel === 'gemini-3.6-flash' ||
-          parsed.settings?.selectedModel === 'gemini-2.0-flash'
+          parsed.settings?.selectedModel === 'gemini-3.8-flash' ||
+          parsed.settings?.selectedModel === 'gemini-3-flash-preview' ||
+          parsed.settings?.selectedModel === 'gemini-2.5-flash'
         ) {
-          parsed.settings.selectedModel = 'gemini-3.8-flash';
+          parsed.settings.selectedModel = 'gemini-1.5-flash';
         }
         if (!parsed.games || parsed.games.length === 0) {
           parsed.games = INITIAL_DATA.games || [];
