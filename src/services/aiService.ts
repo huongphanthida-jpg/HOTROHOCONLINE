@@ -21,12 +21,13 @@ export interface AICallParams {
   images?: { mimeType: string; data: string }[];
 }
 
+export const PRIMARY_MODEL = "gemini-2.5-flash";
+export const FALLBACK_MODEL = "gemini-1.5-flash";
+
 export const AVAILABLE_MODELS = [
-  { id: 'gemini-1.5-flash', name: 'gemini-1.5-flash (Mặc định - Nhanh, Chuẩn & Multimodal)', tag: 'Mặc định' },
+  { id: PRIMARY_MODEL, name: `${PRIMARY_MODEL} (Mặc định - Vision & Trắc nghiệm)`, tag: 'Mặc định' },
+  { id: FALLBACK_MODEL, name: `${FALLBACK_MODEL} (Dự phòng ổn định)`, tag: 'Ổn định' },
   { id: 'gemini-2.0-flash', name: 'gemini-2.0-flash (Tốc độ cao & Thế hệ mới)', tag: 'Siêu tốc' },
-  { id: 'gemini-1.5-pro', name: 'gemini-1.5-pro (Suy luận sâu - Nâng cao)', tag: 'Pro' },
-  { id: 'gemini-1.5-flash-latest', name: 'gemini-1.5-flash-latest (Bản cập nhật mới nhất)', tag: 'Mới nhất' },
-  { id: 'gemini-2.0-flash-exp', name: 'gemini-2.0-flash-exp (Thử nghiệm 2.0)', tag: 'Thử nghiệm' },
 ];
 
 /**
@@ -216,15 +217,15 @@ export async function callGeminiAI(params: AICallParams): Promise<{ text: string
     throw new Error('Chưa tìm thấy mã Gemini API Key. Vui lòng vào Cài đặt để dán khóa API.');
   }
 
-  let localModel = localStorage.getItem('selected_model') || 'gemini-1.5-flash';
+  let localModel = localStorage.getItem('selected_model') || PRIMARY_MODEL;
   let model = params.model || localModel;
 
   const candidateModels = Array.from(
     new Set([
       model,
-      'gemini-1.5-flash',
+      PRIMARY_MODEL,
+      FALLBACK_MODEL,
       'gemini-2.0-flash',
-      'gemini-1.5-pro',
     ])
   );
 
