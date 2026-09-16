@@ -39,11 +39,10 @@ export default function App() {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (
-          parsed.settings?.selectedModel === 'gemini-3.6-flash' ||
-          parsed.settings?.selectedModel === 'gemini-3.8-flash' ||
-          parsed.settings?.selectedModel === 'gemini-3-flash-preview' ||
-          parsed.settings?.selectedModel === 'gemini-2.5-flash'
+          !parsed.settings?.selectedModel ||
+          parsed.settings?.selectedModel !== 'gemini-1.5-flash'
         ) {
+          parsed.settings = parsed.settings || {};
           parsed.settings.selectedModel = 'gemini-1.5-flash';
         }
         if (!parsed.games || parsed.games.length === 0) {
