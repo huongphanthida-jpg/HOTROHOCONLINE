@@ -9,28 +9,16 @@ export interface GeminiModelInfo {
   isDefault?: boolean;
 }
 
-export const PRIMARY_MODEL = "gemini-2.5-flash";
+export const PRIMARY_MODEL = "gemini-1.5-flash";
 export const FALLBACK_MODEL = "gemini-1.5-flash";
 
 export const GEMINI_MODELS: GeminiModelInfo[] = [
   {
     id: PRIMARY_MODEL,
-    name: 'Gemini 2.5 Flash',
+    name: 'Gemini 1.5 Flash',
     description: 'Model tối ưu cho Vision & Trắc nghiệm (Mặc định).',
     badge: 'Khuyên Dùng (Default)',
     isDefault: true,
-  },
-  {
-    id: FALLBACK_MODEL,
-    name: 'Gemini 1.5 Flash',
-    description: 'Model tốc độ cao, phản hồi nhanh, tự động dự phòng khi model chính bận/404.',
-    badge: 'Dự Phòng Tốt',
-  },
-  {
-    id: 'gemini-2.0-flash',
-    name: 'Gemini 2.0 Flash',
-    description: 'Model đa thức thế hệ mới, xử lý hình ảnh và văn bản siêu tốc.',
-    badge: 'Siêu Tốc',
   },
 ];
 
@@ -52,7 +40,7 @@ export function saveStoredGeminiModel(modelId: string): void {
 
 /**
  * Execute Gemini AI request with automatic multi-model fallback mechanism
- * Order: [Selected Model] -> PRIMARY_MODEL -> FALLBACK_MODEL -> gemini-2.0-flash
+ * Order: [Selected Model] -> PRIMARY_MODEL -> FALLBACK_MODEL -> gemini-1.5-flash
  */
 export async function executeGeminiWithFallback<T>(
   requestFn: (model: string, apiKey: string) => Promise<T>,
@@ -62,9 +50,25 @@ export async function executeGeminiWithFallback<T>(
   const apiKey = userApiKey || getStoredGeminiApiKey();
   const primaryModel = userModel || getStoredGeminiModel();
 
+  const rawCandidates = [primaryModel, PRIMARY_MODEL, FALLBACK_MODEL, 'gemini-1.5-flash'];
   const fallbackSequence = Array.from(
-    new Set([primaryModel, PRIMARY_MODEL, FALLBACK_MODEL, 'gemini-2.0-flash'])
+    new Set(
+      rawCandidates.filter(
+        (m) =>
+          m &&
+          typeof m === 'string' &&
+          !m.includes('2.0') &&
+          !m.includes('2.5') &&
+          !m.includes('3.') &&
+          !m.includes('pro') &&
+          !m.includes('exp')
+      )
+    )
   );
+
+  if (fallbackSequence.length === 0) {
+    fallbackSequence.push('gemini-1.5-flash');
+  }
 
   let lastError: any = null;
 
