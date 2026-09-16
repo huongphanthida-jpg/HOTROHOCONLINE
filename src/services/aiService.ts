@@ -21,13 +21,11 @@ export interface AICallParams {
   images?: { mimeType: string; data: string }[];
 }
 
-export const PRIMARY_MODEL = "gemini-2.5-flash";
+export const PRIMARY_MODEL = "gemini-1.5-flash";
 export const FALLBACK_MODEL = "gemini-1.5-flash";
 
 export const AVAILABLE_MODELS = [
-  { id: PRIMARY_MODEL, name: `${PRIMARY_MODEL} (Mặc định - Vision & Trắc nghiệm)`, tag: 'Mặc định' },
-  { id: FALLBACK_MODEL, name: `${FALLBACK_MODEL} (Dự phòng ổn định)`, tag: 'Ổn định' },
-  { id: 'gemini-2.0-flash', name: 'gemini-2.0-flash (Tốc độ cao & Thế hệ mới)', tag: 'Siêu tốc' },
+  { id: 'gemini-1.5-flash', name: 'gemini-1.5-flash (Mặc định - Nhanh, Chuẩn & Multimodal Vision)', tag: 'Mặc định' },
 ];
 
 /**
@@ -329,14 +327,25 @@ export async function callGeminiAI(params: AICallParams): Promise<{ text: string
   let localModel = localStorage.getItem('selected_model') || PRIMARY_MODEL;
   let model = params.model || localModel;
 
+  const rawCandidates = [model, PRIMARY_MODEL, FALLBACK_MODEL, 'gemini-1.5-flash'];
   const candidateModels = Array.from(
-    new Set([
-      model,
-      PRIMARY_MODEL,
-      FALLBACK_MODEL,
-      'gemini-2.0-flash',
-    ])
+    new Set(
+      rawCandidates.filter(
+        (m) =>
+          m &&
+          typeof m === 'string' &&
+          !m.includes('2.0') &&
+          !m.includes('2.5') &&
+          !m.includes('3.') &&
+          !m.includes('pro') &&
+          !m.includes('exp')
+      )
+    )
   );
+
+  if (candidateModels.length === 0) {
+    candidateModels.push('gemini-1.5-flash');
+  }
 
   // 1. Nén và bóc tách dữ liệu ảnh chuẩn cho Gemini Multimodal
   const imageParts: any[] = [];
