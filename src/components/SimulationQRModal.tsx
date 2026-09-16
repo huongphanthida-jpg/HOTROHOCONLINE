@@ -61,6 +61,8 @@ export const SimulationQRModal: React.FC<SimulationQRModalProps> = ({
     if (!isOpen || !fullShareUrl) return;
 
     let isMounted = true;
+    const cleanSimIdUrl = `${resolvedBaseUrl}/?simId=${encodeURIComponent(simulation.id)}&role=student`;
+
     QRCode.toDataURL(fullShareUrl, {
       errorCorrectionLevel: 'L',
       margin: 2,
@@ -74,7 +76,17 @@ export const SimulationQRModal: React.FC<SimulationQRModalProps> = ({
         if (isMounted) setQrDataUrl(url);
       })
       .catch((err) => {
-        console.warn('Error generating simulation QR code:', err);
+        console.warn('Error generating simulation QR code, trying fallback:', err);
+        QRCode.toDataURL(cleanSimIdUrl, {
+          errorCorrectionLevel: 'L',
+          margin: 2,
+          scale: 8,
+          color: { dark: '#0f766e', light: '#ffffff' },
+        })
+          .then((fallbackUrl) => {
+            if (isMounted) setQrDataUrl(fallbackUrl);
+          })
+          .catch((e2) => console.error('Final simulation QR fallback failed:', e2));
       });
 
     return () => {
