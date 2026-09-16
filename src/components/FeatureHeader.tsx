@@ -126,29 +126,16 @@ export const FeatureHeader: React.FC<FeatureHeaderProps> = ({
 
       {/* Right: Actions & Indicators */}
       <div className="flex items-center space-x-2 sm:space-x-3">
-        {/* Role Switcher Badge Button */}
-        {onSwitchRole && (
+        {/* Role Switcher Badge Button for Teacher */}
+        {onSwitchRole && !isStudent && (
           <button
             type="button"
             onClick={onSwitchRole}
-            className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center space-x-1.5 transition-all shadow-2xs active:scale-95 ${
-              isStudent
-                ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-200 hover:bg-amber-100'
-                : 'bg-teal-50 dark:bg-teal-950/40 border-teal-300 dark:border-teal-700 text-teal-800 dark:text-teal-200 hover:bg-teal-100'
-            }`}
-            title={isStudent ? 'Đang ở vai trò Học Sinh (Bấm để đổi sang Giáo Viên)' : 'Đang ở vai trò Giáo Viên (Bấm để đổi sang Học Sinh)'}
+            className="px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center space-x-1.5 transition-all shadow-2xs active:scale-95 bg-teal-50 dark:bg-teal-950/40 border-teal-300 dark:border-teal-700 text-teal-800 dark:text-teal-200 hover:bg-teal-100"
+            title="Đang ở vai trò Giáo Viên (Bấm để đổi sang Học Sinh)"
           >
-            {isStudent ? (
-              <>
-                <User className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                <span className="hidden xs:inline">🎓 Học Sinh</span>
-              </>
-            ) : (
-              <>
-                <ShieldCheck className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
-                <span className="hidden xs:inline">👨‍🏫 Giáo Viên</span>
-              </>
-            )}
+            <ShieldCheck className="w-3.5 h-3.5 text-teal-600 dark:text-teal-400" />
+            <span className="hidden xs:inline">👨‍🏫 Giáo Viên</span>
           </button>
         )}
 
