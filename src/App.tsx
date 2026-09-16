@@ -1389,14 +1389,6 @@ export default function App() {
               <span className="text-[11px] font-bold px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
                 🎓 Quyền Học Sinh
               </span>
-              <button
-                type="button"
-                onClick={handleSwitchRoleRequest}
-                className="text-[10px] font-bold px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
-                title="Dành cho Giáo viên: Nhập mã PIN để mở toàn bộ giao diện quản trị"
-              >
-                🔑 Quản Trị (PIN)
-              </button>
             </div>
           </header>
         )}
