@@ -224,10 +224,7 @@ export async function callGeminiAI(params: AICallParams): Promise<{ text: string
       model,
       'gemini-1.5-flash',
       'gemini-2.0-flash',
-      'gemini-1.5-flash-latest',
       'gemini-1.5-pro',
-      'gemini-1.5-pro-latest',
-      'gemini-2.0-flash-exp',
     ])
   );
 
@@ -266,21 +263,45 @@ export async function callGeminiAI(params: AICallParams): Promise<{ text: string
 
     for (const candidateModel of candidateModels) {
       try {
-        const directRes = await fetch(
+        const bodyObj: any = {
+          contents: contentsPayload,
+          generationConfig: {
+            temperature: params.temperature ?? 0.2,
+            maxOutputTokens: params.maxOutputTokens ?? 4096,
+          },
+        };
+
+        if (params.responseMimeType) {
+          bodyObj.generationConfig.responseMimeType = params.responseMimeType;
+        }
+
+        if (params.systemInstruction) {
+          bodyObj.systemInstruction = {
+            parts: [{ text: params.systemInstruction }],
+          };
+        }
+
+        let directRes = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/${candidateModel}:generateContent?key=${localKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: contentsPayload,
-              generationConfig: {
-                temperature: params.temperature ?? 0.2,
-                maxOutputTokens: params.maxOutputTokens ?? 4096,
-                responseMimeType: params.responseMimeType || 'application/json',
-              },
-            }),
+            body: JSON.stringify(bodyObj),
           }
         );
+
+        // Retrying without responseMimeType if 400 Bad Request
+        if (!directRes.ok && bodyObj.generationConfig.responseMimeType) {
+          delete bodyObj.generationConfig.responseMimeType;
+          directRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${candidateModel}:generateContent?key=${localKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(bodyObj),
+            }
+          );
+        }
 
         const rawDirectText = await directRes.text();
 
